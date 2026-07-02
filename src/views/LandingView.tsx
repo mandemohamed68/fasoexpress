@@ -8,7 +8,7 @@ import { UserRole } from '../types';
 import LoadingScreen from '../components/LoadingScreen';
 import Logo from '../components/Logo';
 
-const logoImg = '/logo-faso.jpg';
+const logoImg = '/logofaso.png';
 
 type AuthMode = 'login' | 'register' | 'phone';
 

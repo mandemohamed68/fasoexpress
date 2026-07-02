@@ -10,7 +10,7 @@ import { api } from '../services/apiService';
 import { AppConfig } from '../types';
 import Logo from './Logo';
 
-const logoImg = '/logo-faso.jpg';
+const logoImg = '/logofaso.png';
 
 export default function Navbar() {
   const { user, profile, logout, language, setLanguage, t, isMasterAdmin, updateRole } = useAuth();

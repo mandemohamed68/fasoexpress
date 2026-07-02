@@ -24,8 +24,6 @@ import DeliveryTracking from './views/DeliveryTracking';
 import DeliveryHistory from './views/DeliveryHistory';
 import Settings from './views/Settings';
 
-import DynamicFAQ from './components/DynamicFAQ';
-
 const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles?: string[] }> = ({ children, allowedRoles }) => {
   const { user, profile, isMasterAdmin } = useAuth();
 
@@ -150,13 +148,12 @@ function AppRoutes() {
       
       {/* Giant faint overlay watermark of FASO EXPRESS Logo (Option 1) */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[550px] h-[550px] opacity-[0.035] pointer-events-none z-0 select-none">
-        <img src="/logo-faso.jpg" alt="" className="w-full h-full object-contain filter select-none" />
+        <img src="/logofaso.png" alt="" className="w-full h-full object-contain filter select-none" />
       </div>
 
       <AnnouncementBanner />
       <Navbar />
       <NotificationToast />
-      <DynamicFAQ />
       
       {/* Terms and Conditions Enforcement */}
       {user && profile && !profile.termsAcceptedAt && (profile.role === 'client' || profile.role === 'driver') && (
