@@ -372,8 +372,8 @@ export default function LandingView() {
             <button 
               onClick={() => { setIsRegistering(false); setAuthMode('login'); confirmResult && setConfirmResult(null); setIsForgotPassword(false); setResetSent(false); }}
               className={cn(
-                "flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-300",
-                (!isRegistering && authMode !== 'phone' && !isForgotPassword) ? "bg-white text-slate-900 shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600"
+                "flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-300 cursor-pointer",
+                (!isRegistering && !isForgotPassword) ? "bg-white text-slate-900 shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600"
               )}
             >
               Email
@@ -381,20 +381,11 @@ export default function LandingView() {
             <button 
               onClick={() => { setIsRegistering(true); setAuthMode('login'); setIsForgotPassword(false); setResetSent(false); }}
               className={cn(
-                "flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-300",
+                "flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-300 cursor-pointer",
                 isRegistering ? "bg-white text-slate-900 shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600"
               )}
             >
               Inscription
-            </button>
-            <button 
-              onClick={() => { setAuthMode('phone'); setIsRegistering(false); setIsForgotPassword(false); setResetSent(false); }}
-              className={cn(
-                "flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-300",
-                authMode === 'phone' ? "bg-white text-slate-900 shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600"
-              )}
-            >
-              Mobile
             </button>
           </div>
 
@@ -419,7 +410,7 @@ export default function LandingView() {
                   <button 
                     type="button"
                     onClick={() => { setIsForgotPassword(false); setResetSent(false); }}
-                    className="mt-4 text-[10px] font-black text-emerald-700 hover:text-emerald-800 uppercase tracking-widest transition-colors underline"
+                    className="mt-4 text-[10px] font-black text-emerald-700 hover:text-emerald-800 uppercase tracking-widest transition-colors underline cursor-pointer"
                   >
                     Retour à la connexion
                   </button>
@@ -440,7 +431,7 @@ export default function LandingView() {
                   <button 
                     type="submit"
                     disabled={localLoading}
-                    className="w-full bg-slate-900 hover:bg-orange-600 text-white rounded-xl py-4 font-black text-[10px] uppercase tracking-[0.3em] shadow-xl transition-all flex items-center justify-center gap-2 group mt-2"
+                    className="w-full bg-slate-900 hover:bg-orange-600 text-white rounded-xl py-4 font-black text-[10px] uppercase tracking-[0.3em] shadow-xl transition-all flex items-center justify-center gap-2 group mt-2 cursor-pointer"
                   >
                     {localLoading ? "Chargement..." : "Envoyer le lien"}
                     <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
@@ -448,16 +439,12 @@ export default function LandingView() {
                   <button 
                     type="button"
                     onClick={() => setIsForgotPassword(false)}
-                    className="w-full text-center text-[10px] font-black text-slate-400 hover:text-slate-600 uppercase tracking-widest transition-colors mt-2"
+                    className="w-full text-center text-[10px] font-black text-slate-400 hover:text-slate-600 uppercase tracking-widest transition-colors mt-2 cursor-pointer"
                   >
                     Annuler
                   </button>
                 </form>
               )}
-            </div>
-          ) : authMode === 'phone' ? (
-            <div className="py-12 flex flex-col items-center justify-center bg-slate-50 rounded-2xl border border-slate-200 border-dashed">
-               <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] italic text-center">SMS OTP INDISPONIBLE</p>
             </div>
           ) : isRegistering ? (
             <form onSubmit={handleAuth} className="space-y-4">
