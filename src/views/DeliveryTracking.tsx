@@ -17,6 +17,7 @@ import L from 'leaflet';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 // @ts-ignore
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+import toast from 'react-hot-toast';
 
 const customMarkerIcon = new L.Icon({
   iconUrl: markerIcon,
@@ -223,14 +224,14 @@ export default function DeliveryTracking() {
       });
       setShowPaymentModal(false);
       setPaymentBid(null);
-      alert('Paiement enregistré sur le serveur local !');
+      toast('Paiement enregistré sur le serveur local !');
 
       // Refresh delivery data
       const updatedDelivery = await api.deliveries.get(delivery.id);
       setDelivery(updatedDelivery);
     } catch (e) {
       console.error(e);
-      alert('Erreur de paiement sur le serveur local.');
+      toast.error('Erreur de paiement sur le serveur local.');
     }
   };
 
@@ -279,7 +280,7 @@ export default function DeliveryTracking() {
       navigate('/client', { replace: true });
     } catch (error: any) {
       console.error("Delete Error", error);
-      alert("Erreur de suppression locale : " + (error.message || 'Erreur inconnue'));
+      toast.error("Erreur de suppression locale : " + (error.message || 'Erreur inconnue'));
       setIsDeleting(false);
       setShowDeleteConfirm(false);
     }
@@ -296,10 +297,10 @@ export default function DeliveryTracking() {
         boostAmount: (delivery.boostAmount || 0) + 200,
         updatedAt: new Date().toISOString() 
       });
-      alert('Course boostée localement !');
+      toast('Course boostée localement !');
     } catch (err) {
       console.error(err);
-      alert('Erreur lors du boost local.');
+      toast.error('Erreur lors du boost local.');
     } finally {
       setIsBoosting(false);
     }
@@ -631,7 +632,7 @@ export default function DeliveryTracking() {
                                           const found = await api.deliveries.get(deliveryId);
                                           if (found) setDelivery(found);
                                         } catch (err: any) {
-                                          alert("Erreur lors de l'acceptation : " + (err.message || err));
+                                          toast.error("Erreur lors de l'acceptation : " + (err.message || err));
                                         }
                                       }}
                                       className="flex-1 bg-indigo-600 text-white font-black py-4 rounded-[20px] text-[11px] uppercase tracking-widest hover:bg-indigo-700 shadow-xl shadow-indigo-600/20 active:scale-95 transition-all"
@@ -645,9 +646,9 @@ export default function DeliveryTracking() {
                                                await api.deliveries.coursesNegotiations.rejeter(deliveryId, bid.driverId);
                                                const bidsList = await api.deliveries.bids.list(deliveryId);
                                                setBids(Array.isArray(bidsList) ? bidsList : []);
-                                               alert("Proposition refusée");
+                                               toast("Proposition refusée");
                                             } catch (err: any) {
-                                               alert("Impossible de rejeter l'offre : " + (err.message || err));
+                                               toast.error("Impossible de rejeter l'offre : " + (err.message || err));
                                             }
                                          }
                                       }}

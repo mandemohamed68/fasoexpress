@@ -46,7 +46,7 @@ function cleanEnvVal(val, defaultVal = "") {
 function initMariaDB() {
   const host = cleanEnvVal(process.env.DB_HOST, "127.0.0.1");
   const user = cleanEnvVal(process.env.DB_USER, "root");
-  const database = cleanEnvVal(process.env.DB_NAME, "pancho_express_db");
+  const database = cleanEnvVal(process.env.DB_NAME, "faso_express_db");
   const rawPort = cleanEnvVal(process.env.DB_PORT, "3306");
   const port = parseInt(rawPort) || 3306;
   const passwordRaw = process.env.DB_PASSWORD || process.env.DB_PASS || "";
@@ -1456,11 +1456,11 @@ async function startServer() {
         body: JSON.stringify({
           type: "SIMPLE",
           customer: {
-            email: email || "client@pancho.app",
+            email: email || "client@faso.app",
             country: 1
           },
           amount: amount.toString(),
-          note: note || `Livraison PANCHO #${Math.random().toString(36).substr(2, 5)}`
+          note: note || `Livraison FASO #${Math.random().toString(36).substr(2, 5)}`
         })
       });
       let responseText = "";
@@ -2204,10 +2204,10 @@ async function startServer() {
         return res.status(503).json({ error: "Service AI non configur\xE9." });
       }
       const ai = new import_genai.GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      const prompt = `Vous \xEAtes un assistant virtuel pour Pancho Express, une plateforme logistique urbaine (livraisons par moto, tricycle, camionnette) au Burkina Faso. 
+      const prompt = `Vous \xEAtes un assistant virtuel pour Faso Express, une plateforme logistique urbaine (livraisons par moto, tricycle, camionnette) au Burkina Faso. 
 Un utilisateur pose cette question: "${query}". 
 Veuillez r\xE9pondre de mani\xE8re br\xE8ve, claire, professionnelle, et en langue fran\xE7aise. Fournissez uniquement la r\xE9ponse \xE0 la question, sans introduction ni conclusion superflue.
-Informations utiles sur Pancho Express :
+Informations utiles sur Faso Express :
 - Calcul du co\xFBt de livraison : Le co\xFBt est calcul\xE9 en fonction du type de v\xE9hicule, de la distance (calcul\xE9e par g\xE9olocalisation), du poids du colis, d'une \xE9ventuelle urgence (+500 F) et est pond\xE9r\xE9 par notre \xE9quipe si n\xE9cessaire. Pour une moto, c'est g\xE9n\xE9ralement: jusqu'\xE0 10km (1000F), jusqu'\xE0 15km (1500F), au del\xE0 \xE7a ajoute 150F par km. Le poids de la moto rajoute 100F par tranche.
 - Les livraisons se font principalement sur Ouagadougou.
 `;

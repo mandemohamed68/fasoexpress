@@ -1,6 +1,6 @@
 {
-	"appId": "com.pancho.express",
-	"appName": "PANCHO EXPRESS",
+	"appId": "com.faso.express",
+	"appName": "FASO EXPRESS",
 	"webDir": "dist",
 	"server": {
 		"androidScheme": "http",

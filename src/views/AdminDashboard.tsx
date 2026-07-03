@@ -7,7 +7,7 @@ import {
   ClipboardCheck, History, Store, Map as MapIcon, Globe, 
   BadgePercent, CreditCard, Wallet, LogOut, Bell, Settings, Play,
   Plus, Navigation, UserCircle, Percent, Database, Download, Building2, X, Trash2, Zap, Smartphone, Menu,
-  CheckCircle, AlertCircle, Landmark, Info
+  CheckCircle, AlertCircle, Landmark, Info, Phone
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
@@ -18,6 +18,7 @@ import { useAuth, ADMIN_EMAILS } from '../context/AuthContext';
 import { useNavigate, Navigate, useLocation } from 'react-router-dom';
 import LiveMap from '../components/LiveMap';
 import { sendNotification } from '../lib/notificationService';
+import toast from 'react-hot-toast';
 
 const chartData = [];
 
@@ -336,11 +337,11 @@ export default function AdminDashboard() {
         updatedAt: new Date().toISOString(),
         updatedBy: profile?.userId || 'admin'
       });
-      alert('Paramètres de commission locaux mis à jour !');
+      toast.success('Paramètres de commission locaux mis à jour !');
       await fetchData();
     } catch (err) {
       console.error(err);
-      alert('Erreur lors de la mise à jour des commissions.');
+      toast.error('Erreur lors de la mise à jour des commissions.');
     } finally {
       setIsSaving(false);
     }
@@ -385,11 +386,11 @@ export default function AdminDashboard() {
     setIsSaving(true);
     try {
       await api.admin.seed();
-      alert('Données de test injectées sur le serveur local !');
+      toast('Données de test injectées sur le serveur local !');
       fetchData();
     } catch (err) {
       console.error(err);
-      alert('Erreur lors de l\'injection locale.');
+      toast.error('Erreur lors de l\'injection locale.');
     } finally {
       setIsSaving(false);
     }
@@ -397,20 +398,20 @@ export default function AdminDashboard() {
 
   const executeHardReset = async () => {
     if (resetCode.trim().toUpperCase() !== 'RESET') {
-      alert("Veuillez taper exactement 'RESET' pour confirmer.");
+      toast("Veuillez taper exactement 'RESET' pour confirmer.");
       return;
     }
     
     try {
       setIsSaving(true);
       await api.admin.reset();
-      alert("Application réinitialisée localement (Données supprimées) !");
+      toast("Application réinitialisée localement (Données supprimées); !");
       setShowResetConfirm(false);
       setResetCode('');
       fetchData();
     } catch (err) {
       console.error(err);
-      alert("Erreur lors de la réinitialisation locale.");
+      toast.error("Erreur lors de la réinitialisation locale.");
     } finally {
       setIsSaving(false);
     }
@@ -420,11 +421,11 @@ export default function AdminDashboard() {
     setIsProcessingAction(true);
     try {
       await api.admin.withdrawals.validate(withdrawalId);
-      alert('Paiement enregistré avec succès.');
+      toast.success('Paiement enregistré avec succès.');
       fetchData();
     } catch (e: any) {
       console.error(e);
-      alert(`Erreur lors de la validation: ${e.message || 'Erreur inconnue'}`);
+      toast.error(`Erreur lors de la validation: ${e.message || 'Erreur inconnue'}`);
     } finally {
       setIsProcessingAction(false);
     }
@@ -520,7 +521,7 @@ export default function AdminDashboard() {
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newUserData.email || !newUserData.password || !newUserData.name) {
-      alert("Veuillez remplir les informations obligatoires (Nom, Email, Mot de passe).");
+      toast("Veuillez remplir les informations obligatoires (Nom, Email, Mot de passe);.");
       return;
     }
     
@@ -551,7 +552,7 @@ export default function AdminDashboard() {
 
       await api.admin.users.create(newUserProfile);
       
-      alert("Utilisateur créé avec succès sur le serveur local !");
+      toast.success("Utilisateur créé avec succès sur le serveur local !");
       setShowCreateUserModal(false);
       setNewUserData({
         role: 'client',
@@ -562,7 +563,7 @@ export default function AdminDashboard() {
       });
     } catch (err: any) {
       console.error(err);
-      alert("Erreur lors de la création locale : " + (err.message || 'Erreur inconnue'));
+      toast.error("Erreur lors de la création locale : " + (err.message || 'Erreur inconnue'));
     } finally {
       setIsSubmittingNewUser(false);
     }
@@ -574,14 +575,14 @@ export default function AdminDashboard() {
     setIsDeleting(true);
     try {
       await api.admin.users.delete(userId);
-      alert('Utilisateur supprimé.');
+      toast('Utilisateur supprimé.');
       setConfirmingDeleteUserId(null);
       setSelectedUser(null);
       await fetchData();
     } catch (err: any) {
       console.error("Delete user error:", err);
       const detail = err.response?.data?.error || err.response?.data?.details || err.message || 'Erreur inconnue';
-      alert(`Erreur lors de la suppression : ${detail}`);
+      toast.error(`Erreur lors de la suppression : ${detail}`);
     } finally {
       setIsDeleting(false);
     }
@@ -704,9 +705,9 @@ export default function AdminDashboard() {
                                await sendNotification(d.driverId, "Paiement validé", `Le client a payé pour la course #${d.id.slice(-6)}.`, 'success', '/driver');
                              }
                              await sendNotification(d.clientId, "Paiement Confirmé", `Votre paiement pour la course #${d.id.slice(-6)} a été validé. Les codes sont disponibles.`, 'success', '/client');
-                             alert('Paiement validé avec succès.');
+                             toast.success('Paiement validé avec succès.');
                              fetchData();
-                          } catch(e) { console.error('Error confirming payment:', e); alert('Erreur lors de la confirmation.'); }
+                          } catch(e) { console.error('Error confirming payment:', e); toast.error('Erreur lors de la confirmation.'); }
                         }}
                         className="px-6 py-3 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20"
                       >
@@ -725,9 +726,9 @@ export default function AdminDashboard() {
                                await sendNotification(d.driverId, "Paiement Rejeté", `La preuve de paiement pour la course #${d.id.slice(-6)} a été rejetée.`, 'error', '/driver');
                              }
                              await sendNotification(d.clientId, "Paiement Rejeté", `Votre preuve de paiement pour la course #${d.id.slice(-6)} a été rejetée. Veuillez réessayer ou contacter le service clientèle.`, 'error', '/client');
-                             alert('Paiement rejeté avec succès. Statut de la course mis à jour.');
+                             toast.success('Paiement rejeté avec succès. Statut de la course mis à jour.');
                              fetchData();
-                          } catch(e) { console.error('Error rejecting payment:', e); alert('Erreur lors du rejet.'); }
+                          } catch(e) { console.error('Error rejecting payment:', e); toast.error('Erreur lors du rejet.'); }
                         }}
                         className="px-4 py-3 bg-white text-rose-500 border border-red-100 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-rose-50 transition-all shadow-lg shadow-rose-100"
                       >
@@ -1024,7 +1025,7 @@ export default function AdminDashboard() {
                                 await sendNotification(d.driverId, "Paiement validé", `Le client a payé pour la course #${d.id.slice(-6)}.`, 'success', '/driver');
                               }
                               await sendNotification(d.clientId, "Paiement Confirmé", `Votre paiement pour la course #${d.id.slice(-6)} a été validé.`, 'success', '/client');
-                              alert('Paiement validé avec succès.');
+                              toast.success('Paiement validé avec succès.');
                             } catch(e) {
                               console.error('Erreur lors de la validation:', e);
                             }
@@ -1048,7 +1049,7 @@ export default function AdminDashboard() {
                                 await sendNotification(d.driverId, "Paiement Rejeté", `La preuve de paiement de la course #${d.id.slice(-6)} a été rejetée.`, 'error', '/driver');
                               }
                               await sendNotification(d.clientId, "Paiement Rejeté", `La preuve de paiement de la course #${d.id.slice(-6)} a été rejetée. Veuillez réessayer ou contacter le service clientèle.`, 'error', '/client');
-                              alert('Paiement rejeté et course mise à jour.');
+                              toast('Paiement rejeté et course mise à jour.');
                             } catch(e) {
                               console.error('Erreur lors du rejet:', e);
                             }
@@ -1104,7 +1105,7 @@ export default function AdminDashboard() {
                     <div className="absolute top-3 right-3 w-2 h-2 bg-red-500 rounded-full animate-pulse" title="Compte suspendu" />
                   )}
                   <div className="absolute top-3 left-3">
-                    <button onClick={() => alert('Ouverture du support chat avec ' + u.name)} className="p-2 text-slate-400 hover:text-orange-500 transition-colors bg-white rounded-full shadow-sm">
+                    <button onClick={() => toast('Ouverture du support chat avec ' + u.name)} className="p-2 text-slate-400 hover:text-orange-500 transition-colors bg-white rounded-full shadow-sm">
                       <MessageSquare className="w-4 h-4" />
                     </button>
                   </div>
@@ -2321,6 +2322,76 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
+                {/* Configuration Contacts & Footer */}
+                <div className="mt-8 pt-8 border-t border-slate-200">
+                  <div className="flex items-center gap-4 mb-6">
+                    <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center">
+                      <Phone className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h4 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Contacts & Footer</h4>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Gérez les informations de contact affichées en bas de page</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 px-2">Nom de l'entreprise (Édité par)</label>
+                      <input 
+                        type="text" 
+                        value={configForm?.companyName || ''}
+                        onChange={e => setConfigForm({ ...configForm!, companyName: e.target.value })}
+                        className="w-full bg-white border-none rounded-xl px-5 py-3 text-sm font-black focus:ring-4 focus:ring-blue-100 transition-all"
+                        placeholder="Ex: NME TECHNOLOGIE GROUP"
+                      />
+                    </div>
+                    
+                    <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 px-2">Numéro de téléphone</label>
+                      <input 
+                        type="text" 
+                        value={configForm?.contactPhone || ''}
+                        onChange={e => setConfigForm({ ...configForm!, contactPhone: e.target.value })}
+                        className="w-full bg-white border-none rounded-xl px-5 py-3 text-sm font-black focus:ring-4 focus:ring-blue-100 transition-all"
+                        placeholder="Ex: 72567606"
+                      />
+                    </div>
+
+                    <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 px-2">Numéro WhatsApp</label>
+                      <input 
+                        type="text" 
+                        value={configForm?.contactWhatsapp || ''}
+                        onChange={e => setConfigForm({ ...configForm!, contactWhatsapp: e.target.value })}
+                        className="w-full bg-white border-none rounded-xl px-5 py-3 text-sm font-black focus:ring-4 focus:ring-blue-100 transition-all"
+                        placeholder="Ex: 72567606"
+                      />
+                    </div>
+
+                    <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 px-2">Lien Facebook</label>
+                      <input 
+                        type="text" 
+                        value={configForm?.contactFacebook || ''}
+                        onChange={e => setConfigForm({ ...configForm!, contactFacebook: e.target.value })}
+                        className="w-full bg-white border-none rounded-xl px-5 py-3 text-sm font-black focus:ring-4 focus:ring-blue-100 transition-all"
+                        placeholder="Ex: https://facebook.com/nmetechnologie"
+                      />
+                    </div>
+
+                    <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 px-2">Adresse Email</label>
+                      <input 
+                        type="text" 
+                        value={configForm?.contactEmail || ''}
+                        onChange={e => setConfigForm({ ...configForm!, contactEmail: e.target.value })}
+                        className="w-full bg-white border-none rounded-xl px-5 py-3 text-sm font-black focus:ring-4 focus:ring-blue-100 transition-all"
+                        placeholder="Ex: nmetechnologiegroup@gmail.com"
+                      />
+                    </div>
+                  </div>
+                </div>
+
                 <div className="mt-8 pt-8 border-t border-slate-200">
                     <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest leading-relaxed text-center">
                       Ces syntaxes sont cruciales pour le parcours utilisateur "Paiement Manuel". <br/>
@@ -2887,7 +2958,7 @@ export default function AdminDashboard() {
         const handleCreatePromo = async (e: React.FormEvent) => {
           e.preventDefault();
           if (!promoForm.code.trim()) {
-            alert("Veuillez saisir un code promo.");
+            toast("Veuillez saisir un code promo.");
             return;
           }
           setIsCreatingPromo(true);
@@ -3134,7 +3205,7 @@ export default function AdminDashboard() {
           </div>
 
           <div className="mt-8 pt-6 border-t border-slate-100">
-            <button onClick={() => {logout(); navigate('/');}} className="w-full flex items-center gap-3 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-rose-500 hover:bg-rose-50 rounded-xl transition-all mb-6">
+            <button onClick={() => {logout(); navigate('/')}} className="w-full flex items-center gap-3 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-rose-500 hover:bg-rose-50 rounded-xl transition-all mb-6">
               <LogOut className="w-4 h-4" />
               Déconnexion
             </button>
@@ -3581,7 +3652,7 @@ export default function AdminDashboard() {
                          setSelectedUser({ ...selectedUser, accountStatus: newStatus });
                          fetchData();
                        } catch (e) {
-                         alert("Erreur lors du changement de statut");
+                         toast.error("Erreur lors du changement de statut");
                        }
                      }}
                      className={cn(

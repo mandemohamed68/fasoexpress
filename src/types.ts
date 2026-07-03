@@ -20,6 +20,11 @@ export interface AppConfig {
   sappayClientSecret?: string;
   sappayUsername?: string;
   sappayPassword?: string;
+  companyName?: string;
+  contactPhone?: string;
+  contactEmail?: string;
+  contactWhatsapp?: string;
+  contactFacebook?: string;
 }
 
 export interface Sector {

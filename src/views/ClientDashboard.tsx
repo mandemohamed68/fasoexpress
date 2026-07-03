@@ -18,6 +18,7 @@ import StaticFAQ from '../components/StaticFAQ';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 // @ts-ignore
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+import toast from 'react-hot-toast';
 
 const customMarkerIcon = new L.Icon({
   iconUrl: markerIcon,
@@ -46,13 +47,13 @@ export default function ClientDashboard() {
     if (!cancellingDelivery) return;
     const finalReason = cancelReason === 'Autre' ? customReason : cancelReason;
     if (!finalReason.trim()) {
-      alert("Le motif d'annulation est obligatoire.");
+      toast("Le motif d'annulation est obligatoire.");
       return;
     }
     setIsCancelConfirming(true);
     try {
       await api.deliveries.cancel(cancellingDelivery.id, finalReason);
-      alert("Votre course a été annulée avec succès.");
+      toast.success("Votre course a été annulée avec succès.");
       setCancellingDelivery(null);
       setCustomReason('');
       setCancelReason('Je ne veux plus');
@@ -60,7 +61,7 @@ export default function ClientDashboard() {
       const jobs = await api.deliveries.list();
       setDeliveries(jobs);
     } catch (err: any) {
-      alert("Erreur lors de l'annulation: " + (err.message || err));
+      toast.error("Erreur lors de l'annulation: " + (err.message || err));
     } finally {
       setIsCancelConfirming(false);
     }
@@ -110,7 +111,7 @@ export default function ClientDashboard() {
   const copyCode = (code: string | undefined) => {
     if(code) {
       navigator.clipboard.writeText(code);
-      alert('Code copié !');
+      toast.success('Code copié !');
     }
   };
 
@@ -120,7 +121,7 @@ export default function ClientDashboard() {
       const jobs = await api.deliveries.list();
       setDeliveries(jobs);
     } catch (err: any) {
-      alert("Erreur lors de l'acceptation : " + (err.message || err));
+      toast.error("Erreur lors de l'acceptation : " + (err.message || err));
     }
   };
 
@@ -131,7 +132,7 @@ export default function ClientDashboard() {
         const jobs = await api.deliveries.list();
         setDeliveries(jobs);
       } catch (err: any) {
-        alert("Impossible de rejeter l'offre : " + (err.message || err));
+        toast.error("Impossible de rejeter l'offre : " + (err.message || err));
       }
     }
   };

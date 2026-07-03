@@ -1,7 +1,7 @@
 # MANUAL DE PRODUCTION & SÉCURITÉ : INTEGRATION SAPPAY OTP DIRECT
-## PANCHO EXPRESS - PROTOCOLES D'INTÉGRATION ET WORKFLOWS PAR OPÉRATEUR
+## FASO EXPRESS - PROTOCOLES D'INTÉGRATION ET WORKFLOWS PAR OPÉRATEUR
 
-Ce document contient les spécifications techniques, les cinématiques utilisateur détaillées, et l'orchestration complète du système de paiement par autorisation OTP et USSD (via la passerelle SapPay) intégré au sein de l'architecture de production de **Pancho Express**.
+Ce document contient les spécifications techniques, les cinématiques utilisateur détaillées, et l'orchestration complète du système de paiement par autorisation OTP et USSD (via la passerelle SapPay) intégré au sein de l'architecture de production de **FASO EXPRESS**.
 
 ---
 
@@ -19,7 +19,7 @@ Pour d'évidentes raisons de conformité et de sécurité, l'application utilise
 ```
 
 ### Paramètres de Connexion (Configurables Admin)
-Les identifiants d'API de production sont récupérés à chaque transaction à partir des variables d'environnement (.env) ou surchargés dynamiquement via la table de configuration de l'**Espace Admin Pancho** :
+Les identifiants d'API de production sont récupérés à chaque transaction à partir des variables d'environnement (.env) ou surchargés dynamiquement via la table de configuration de l'**Espace Admin faso** :
 *   `SAPPAY_CLIENT_ID`
 *   `SAPPAY_CLIENT_SECRET`
 *   `SAPPAY_USERNAME`
@@ -53,9 +53,9 @@ Pour cibler l'opérateur correct au Burkina Faso, le système utilise les identi
 2.  **Génération de l'OTP :**
     *   Le système de paiement direct Orange Money requiert que le client génère un code temporaire à 6 chiffres depuis son téléphone.
     *   Le client est invité à composer la syntaxe de paiement (ex : `*144*4*6*montant#`) pour obtenir son OTP à usage unique par écran système sécurisé.
-    *   *Facilité Mobile :* Le bouton "Relancer la syntaxe" dans l'application Pancho permet de pré-composer et lancer directement l'appel USSD sur le composeur natif du smartphone.
+    *   *Facilité Mobile :* Le bouton "Relancer la syntaxe" dans l'application faso permet de pré-composer et lancer directement l'appel USSD sur le composeur natif du smartphone.
 3.  **Vérification & Validation :**
-    *   Le client revient sur l'application Pancho Express et entre le code OTP obtenu à l'écran.
+    *   Le client revient sur l'application FASO EXPRESS et entre le code OTP obtenu à l'écran.
     *   L'application transmet ces données à la route backend `/api/payment/sappay/perform` avec le processeur `11688813752134336`.
     *   Si le statut retourné est `SUCCESS`, la commande passe en préparation immédiate.
 
@@ -68,10 +68,10 @@ Pour cibler l'opérateur correct au Burkina Faso, le système utilise les identi
     *   L'utilisateur sélectionne son mode de paiement **Moov Money** puis compose son numéro de téléphone (ex: `70XXXXXX`).
     *   Le client valide la transaction préliminaire.
 2.  **Appel d'Émission OTP Automatique :**
-    *   Le serveur de Pancho Express initialise d'abord la facture, puis exécute automatiquement en arrière-plan une requête vers l'endpoint `/api/payment/sappay/get-otp` avec l'identifiant processeur Moov `11688813838374580`.
+    *   Le serveur de FASO EXPRESS initialise d'abord la facture, puis exécute automatiquement en arrière-plan une requête vers l'endpoint `/api/payment/sappay/get-otp` avec l'identifiant processeur Moov `11688813838374580`.
     *   L'opérateur On-Net de Moov Money Burina Faso transmet un SMS direct sécurisé à l'utilisateur contenant son code OTP à 6 chiffres ainsi qu'un identifiant de transaction unique (`trans_id`).
 3.  **Confirmation de la Débit-Autorisation :**
-    *   Le client saisit l'OTP reçu par SMS sur l'interface Pancho.
+    *   Le client saisit l'OTP reçu par SMS sur l'interface faso.
     *   *Cas de secours :* Si le `trans_id` n'est pas auto-transmis par le serveur de paiement, un champ spécifique permet au client d'entrer la référence de transaction SMS (ex: `OMROR...`).
     *   Le formulaire est validé via l'API `/api/payment/sappay/perform`.
 
@@ -123,11 +123,11 @@ app.post("/api/payment/sappay/init", async (req, res) => {
       body: JSON.stringify({
         type: "SIMPLE",
         customer: {
-          email: email || "client@pancho.app",
+          email: email || "client@faso.app",
           country: 1 // Burkina Faso
         },
         amount: amount.toString(),
-        note: note || `Livraison PANCHO`
+        note: note || `Livraison faso`
       }),
     });
 
@@ -190,7 +190,7 @@ app.post("/api/payment/sappay/perform", async (req, res) => {
 ## 🚨 5. GESTION DES CAS D'ÉCHEC SUR LE TERRAIN
 
 1.  **Erreur Réseau (Statut 500 Partenaire) :**
-    Si l'opérateur local ou SapPay renvoie un message HTML ou une erreur interne (500), le parser intelligent de Pancho Express l'intercepte dans `extractSpecificError()` afin d'afficher à l'écran un message explicite réconfortant indiquant que l'opérateur rencontre des lenteurs, au lieu d'une erreur brute de crash informatique.
+    Si l'opérateur local ou SapPay renvoie un message HTML ou une erreur interne (500), le parser intelligent de FASO EXPRESS l'intercepte dans `extractSpecificError()` afin d'afficher à l'écran un message explicite réconfortant indiquant que l'opérateur rencontre des lenteurs, au lieu d'une erreur brute de crash informatique.
 2.  **Solde Insuffisant :**
     La transaction est immédiatement rejetée à l'étape finale `/perform`. L'utilisateur est notifié et peut ainsi retenter le paiement après rechargement ou opter pour le paiement cash à la livraison.
 3.  **Échec de Déclenchement Automatique de l'OTP :**

@@ -69,7 +69,7 @@ const compressImage = async (file: File): Promise<string> => {
 export default function LandingView() {
   const { 
     user, profile, loading: authLoading, login, loginWithEmail, registerWithEmail, loginWithPhone, 
-    updateProfile, isMasterAdmin 
+    updateProfile, isMasterAdmin, appConfig
   } = useAuth();
   const navigate = useNavigate();
   const [authMode, setAuthMode] = useState<AuthMode>('login');
@@ -790,22 +790,26 @@ export default function LandingView() {
 
           <div className="mt-10 pt-8 border-t border-slate-100 flex flex-col sm:flex-row justify-between items-center gap-4 text-center sm:text-left">
              <div className="flex flex-col">
-                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 italic">Édité par NME TECHNOLOGIE Group</span>
-                <span className="text-slate-900 font-black text-sm tracking-tighter italic">72567606</span>
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 italic">
+                  Édité par {appConfig?.companyName || 'NME TECHNOLOGIE Group'}
+                </span>
+                <span className="text-slate-900 font-black text-sm tracking-tighter italic">
+                  {appConfig?.contactPhone || '72567606'}
+                </span>
              </div>
              <div className="flex gap-2.5">
-                <a href="tel:+22672567606" title="Téléphone" className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 hover:text-orange-600 hover:bg-orange-50 transition-all cursor-pointer border border-slate-100 shadow-sm active:scale-95 duration-150">
+                <a href={`tel:+226${appConfig?.contactPhone?.replace(/[^0-9]/g, '') || '72567606'}`} title="Téléphone" className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 hover:text-orange-600 hover:bg-orange-50 transition-all cursor-pointer border border-slate-100 shadow-sm active:scale-95 duration-150">
                    <Phone className="w-4 h-4" />
                 </a>
-                <a href="https://wa.me/22672567606" target="_blank" rel="noopener noreferrer" title="WhatsApp" className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all cursor-pointer border border-slate-100 shadow-sm active:scale-95 duration-150">
+                <a href={`https://wa.me/226${appConfig?.contactWhatsapp?.replace(/[^0-9]/g, '') || appConfig?.contactPhone?.replace(/[^0-9]/g, '') || '72567606'}`} target="_blank" rel="noopener noreferrer" title="WhatsApp" className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all cursor-pointer border border-slate-100 shadow-sm active:scale-95 duration-150">
                    <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
                      <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.455L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.725 1.451 5.436 0 9.86-4.42 9.864-9.864.002-2.637-1.03-5.115-2.906-6.99C16.452 1.876 13.977 1.05 11.35 1.05 5.91 11.35 1.488 5.474 1.484 10.916c-.002 1.71.459 3.382 1.332 4.885L1.875 22.03l6.398-1.679c.002-.001.002-.001.003-.001zm11.45-6.72c-.178-.089-1.055-.52-1.22-.58-.164-.06-.284-.09-.404.09-.12.18-.464.58-.57.7-.104.12-.21.134-.388.045-1.748-.875-2.902-1.534-4.053-3.513-.105-.18-.105-.29-.016-.379.08-.08.178-.21.267-.315.09-.105.12-.178.18-.299.06-.12.03-.225-.015-.315-.045-.09-.404-.975-.555-1.343-.146-.356-.296-.307-.404-.313-.105-.005-.224-.006-.344-.006-.12 0-.315.045-.48.225-.164.18-.63.615-.63 1.502s.645 1.739.735 1.859c.09.12 1.268 1.938 3.073 2.719.43.186.765.298 1.026.381.431.137.824.117 1.135.07.347-.053 1.055-.431 1.205-.826.15-.395.15-.734.105-.806-.045-.072-.165-.112-.343-.201z"/>
                    </svg>
                 </a>
-                <a href="https://facebook.com/fasoexpress" target="_blank" rel="noopener noreferrer" title="Facebook" className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-all cursor-pointer border border-slate-100 shadow-sm active:scale-95 duration-150">
+                <a href={appConfig?.contactFacebook || "https://facebook.com/fasoexpress"} target="_blank" rel="noopener noreferrer" title="Facebook" className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-all cursor-pointer border border-slate-100 shadow-sm active:scale-95 duration-150">
                    <Facebook className="w-4 h-4" />
                 </a>
-                <a href="mailto:nmetechnologiegroup@gmail.com" title="Email" className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 hover:text-orange-600 hover:bg-orange-50 transition-all cursor-pointer border border-slate-100 shadow-sm active:scale-95 duration-150">
+                <a href={`mailto:${appConfig?.contactEmail || 'nmetechnologiegroup@gmail.com'}`} title="Email" className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 hover:text-orange-600 hover:bg-orange-50 transition-all cursor-pointer border border-slate-100 shadow-sm active:scale-95 duration-150">
                    <Mail className="w-4 h-4" />
                 </a>
              </div>

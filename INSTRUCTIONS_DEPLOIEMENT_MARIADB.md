@@ -38,9 +38,9 @@ sudo mariadb -u root -p
 
 Créez la base de données et l'utilisateur pour l'application :
 ```sql
-CREATE DATABASE pancho_express_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER 'pancho_user'@'localhost' IDENTIFIED BY 'mot_de_passe_super_secret';
-GRANT ALL PRIVILEGES ON pancho_express_db.* TO 'pancho_user'@'localhost';
+CREATE DATABASE faso_express_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'faso_user'@'localhost' IDENTIFIED BY 'mot_de_passe_super_secret';
+GRANT ALL PRIVILEGES ON faso_express_db.* TO 'faso_user'@'localhost';
 FLUSH PRIVILEGES;
 EXIT;
 ```
@@ -51,9 +51,9 @@ EXIT;
 
 Dirigez-vous dans le répertoire d'hébergement classique :
 ```bash
-sudo mkdir -p /var/www/pancho-express
-sudo chown -R $USER:$USER /var/www/pancho-express
-cd /var/www/pancho-express
+sudo mkdir -p /var/www/faso-express
+sudo chown -R $USER:$USER /var/www/faso-express
+cd /var/www/faso-express
 
 git clone https://github.com/VOTRE_NOM/VOTRE_PROJET.git .
 ```
@@ -74,7 +74,7 @@ nano .env
 ### Déployer la base de données MariaDB
 Le schéma complet avec les tables `users`, `deliveries`, etc. (ainsi que les partitions de données annuelles pour l'optimisation des performances) vous attend.
 ```bash
-mariadb -u pancho_user -p pancho_express_db < MARIADB_SCHEMA_PARTITIONED.sql
+mariadb -u faso_user -p faso_express_db < MARIADB_SCHEMA_PARTITIONED.sql
 ```
 *(Saisissez le mot de passe créé à l'étape 2)*
 
@@ -117,7 +117,7 @@ pm2 startup
 On redirige les requêtes Web classiques (port 80) vers notre application (port 3000).
 
 ```bash
-sudo nano /etc/nginx/sites-available/pancho-express
+sudo nano /etc/nginx/sites-available/faso-express
 ```
 
 Collez :
@@ -139,7 +139,7 @@ server {
 
 On active et on relance :
 ```bash
-sudo ln -s /etc/nginx/sites-available/pancho-express /etc/nginx/sites-enabled/
+sudo ln -s /etc/nginx/sites-available/faso-express /etc/nginx/sites-enabled/
 sudo nginx -t
 sudo systemctl restart nginx
 ```

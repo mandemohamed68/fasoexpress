@@ -29,6 +29,7 @@ import L from "leaflet";
 import markerIcon from "leaflet/dist/images/marker-icon.png";
 // @ts-ignore
 import markerShadow from "leaflet/dist/images/marker-shadow.png";
+import toast from 'react-hot-toast';
 
 const customMarkerIcon = new L.Icon({
   iconUrl: markerIcon,
@@ -305,7 +306,7 @@ export default function CreateDelivery() {
       }
     } catch (err: any) {
       console.error("All position detection strategies failed completely:", err);
-      alert("Impossible d'obtenir votre position. Veuillez l'indiquer manuellement sur la carte.");
+      toast.error("Impossible d'obtenir votre position. Veuillez l'indiquer manuellement sur la carte.");
     } finally {
       setIsDetectingLocation(false);
     }
@@ -381,7 +382,7 @@ export default function CreateDelivery() {
 
   const handleApplyPromo = async () => {
     if (!promoCode.trim()) {
-      alert("Veuillez saisir un code promo.");
+      toast("Veuillez saisir un code promo.");
       return;
     }
     const preDiscountCost = estimatedCost + discount || 1000;
@@ -389,13 +390,13 @@ export default function CreateDelivery() {
       const res = await api.promo.validate(promoCode, preDiscountCost);
       if (res.valid) {
         setDiscount(res.discount);
-        alert(`Ristourne de ${res.discount} FCFA appliquée !`);
+        toast.success(`Ristourne de ${res.discount} FCFA appliquée !`);
       } else {
-        alert("Code promo invalide : " + (res.reason || "non éligible"));
+        toast.error("Code promo invalide : " + (res.reason || "non éligible"));
         setDiscount(0);
       }
     } catch (err: any) {
-      alert("Erreur validation : " + (err.message || err));
+      toast.error("Erreur validation : " + (err.message || err));
       setDiscount(0);
     }
   };
@@ -533,7 +534,7 @@ export default function CreateDelivery() {
       navigate(`/delivery/${newDelivery.id}`);
     } catch (e: any) {
       console.error(e);
-      alert(`Erreur création: ${e?.message || e?.toString()}`);
+      toast.error(`Erreur création: ${e?.message || e?.toString()}`);
     } finally {
       setIsSubmitting(false);
     }

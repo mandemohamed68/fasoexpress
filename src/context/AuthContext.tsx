@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { UserProfile, UserRole, AppConfig } from '../types';
 import { AppLanguage, translations } from '../lib/translations';
 import { api } from '../services/apiService';
+import toast from 'react-hot-toast';
 
 interface AuthContextType {
   user: { userId: string; email: string; role: string; name: string } | null;
@@ -175,7 +176,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await refreshProfile();
     } catch (e) {
       console.error("Failed to update role", e);
-      alert("Erreur lors de la mise à jour du rôle.");
+      toast.error("Erreur lors de la mise à jour du rôle.");
     }
   };
 
@@ -185,7 +186,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await refreshProfile();
     } catch (e) {
       console.error("Failed to update profile", e);
-      alert("Erreur lors de la mise à jour du profil.");
+      toast.error("Erreur lors de la mise à jour du profil.");
     }
   };
 

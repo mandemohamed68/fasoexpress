@@ -1,4 +1,4 @@
--- MariaDB Migration Schema for PANCHO EXPRESS
+-- MariaDB Migration Schema for FASO EXPRESS
 -- This file creates the necessary tables for MariaDB based on the SQLite schema.
 
 SET NAMES utf8mb4;

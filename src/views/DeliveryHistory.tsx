@@ -8,6 +8,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { cn } from '../lib/utils';
 
 import ReceiptModal from '../components/ReceiptModal';
+import toast from 'react-hot-toast';
 
 export default function DeliveryHistory() {
   const { profile } = useAuth();
@@ -199,7 +200,7 @@ export default function DeliveryHistory() {
                                       fetchHistory();
                                     } catch (error: any) {
                                       console.error("Delete Error", error);
-                                      alert("Erreur: " + error.message);
+                                      toast.error("Erreur: " + error.message);
                                       setDeletingId(null);
                                     }
                                   }}

@@ -11,6 +11,7 @@ import BottomNav from './components/BottomNav';
 import LoadingScreen from './components/LoadingScreen';
 import AnnouncementBanner from './components/AnnouncementBanner';
 import TermsAgreementModal from './components/TermsAgreementModal';
+import { Toaster } from 'react-hot-toast';
 
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -154,6 +155,7 @@ function AppRoutes() {
       <AnnouncementBanner />
       <Navbar />
       <NotificationToast />
+      <Toaster position="top-center" toastOptions={{ duration: 4000, style: { background: '#1e293b', color: '#fff', fontSize: '14px', borderRadius: '12px' } }} />
       
       {/* Terms and Conditions Enforcement */}
       {user && profile && !profile.termsAcceptedAt && (profile.role === 'client' || profile.role === 'driver') && (

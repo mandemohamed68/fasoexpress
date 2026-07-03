@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { User, Phone, MapPin, Truck, Save, ArrowLeft, ShieldCheck, CheckCircle, Camera } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
+import toast from 'react-hot-toast';
 
 export default function Settings() {
   const { profile, loading, updateProfile } = useAuth();
@@ -46,7 +47,7 @@ export default function Settings() {
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > 2 * 1024 * 1024) {
-        alert("La photo ne doit pas dépasser 2 Mo.");
+        toast("La photo ne doit pas dépasser 2 Mo.");
         return;
       }
       const reader = new FileReader();
