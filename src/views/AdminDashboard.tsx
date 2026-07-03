@@ -160,13 +160,13 @@ export default function AdminDashboard() {
       };
       await api.config.update('app_config', updatedConfig);
       
-      const ussdStatus = updatedConfig.isUssdActive !== false ? 'ACTIF (Modifications appliquées)' : 'DESACTIVÉ (Option masquée de l’interface client)';
-      const otpStatus = updatedConfig.isOtpActive !== false ? 'ACTIF' : 'DESACTIVÉ';
+      const ussdStatus = updatedConfig.isUssdActive !== false ? "ACTIF (Modifications appliquees)" : "DESACTIVE (Option masquee de l'interface client)";
+      const otpStatus = updatedConfig.isOtpActive !== false ? 'ACTIF' : 'DESACTIVE';
       const modeStr = updatedConfig.mode === 'prod' ? 'PRODUCTION' : 'TEST';
 
       setToast({
         type: 'success',
-        message: `Vérification réussie : Configuration enregistrée ! Paiements USSD: ${ussdStatus}, OTP: ${otpStatus}, Mode: ${modeStr}. Synchronisé sur toute la plateforme.`
+        message: `Verification reussie : Configuration enregistree ! Paiements USSD: ${ussdStatus}, OTP: ${otpStatus}, Mode: ${modeStr}. Synchronise sur toute la plateforme.`
       });
 
       setAppConfig(updatedConfig);
@@ -187,7 +187,7 @@ export default function AdminDashboard() {
   const handleExecuteSql = async (queryText?: string) => {
     const queryToRun = queryText || sqlQuery;
     if (!queryToRun.trim()) {
-      setQueryError("Veuillez saisir une requête SQL.");
+      setQueryError("Veuillez saisir une requete SQL.");
       return;
     }
     setIsExecutingSql(true);
@@ -354,11 +354,11 @@ export default function AdminDashboard() {
         updatedAt: new Date().toISOString(),
         updatedBy: profile?.userId || 'admin'
       });
-      toast.success('Paramètres de commission locaux mis à jour !');
+      toast.success('Parametres de commission locaux mis a jour !');
       await fetchData();
     } catch (err) {
       console.error(err);
-      toast.error('Erreur lors de la mise à jour des commissions.');
+      toast.error('Erreur lors de la mise a jour des commissions.');
     } finally {
       setIsSaving(false);
     }
@@ -378,7 +378,7 @@ export default function AdminDashboard() {
       
       setToast({
         type: 'success',
-        message: `Mode système basculé sur : ${newMode === 'test' ? 'TEST (Simulateur)' : 'PRODUCTION'}. Les paramètres de paiement s'adaptent instantanément.`
+        message: `Mode systeme bascule sur : ${newMode === 'test' ? 'TEST (Simulateur)' : 'PRODUCTION'}. Les parametres de paiement s'adaptent instantanement.`
       });
       
       setAppConfig(updated);
@@ -399,11 +399,11 @@ export default function AdminDashboard() {
   const isSuperAdmin = profile?.role === 'superadmin' || isMasterAdmin;
 
   const handleSeedData = async () => {
-    if (!window.confirm('Voulez-vous injecter des données de test locales ?')) return;
+    if (!window.confirm('Voulez-vous injecter des donnees de test locales ?')) return;
     setIsSaving(true);
     try {
       await api.admin.seed();
-      toast('Données de test injectées sur le serveur local !');
+      toast('Donnees de test injectees sur le serveur local !');
       fetchData();
     } catch (err) {
       console.error(err);
@@ -422,13 +422,13 @@ export default function AdminDashboard() {
     try {
       setIsSaving(true);
       await api.admin.reset();
-      toast("Application réinitialisée localement (Données supprimées); !");
+      toast("Application reinitialisee localement (Donnees supprimees); !");
       setShowResetConfirm(false);
       setResetCode('');
       fetchData();
     } catch (err) {
       console.error(err);
-      toast.error("Erreur lors de la réinitialisation locale.");
+      toast.error("Erreur lors de la reinitialisation locale.");
     } finally {
       setIsSaving(false);
     }
@@ -438,7 +438,7 @@ export default function AdminDashboard() {
     setIsProcessingAction(true);
     try {
       await api.admin.withdrawals.validate(withdrawalId);
-      toast.success('Paiement enregistré avec succès.');
+      toast.success('Paiement enregistre avec succes.');
       fetchData();
     } catch (e: any) {
       console.error(e);
@@ -449,7 +449,7 @@ export default function AdminDashboard() {
   };
 
   const allSidebarItems = [
-    { group: 'GÉNÉRAL', items: [
+    { group: 'GENERAL', items: [
       { name: 'Vue d\'ensemble', icon: LayoutDashboard },
     ]},
     { group: 'COMMUNICATION', items: [
@@ -459,10 +459,10 @@ export default function AdminDashboard() {
     { group: 'LOGISTIQUE', items: [
       { name: 'En cours', icon: Navigation },
       { name: 'En attente', icon: Clock },
-      { name: 'Programmées', icon: History },
+      { name: 'Programmees', icon: History },
       { name: 'Historique', icon: ClipboardCheck },
     ]},
-    { group: 'FLOTTE & RÉSEAU', items: [
+    { group: 'FLOTTE & RESEAU', items: [
       { name: 'Carte Live (GPS)', icon: MapIcon },
       { name: 'Livreurs (Zems)', icon: Truck },
       { name: 'Clients', icon: Users },
@@ -470,17 +470,17 @@ export default function AdminDashboard() {
       ...(isSuperAdmin ? [{ name: 'Secteurs d\'Ouaga', icon: Globe }] : []),
     ]},
     { group: 'FINANCES', items: [
-      ...(isSuperAdmin ? [{ name: 'Modèle Éco', icon: BadgePercent }] : []),
+      ...(isSuperAdmin ? [{ name: 'Modele Eco', icon: BadgePercent }] : []),
       { name: 'Validations Paiements', icon: CreditCard },
       { name: 'Paiements Livreurs', icon: Wallet },
       ...(isSuperAdmin ? [{ name: 'Commissions', icon: Percent }, { name: 'Tarification', icon: Settings }] : []),
       { name: 'Codes Promo', icon: BadgePercent },
     ]},
     ...(isSuperAdmin ? [{
-      group: 'SYSTÈME & DATA', items: [
-        { name: 'Paramètres App', icon: Settings },
-        { name: 'Base de Données', icon: Database },
-        { name: 'Logs Système', icon: ClipboardCheck },
+      group: 'SYSTEME & DATA', items: [
+        { name: 'Parametres App', icon: Settings },
+        { name: 'Base de Donnees', icon: Database },
+        { name: 'Logs Systeme', icon: ClipboardCheck },
       ]
     }] : []),
   ];
@@ -570,7 +570,7 @@ export default function AdminDashboard() {
 
       await api.admin.users.create(newUserProfile);
       
-      toast.success("Utilisateur créé avec succès sur le serveur local !");
+      toast.success("Utilisateur cree avec succes sur le serveur local !");
       setShowCreateUserModal(false);
       setNewUserData({
         role: 'client',
@@ -581,7 +581,7 @@ export default function AdminDashboard() {
       });
     } catch (err: any) {
       console.error(err);
-      toast.error("Erreur lors de la création locale : " + (err.message || 'Erreur inconnue'));
+      toast.error("Erreur lors de la creation locale : " + (err.message || 'Erreur inconnue'));
     } finally {
       setIsSubmittingNewUser(false);
     }
@@ -593,7 +593,7 @@ export default function AdminDashboard() {
     setIsDeleting(true);
     try {
       await api.admin.users.delete(userId);
-      toast('Utilisateur supprimé.');
+      toast('Utilisateur supprime.');
       setConfirmingDeleteUserId(null);
       setSelectedUser(null);
       await fetchData();
@@ -663,7 +663,7 @@ export default function AdminDashboard() {
             <div className="flex items-center justify-between mb-8">
               <div>
                 <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Validations de Paiements</h3>
-                <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-1">Approbation des transactions USSD et Agrégateurs</p>
+                <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-1">Approbation des transactions USSD et Agregateurs</p>
               </div>
               <div className="w-12 h-12 bg-orange-50 text-orange-600 rounded-2xl flex items-center justify-center">
                 <CreditCard className="w-6 h-6" />
@@ -696,7 +696,7 @@ export default function AdminDashboard() {
                             {d.paymentMethod}
                           </span>
                         </div>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">Client: {d.clientName} • {d.cost} FCFA</p>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">Client: {d.clientName} * {d.cost} FCFA</p>
                         {d.paymentReference && (
                           <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest mt-2 border-l-2 border-indigo-500 pl-2">
                              REF: {d.paymentReference}
@@ -720,16 +720,16 @@ export default function AdminDashboard() {
                                updatedAt: new Date().toISOString()
                              });
                              if (d.driverId) {
-                               await sendNotification(d.driverId, "Paiement validé", `Le client a payé pour la course #${d.id.slice(-6)}.`, 'success', '/driver');
+                               await sendNotification(d.driverId, "Paiement valide", `Le client a paye pour la course #${d.id.slice(-6)}.`, 'success', '/driver');
                              }
-                             await sendNotification(d.clientId, "Paiement Confirmé", `Votre paiement pour la course #${d.id.slice(-6)} a été validé. Les codes sont disponibles.`, 'success', '/client');
-                             toast.success('Paiement validé avec succès.');
+                             await sendNotification(d.clientId, "Paiement Confirme", `Votre paiement pour la course #${d.id.slice(-6)} a ete valide. Les codes sont disponibles.`, 'success', '/client');
+                             toast.success('Paiement valide avec succes.');
                              fetchData();
                           } catch(e) { console.error('Error confirming payment:', e); toast.error('Erreur lors de la confirmation.'); }
                         }}
                         className="px-6 py-3 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20"
                       >
-                        Valider (Payé)
+                        Valider (Paye)
                       </button>
                       <button 
                         onClick={async () => {
@@ -737,20 +737,20 @@ export default function AdminDashboard() {
                              await api.deliveries.update(d.id, {
                                paymentStatus: 'rejected',
                                isPaid: false,
-                               status: 'paiement rejeté',
+                               status: 'paiement rejete',
                                updatedAt: new Date().toISOString()
                              });
                              if (d.driverId) {
-                               await sendNotification(d.driverId, "Paiement Rejeté", `La preuve de paiement pour la course #${d.id.slice(-6)} a été rejetée.`, 'error', '/driver');
+                               await sendNotification(d.driverId, "Paiement Rejete", `La preuve de paiement pour la course #${d.id.slice(-6)} a ete rejetee.`, 'error', '/driver');
                              }
-                             await sendNotification(d.clientId, "Paiement Rejeté", `Votre preuve de paiement pour la course #${d.id.slice(-6)} a été rejetée. Veuillez réessayer ou contacter le service clientèle.`, 'error', '/client');
-                             toast.success('Paiement rejeté avec succès. Statut de la course mis à jour.');
+                             await sendNotification(d.clientId, "Paiement Rejete", `Votre preuve de paiement pour la course #${d.id.slice(-6)} a ete rejetee. Veuillez reessayer ou contacter le service clientele.`, 'error', '/client');
+                             toast.success('Paiement rejete avec succes. Statut de la course mis a jour.');
                              fetchData();
                           } catch(e) { console.error('Error rejecting payment:', e); toast.error('Erreur lors du rejet.'); }
                         }}
                         className="px-4 py-3 bg-white text-rose-500 border border-red-100 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-rose-50 transition-all shadow-lg shadow-rose-100"
                       >
-                        Rejeter (Rejeté)
+                        Rejeter (Rejete)
                       </button>
                     </div>
                   </div>
@@ -777,7 +777,7 @@ export default function AdminDashboard() {
                         <span className="text-[10px] font-black uppercase tracking-widest bg-white/20 px-3 py-1 rounded-lg">SOS URGENCE</span>
                         <span className="font-bold">Course {alert.id.slice(0,4)}</span>
                      </div>
-                     <p className="font-medium text-sm leading-tight">Le livreur a déclenché une alerte. Merci de le contacter immédiatement.</p>
+                     <p className="font-medium text-sm leading-tight">Le livreur a declenche une alerte. Merci de le contacter immediatement.</p>
                      <div className="flex gap-2 mt-2">
                         {(() => {
                            const driver = users.find(u => u.userId === alert.driverId);
@@ -800,10 +800,10 @@ export default function AdminDashboard() {
                 {deliveries.filter(d => d.isWeatherPaused).map(alert => (
                   <div key={alert.id} className="bg-blue-600 rounded-3xl p-6 text-white shadow-xl shadow-blue-500/20 flex flex-col gap-4">
                      <div className="flex justify-between items-start">
-                        <span className="text-[10px] font-black uppercase tracking-widest bg-white/20 px-3 py-1 rounded-lg">PAUSE MÉTÉO</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest bg-white/20 px-3 py-1 rounded-lg">PAUSE METEO</span>
                         <span className="font-bold">Course {alert.id.slice(0,4)}</span>
                      </div>
-                     <p className="font-medium text-sm leading-tight">Le livreur s'est abrité en raison de la pluie. L'expéditeur a été notifié.</p>
+                     <p className="font-medium text-sm leading-tight">Le livreur s'est abrite en raison de la pluie. L'expediteur a ete notifie.</p>
                      <div className="flex gap-2 mt-2">
                         <a 
                           href={`tel:${alert.senderPhone || ''}`}
@@ -813,7 +813,7 @@ export default function AdminDashboard() {
                             !alert.senderPhone && "opacity-50 cursor-not-allowed"
                           )}
                         >
-                           {alert.senderPhone ? `Appeler Expéditeur (${alert.senderPhone})` : "Tel. Expéditeur Inconnu"}
+                           {alert.senderPhone ? `Appeler Expediteur (${alert.senderPhone})` : "Tel. Expediteur Inconnu"}
                         </a>
                      </div>
                   </div>
@@ -894,7 +894,7 @@ export default function AdminDashboard() {
                   {deliveries.length === 0 && (
                     <div className="flex flex-col items-center justify-center py-20 opacity-30 grayscale">
                       <Package className="w-16 h-16 mb-4" />
-                      <p className="text-[10px] font-black uppercase tracking-[0.2em]">Aucune activité détectée</p>
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em]">Aucune activite detectee</p>
                     </div>
                   )}
                 </div>
@@ -990,7 +990,7 @@ export default function AdminDashboard() {
         );
       case 'En cours':
       case 'En attente':
-      case 'Programmées':
+      case 'Programmees':
       case 'Historique':
         const filteredDeliveries = deliveries.filter(d => {
           if (activeMenu === 'En cours') return ['accepted', 'picked_up'].includes(d.status);
@@ -1010,7 +1010,7 @@ export default function AdminDashboard() {
                     </div>
                     <div>
                       <p className="font-black text-slate-900">#{d.id?.slice(0, 8) || 'N/A'}</p>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{d.from?.address?.slice(0, 30) || 'Lieu inconnu'}... → {d.to?.address?.slice(0, 30) || 'Lieu inconnu'}...</p>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{d.from?.address?.slice(0, 30) || 'Lieu inconnu'}... {'->'} {d.to?.address?.slice(0, 30) || 'Lieu inconnu'}...</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-6">
@@ -1019,7 +1019,7 @@ export default function AdminDashboard() {
                       <div className="flex flex-col items-end gap-1">
                         <span className="text-[8px] font-black uppercase bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full">{d.status}</span>
                         {(d.paymentStatus === 'pending' || d.paymentStatus === 'pending_approval') && (
-                          <span className="text-[7px] font-black uppercase bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full animate-pulse">Paiement à Valider</span>
+                          <span className="text-[7px] font-black uppercase bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full animate-pulse">Paiement a Valider</span>
                         )}
                       </div>
                     </div>
@@ -1040,10 +1040,10 @@ export default function AdminDashboard() {
                               });
                               fetchData();
                               if (d.driverId) {
-                                await sendNotification(d.driverId, "Paiement validé", `Le client a payé pour la course #${d.id.slice(-6)}.`, 'success', '/driver');
+                                await sendNotification(d.driverId, "Paiement valide", `Le client a paye pour la course #${d.id.slice(-6)}.`, 'success', '/driver');
                               }
-                              await sendNotification(d.clientId, "Paiement Confirmé", `Votre paiement pour la course #${d.id.slice(-6)} a été validé.`, 'success', '/client');
-                              toast.success('Paiement validé avec succès.');
+                              await sendNotification(d.clientId, "Paiement Confirme", `Votre paiement pour la course #${d.id.slice(-6)} a ete valide.`, 'success', '/client');
+                              toast.success('Paiement valide avec succes.');
                             } catch(e) {
                               console.error('Erreur lors de la validation:', e);
                             }
@@ -1059,15 +1059,15 @@ export default function AdminDashboard() {
                               await api.deliveries.update(d.id, { 
                                 paymentStatus: 'rejected', 
                                 isPaid: false,
-                                status: 'paiement rejeté',
+                                status: 'paiement rejete',
                                 updatedAt: new Date().toISOString() 
                               });
                               fetchData();
                               if (d.driverId) {
-                                await sendNotification(d.driverId, "Paiement Rejeté", `La preuve de paiement de la course #${d.id.slice(-6)} a été rejetée.`, 'error', '/driver');
+                                await sendNotification(d.driverId, "Paiement Rejete", `La preuve de paiement de la course #${d.id.slice(-6)} a ete rejetee.`, 'error', '/driver');
                               }
-                              await sendNotification(d.clientId, "Paiement Rejeté", `La preuve de paiement de la course #${d.id.slice(-6)} a été rejetée. Veuillez réessayer ou contacter le service clientèle.`, 'error', '/client');
-                              toast('Paiement rejeté et course mise à jour.');
+                              await sendNotification(d.clientId, "Paiement Rejete", `La preuve de paiement de la course #${d.id.slice(-6)} a ete rejetee. Veuillez reessayer ou contacter le service clientele.`, 'error', '/client');
+                              toast('Paiement rejete et course mise a jour.');
                             } catch(e) {
                               console.error('Erreur lors du rejet:', e);
                             }
@@ -1082,7 +1082,7 @@ export default function AdminDashboard() {
                 </div>
               ))}
               {filteredDeliveries.length === 0 && (
-                <div className="text-center py-20 text-slate-400 font-black uppercase text-xs tracking-[0.2em]">Pas de courses dans cette catégorie</div>
+                <div className="text-center py-20 text-slate-400 font-black uppercase text-xs tracking-[0.2em]">Pas de courses dans cette categorie</div>
               )}
             </div>
           </div>
@@ -1137,7 +1137,7 @@ export default function AdminDashboard() {
                     {u.role === 'driver' && (
                       <div className="flex flex-col gap-1 items-center">
                         <div className="px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-[8px] font-black uppercase tracking-widest">
-                           {u.vehicleType || 'Moto'} • {u.licensePlate || 'Nouveau'}
+                           {u.vehicleType || 'Moto'} * {u.licensePlate || 'Nouveau'}
                         </div>
                         <div className={cn(
                           "px-3 py-1 rounded-full text-[7px] font-black uppercase tracking-widest flex items-center gap-1.5 shadow-sm border",
@@ -1146,13 +1146,13 @@ export default function AdminDashboard() {
                           "bg-slate-50 text-slate-400 border-slate-100"
                         )}>
                           <div className={cn("w-1.5 h-1.5 rounded-full", u.status === 'online' ? "bg-emerald-500 animate-pulse" : u.status === 'busy' ? "bg-amber-500" : "bg-slate-300")} />
-                          {u.status === 'online' ? 'Disponible' : u.status === 'busy' ? 'Occupé' : 'Hors Ligne'}
+                          {u.status === 'online' ? 'Disponible' : u.status === 'busy' ? 'Occupe' : 'Hors Ligne'}
                         </div>
                       </div>
                     )}
                     {u.role === 'driver' && u.verificationStatus === 'pending' && (
                       <div className="px-3 py-1 bg-blue-100 text-blue-600 rounded-full text-[8px] font-black uppercase tracking-widest animate-pulse border border-blue-200">
-                         Dossier à vérifier
+                         Dossier a verifier
                       </div>
                     )}
                     {u.role === 'driver' && (!u.idCardFront || !u.idCardBack || !u.guarantorName) && (
@@ -1183,8 +1183,8 @@ export default function AdminDashboard() {
                             
                             await sendNotification(
                               u.userId, 
-                              "Dossier Approuvé 🎉", 
-                              "Bienvenue chez FASO EXPRESS ! Votre compte est activé et vos documents sont validés.", 
+                              "Dossier Approuve !", 
+                              "Bienvenue chez FASO EXPRESS ! Votre compte est active et vos documents sont valides.", 
                               'success'
                             );
                           } catch(err) {
@@ -1202,7 +1202,7 @@ export default function AdminDashboard() {
                          onClick={() => setSelectedUser(u)}
                          className="flex-1 bg-white border border-slate-200 py-2.5 rounded-xl text-[8px] font-black uppercase tracking-widest hover:bg-orange-50 transition-all font-sans"
                        >
-                         Détails
+                         Details
                        </button>
                     </div>
                     {isSuperAdmin && (
@@ -1227,7 +1227,7 @@ export default function AdminDashboard() {
                                : "bg-red-50 text-red-600 hover:bg-red-100"
                            )}
                          >
-                           {u.accountStatus === 'suspended' ? 'Réactiver' : 'Suspendre'}
+                           {u.accountStatus === 'suspended' ? 'Reactiver' : 'Suspendre'}
                          </button>
                       </div>
                     )}
@@ -1236,7 +1236,7 @@ export default function AdminDashboard() {
               ))}
               {filteredUsers.length === 0 && (
                 <div className="col-span-full py-20 text-center">
-                  <p className="text-slate-400 font-black uppercase text-xs tracking-widest">Aucun utilisateur trouvé</p>
+                  <p className="text-slate-400 font-black uppercase text-xs tracking-widest">Aucun utilisateur trouve</p>
                 </div>
               )}
             </div>
@@ -1248,7 +1248,7 @@ export default function AdminDashboard() {
              <div className="flex items-center justify-between mb-10">
                <div>
                  <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Journal des Commissions</h3>
-                 <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-1">Revenus générés par la plateforme</p>
+                 <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-1">Revenus generes par la plateforme</p>
                </div>
                <div className="bg-emerald-50 text-emerald-600 p-6 rounded-3xl border border-emerald-100 flex flex-col items-end">
                  <p className="text-[10px] font-black uppercase tracking-widest opacity-60">TOTAL PLATFORME</p>
@@ -1267,13 +1267,13 @@ export default function AdminDashboard() {
                       <div>
                         <p className="font-black text-slate-900 text-sm">Course #{d.id?.slice(0, 8) || 'N/A'}</p>
                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                          Montant: {d.cost || 0} FCFA • Commission: {Math.floor((d.cost || 0) * (commission?.platformFeePercent || 15) / 100)} FCFA
+                          Montant: {d.cost || 0} FCFA * Commission: {Math.floor((d.cost || 0) * (commission?.platformFeePercent || 15) / 100)} FCFA
                         </p>
                       </div>
                     </div>
                     <div className="text-right">
                        <p className="text-[10px] font-black text-slate-900 uppercase tracking-widest">{d.createdAt ? new Date(d.createdAt).toLocaleDateString() : '-'}</p>
-                       <span className="text-[8px] font-black uppercase text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">Encaissé</span>
+                       <span className="text-[8px] font-black uppercase text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">Encaisse</span>
                     </div>
                   </div>
                 ))}
@@ -1318,7 +1318,7 @@ export default function AdminDashboard() {
                                  "text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full",
                                  "bg-slate-200 text-slate-600"
                                )}>
-                                 {driver?.phone || withdrawal.phone || 'Non renseigné'}
+                                 {driver?.phone || withdrawal.phone || 'Non renseigne'}
                                </span>
                              </div>
                              <div className="flex flex-col gap-1">
@@ -1333,7 +1333,7 @@ export default function AdminDashboard() {
                          </div>
                          <div className="flex gap-6 items-center">
                            <div className="text-right">
-                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">À PAYER</p>
+                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">A PAYER</p>
                               <p className="text-2xl font-black text-slate-900 tracking-tighter">
                                 {withdrawal.amount?.toLocaleString()} FCFA
                               </p>
@@ -1354,7 +1354,7 @@ export default function AdminDashboard() {
 
              {withdrawals.filter(w => w.status !== 'en_attente').length > 0 && (
                <div className="mt-12 pt-8 border-t border-slate-100">
-                 <h3 className="text-xl font-black text-slate-900 uppercase tracking-tighter mb-6">Historique des paiements traités</h3>
+                 <h3 className="text-xl font-black text-slate-900 uppercase tracking-tighter mb-6">Historique des paiements traites</h3>
                  <div className="grid grid-cols-1 gap-4">
                    {withdrawals.filter(w => w.status !== 'en_attente').map((wd) => (
                      <div key={wd.id} className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between">
@@ -1379,7 +1379,7 @@ export default function AdminDashboard() {
           </div>
         );
       }
-      case 'Modèle Éco':
+      case 'Modele Eco':
         return (
           <div className="max-w-4xl bg-white rounded-3xl p-6 lg:p-5 lg:p-6 shadow-sm border border-slate-100">
             <div className="flex items-center gap-6 mb-10">
@@ -1387,8 +1387,8 @@ export default function AdminDashboard() {
                 <BadgePercent className="w-8 h-8" />
               </div>
               <div>
-                <h3 className="text-2xl font-black text-slate-900 tracking-tighter uppercase">Configuration du Modèle Économique</h3>
-                <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-1">Définissez vos commissions et frais de plateforme</p>
+                <h3 className="text-2xl font-black text-slate-900 tracking-tighter uppercase">Configuration du Modele Economique</h3>
+                <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-1">Definissez vos commissions et frais de plateforme</p>
               </div>
             </div>
 
@@ -1437,7 +1437,7 @@ export default function AdminDashboard() {
                   </div>
 
                   <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
-                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 px-2">Missions Simultanées Max</label>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 px-2">Missions Simultanees Max</label>
                     <div className="relative">
                       <Package className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                       <input 
@@ -1464,7 +1464,7 @@ export default function AdminDashboard() {
                 </div>
 
                 <div className="space-y-6">
-                  <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-2 mb-4">Paramètres de Négociation</h4>
+                  <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-2 mb-4">Parametres de Negociation</h4>
                   <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
                     <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 px-2">Tarif par KM (FCFA)</label>
                     <div className="relative">
@@ -1504,7 +1504,7 @@ export default function AdminDashboard() {
                 </div>
 
                 <div className="space-y-6">
-                  <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-2 mb-4">Limites de Négociation</h4>
+                  <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-2 mb-4">Limites de Negociation</h4>
                   <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
                     <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 px-2">Ratio Min Client (ex: 0.7 = 70%)</label>
                     <div className="relative">
@@ -1538,9 +1538,9 @@ export default function AdminDashboard() {
                     <div>
                       <h4 className="text-[12px] font-black text-orange-600 uppercase tracking-widest flex items-center gap-2">
                         <BadgePercent className="w-5 h-5" />
-                        Activer la Promo (Tarifs Réduits)
+                        Activer la Promo (Tarifs Reduits)
                       </h4>
-                      <p className="text-[10px] text-orange-500/80 mt-1 font-bold">Applique les tarifs promotionnels définis ci-dessous.</p>
+                      <p className="text-[10px] text-orange-500/80 mt-1 font-bold">Applique les tarifs promotionnels definis ci-dessous.</p>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
                       <input 
@@ -1608,7 +1608,7 @@ export default function AdminDashboard() {
 
                     {(commission.distancePricingRules || []).length === 0 && (
                       <div className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-3xl p-6 lg:p-5 lg:p-6 text-center">
-                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Aucun intervalle défini. Le tarif par KM standard sera utilisé.</p>
+                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Aucun intervalle defini. Le tarif par KM standard sera utilise.</p>
                       </div>
                     )}
                   </div>
@@ -1616,7 +1616,7 @@ export default function AdminDashboard() {
 
                 <div className="md:col-span-2 pt-8 flex items-center justify-between border-t border-slate-100 mt-4">
                   <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-tight">
-                    Dernière modif par : {commission.updatedBy}<br/>
+                    Derniere modif par : {commission.updatedBy}<br/>
                     {new Date(commission.updatedAt).toLocaleString()}
                   </div>
                   <button 
@@ -1625,7 +1625,7 @@ export default function AdminDashboard() {
                     className="flex items-center gap-3 px-10 py-5 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-orange-600 transition-all shadow-2xl shadow-slate-200 disabled:opacity-50"
                   >
                     {isSaving ? <Clock className="w-5 h-5 animate-spin" /> : <Settings className="w-5 h-5" />}
-                    Mettre à jour la politique tarifaire
+                    Mettre a jour la politique tarifaire
                   </button>
                 </div>
               </form>
@@ -1638,7 +1638,7 @@ export default function AdminDashboard() {
           <div className="bg-white rounded-3xl p-6 sm:p-6 lg:p-5 lg:p-6 shadow-sm border border-slate-100 overflow-hidden flex flex-col h-[600px] lg:h-full">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
               <div>
-                <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Carte en Temps Réel</h3>
+                <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Carte en Temps Reel</h3>
                 <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest mt-1">Suivi en direct de la flotte et des colis</p>
               </div>
               <div className="flex gap-4">
@@ -1668,7 +1668,7 @@ export default function AdminDashboard() {
           try {
             await api.sectors.create({ name: newSectorName.trim(), city: 'Ouagadougou', isActive: true });
             setNewSectorName("");
-            setToast({ type: 'success', message: 'Secteur ajouté avec succès !' });
+            setToast({ type: 'success', message: 'Secteur ajoute avec succes !' });
             await fetchData();
           } catch (err: any) {
             setToast({ type: 'error', message: 'Erreur: ' + (err.message || err) });
@@ -1680,7 +1680,7 @@ export default function AdminDashboard() {
         const handleDeleteSector = async (id: string) => {
           try {
             await api.sectors.delete(id);
-            setToast({ type: 'success', message: 'Secteur supprimé avec succès !' });
+            setToast({ type: 'success', message: 'Secteur supprime avec succes !' });
             setConfirmingDeleteSectorId(null);
             await fetchData();
           } catch (err: any) {
@@ -1695,7 +1695,7 @@ export default function AdminDashboard() {
             for (const n of ['Paspanga', 'Koulouba', 'Gounghin', 'Dassasgho', 'Ouaga 2000']) {
               await api.sectors.create({ name: n, city: 'Ouagadougou', isActive: true });
             }
-            setToast({ type: 'success', message: 'Secteurs initialisés avec succès !' });
+            setToast({ type: 'success', message: 'Secteurs initialises avec succes !' });
             await fetchData();
           } catch (err: any) {
             setToast({ type: 'error', message: "Erreur d'initialisation: " + (err.message || err) });
@@ -1709,7 +1709,7 @@ export default function AdminDashboard() {
              <div className="flex justify-between items-center mb-8">
                <div>
                   <h3 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Maillage Territorial</h3>
-                  <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-1">Secteurs actifs et couverture réseau</p>
+                  <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-1">Secteurs actifs et couverture reseau</p>
                </div>
                <div className="w-12 h-12 bg-orange-50 text-orange-600 rounded-2xl flex items-center justify-center">
                   <Globe className="w-6 h-6" />
@@ -1721,7 +1721,7 @@ export default function AdminDashboard() {
                  <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1 pl-2">Nom du nouveau secteur (ex: Wayalghin, Dassasgho...)</label>
                  <input 
                    type="text" 
-                   placeholder="Créer un nouveau secteur..."
+                   placeholder="Creer un nouveau secteur..."
                    value={newSectorName}
                    onChange={e => setNewSectorName(e.target.value)}
                    className="w-full bg-white border border-slate-200 text-slate-900 p-3 rounded-xl focus:outline-none focus:border-indigo-500 font-bold text-xs"
@@ -1753,7 +1753,7 @@ export default function AdminDashboard() {
                       <div className="absolute top-4 right-4">
                         {confirmingDeleteSectorId === s.id ? (
                           <div className="flex items-center gap-1 bg-white border border-red-100 p-1.5 rounded-xl shadow-md z-10">
-                            <span className="text-[8px] font-black uppercase text-red-500 mr-1 animate-pulse">Sûr?</span>
+                            <span className="text-[8px] font-black uppercase text-red-500 mr-1 animate-pulse">Sur?</span>
                             <button
                               onClick={() => handleDeleteSector(s.id)}
                               className="bg-red-600 hover:bg-red-700 text-white font-extrabold px-2 py-1 rounded-lg text-[8px] uppercase tracking-wider transition-all"
@@ -1792,9 +1792,9 @@ export default function AdminDashboard() {
                 })}
                 {sectors.length === 0 && (
                   <div className="col-span-full py-20 text-center bg-slate-50 rounded-3xl border border-dashed border-slate-200">
-                    <p className="text-slate-400 font-black uppercase text-[10px] tracking-widest leading-none">Aucun secteur défini dans la base de données</p>
+                    <p className="text-slate-400 font-black uppercase text-[10px] tracking-widest leading-none">Aucun secteur defini dans la base de donnees</p>
                     <p className="text-slate-300 font-bold text-[9px] uppercase tracking-widest mt-2 leading-none cursor-pointer hover:text-indigo-600" onClick={handleInitializeDefaults}>
-                      Initialiser avec les secteurs par défaut
+                      Initialiser avec les secteurs par defaut
                     </p>
                   </div>
                 )}
@@ -1808,7 +1808,7 @@ export default function AdminDashboard() {
              <div className="flex justify-between items-center mb-8">
                <div>
                   <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Centre d'Annonces</h3>
-                  <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-1">Diffuser des alertes à toute la plateforme</p>
+                  <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-1">Diffuser des alertes a toute la plateforme</p>
                </div>
                <button 
                  onClick={() => setShowNewAnnonceForm(!showNewAnnonceForm)}
@@ -1845,14 +1845,14 @@ export default function AdminDashboard() {
                         >
                           <option value="info">Information</option>
                           <option value="warning">Alerte Critique</option>
-                          <option value="success">Notification Succès</option>
+                          <option value="success">Notification Succes</option>
                         </select>
                       </div>
                       <div className="md:col-span-2 space-y-2">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Message détaillé</label>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Message detaille</label>
                         <textarea 
                           className="w-full bg-white border border-slate-200 rounded-2xl px-5 py-4 text-sm font-bold focus:border-orange-500 outline-none h-32 shadow-sm"
-                          placeholder="Décrivez l'annonce aux utilisateurs..."
+                          placeholder="Decrivez l'annonce aux utilisateurs..."
                           value={newAnnonce.message}
                           onChange={e => setNewAnnonce({...newAnnonce, message: e.target.value})}
                         />
@@ -1916,12 +1916,12 @@ export default function AdminDashboard() {
              </div>
           </div>
         );
-      case 'Paramètres App': {
+      case 'Parametres App': {
         return (
           <form onSubmit={handleUpdateConfig} className="bg-white rounded-3xl p-6 lg:p-5 lg:p-6 shadow-sm border border-slate-100">
              <div className="flex justify-between items-center mb-8">
                <div>
-                  <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Configuration Système</h3>
+                  <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Configuration Systeme</h3>
                   <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-1">Modes de fonctionnement et maintenance</p>
                </div>
                <button 
@@ -1951,7 +1951,7 @@ export default function AdminDashboard() {
                               onClick={handleSeedData}
                               className="w-full py-3 bg-white text-emerald-600 border border-emerald-100 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-emerald-50 transition-all font-black"
                             >
-                               Générer Données
+                               Generer Donnees
                             </button>
                             <button 
                               type="button"
@@ -1994,7 +1994,7 @@ export default function AdminDashboard() {
                           Production
                         </button>
                      </div>
-                     <p className="text-[10px] text-slate-400 font-bold mt-4 leading-relaxed uppercase tracking-tight">Le mode test désactive les vrais paiements bancaires et utilise les sandbox opérateurs.</p>
+                     <p className="text-[10px] text-slate-400 font-bold mt-4 leading-relaxed uppercase tracking-tight">Le mode test desactive les vrais paiements bancaires et utilise les sandbox operateurs.</p>
                   </div>
 
                   <div className="p-5 lg:p-6 bg-slate-50 rounded-2xl border border-slate-100">
@@ -2022,7 +2022,7 @@ export default function AdminDashboard() {
                         onChange={(e) => setConfigForm({ ...configForm!, maintenanceMessage: e.target.value })}
                         className="w-full bg-white border-none rounded-xl px-4 py-3 text-xs font-bold focus:ring-4 focus:ring-rose-100"
                      />
-                     <p className="text-[10px] text-slate-400 font-bold mt-4 leading-relaxed uppercase tracking-tight">Une fois actif, bloquera tout accès aux clients et drivers avec le message ci-dessus.</p>
+                     <p className="text-[10px] text-slate-400 font-bold mt-4 leading-relaxed uppercase tracking-tight">Une fois actif, bloquera tout acces aux clients et drivers avec le message ci-dessus.</p>
                   </div>
 
                   {/* Moyens de Paiement Actifs */}
@@ -2032,7 +2032,7 @@ export default function AdminDashboard() {
                            <CreditCard className="w-5 h-5" />
                         </div>
                         <div>
-                          <h4 className="font-black text-slate-900 uppercase text-sm tracking-tight">Moyens de Paiement Activés</h4>
+                          <h4 className="font-black text-slate-900 uppercase text-sm tracking-tight">Moyens de Paiement Actives</h4>
                           <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-none mt-1">Configurez les canaux de facturation de l'application</p>
                         </div>
                      </div>
@@ -2040,7 +2040,7 @@ export default function AdminDashboard() {
                         <div className="bg-white p-5 rounded-xl border border-slate-200 flex items-center justify-between shadow-sm">
                            <div>
                               <p className="text-xs font-black text-slate-900 uppercase">Paiement direct (OTP)</p>
-                              <p className="text-[9px] font-bold text-slate-400 uppercase mt-1 leading-relaxed">Déclenchement automatique par push SMS et saisie de code direct.</p>
+                              <p className="text-[9px] font-bold text-slate-400 uppercase mt-1 leading-relaxed">Declenchement automatique par push SMS et saisie de code direct.</p>
                            </div>
                            <label className="relative inline-flex items-center cursor-pointer shrink-0">
                              <input 
@@ -2056,7 +2056,7 @@ export default function AdminDashboard() {
                         <div className="bg-white p-5 rounded-xl border border-slate-200 flex items-center justify-between shadow-sm">
                            <div>
                               <p className="text-xs font-black text-slate-900 uppercase">Paiement manuel (USSD)</p>
-                              <p className="text-[9px] font-bold text-slate-400 uppercase mt-1 leading-relaxed">Génération de syntaxes et saisie manuelle de référence de reçu.</p>
+                              <p className="text-[9px] font-bold text-slate-400 uppercase mt-1 leading-relaxed">Generation de syntaxes et saisie manuelle de reference de recu.</p>
                            </div>
                            <label className="relative inline-flex items-center cursor-pointer shrink-0">
                              <input 
@@ -2072,7 +2072,7 @@ export default function AdminDashboard() {
                         <div className="bg-white p-5 rounded-xl border border-slate-200 flex items-center justify-between shadow-sm opacity-60">
                            <div>
                               <p className="text-xs font-black text-slate-900 uppercase">Paiement Cash (BETA)</p>
-                              <p className="text-[9px] font-bold text-slate-400 uppercase mt-1 leading-relaxed">Directement au livreur (Risque de sécurité augmenté).</p>
+                              <p className="text-[9px] font-bold text-slate-400 uppercase mt-1 leading-relaxed">Directement au livreur (Risque de securite augmente).</p>
                            </div>
                            <label className="relative inline-flex items-center cursor-pointer shrink-0">
                              <input 
@@ -2121,9 +2121,9 @@ export default function AdminDashboard() {
                        <Zap className="w-4 h-4" />
                      </div>
                      <div>
-                       <h5 className="text-[10px] font-black text-emerald-900 uppercase tracking-widest mb-1">Priorité des Identifiants</h5>
+                       <h5 className="text-[10px] font-black text-emerald-900 uppercase tracking-widest mb-1">Priorite des Identifiants</h5>
                        <p className="text-xs text-emerald-800 font-medium leading-relaxed">
-                         Les valeurs définies dans votre fichier <span className="font-bold">.env</span> local sont utilisées en priorité. Si elles sont absentes ou vides, l'application utilisera les valeurs saisies ci-dessous.
+                         Les valeurs definies dans votre fichier <span className="font-bold">.env</span> local sont utilisees en priorite. Si elles sont absentes ou vides, l'application utilisera les valeurs saisies ci-dessous.
                        </p>
                      </div>
                    </div>
@@ -2179,7 +2179,7 @@ export default function AdminDashboard() {
                      </div>
                      <div>
                         <h4 className="font-black text-slate-900 uppercase text-lg tracking-tight">Syntaxes USSD (Paiement Manuel)</h4>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Configurez les codes que les clients composeront sur leur téléphone</p>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Configurez les codes que les clients composeront sur leur telephone</p>
                      </div>
                   </div>
 
@@ -2190,7 +2190,7 @@ export default function AdminDashboard() {
                     <div>
                       <h5 className="text-[10px] font-black text-amber-900 uppercase tracking-widest mb-1">Instruction Importante</h5>
                       <p className="text-xs text-amber-800 font-medium leading-relaxed">
-                        Utilisez le mot-clé <span className="font-black bg-amber-200 px-1.5 py-0.5 rounded text-amber-950">{"{amount}"}</span> n'importe où dans la syntaxe. L'application le remplacera automatiquement par le prix de la course avant d'afficher le code au client.
+                        Utilisez le mot-cle <span className="font-black bg-amber-200 px-1.5 py-0.5 rounded text-amber-950">{"{amount}"}</span> n'importe ou dans la syntaxe. L'application le remplacera automatiquement par le prix de la course avant d'afficher le code au client.
                       </p>
                     </div>
                   </div>
@@ -2335,7 +2335,7 @@ export default function AdminDashboard() {
                            onChange={(e) => setConfigForm({ ...configForm!, ussdSyntaxGeneric: e.target.value })}
                            className="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl px-5 py-4 text-sm font-black text-slate-900 focus:outline-none focus:border-slate-400 focus:bg-white transition-all outline-none"
                         />
-                        <p className="text-[9px] text-slate-400 font-bold mt-3 leading-relaxed italic">Syntaxe générique par défaut.</p>
+                        <p className="text-[9px] text-slate-400 font-bold mt-3 leading-relaxed italic">Syntaxe generique par defaut.</p>
                      </div>
                   </div>
                 </div>
@@ -2348,13 +2348,13 @@ export default function AdminDashboard() {
                     </div>
                     <div>
                       <h4 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Contacts & Footer</h4>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Gérez les informations de contact affichées en bas de page</p>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Gerez les informations de contact affichees en bas de page</p>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
-                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 px-2">Nom de l'entreprise (Édité par)</label>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 px-2">Nom de l'entreprise (Edite par)</label>
                       <input 
                         type="text" 
                         value={configForm?.companyName || ''}
@@ -2365,7 +2365,7 @@ export default function AdminDashboard() {
                     </div>
                     
                     <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
-                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 px-2">Numéro de téléphone</label>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 px-2">Numero de telephone</label>
                       <input 
                         type="text" 
                         value={configForm?.contactPhone || ''}
@@ -2376,7 +2376,7 @@ export default function AdminDashboard() {
                     </div>
 
                     <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
-                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 px-2">Numéro WhatsApp</label>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 px-2">Numero WhatsApp</label>
                       <input 
                         type="text" 
                         value={configForm?.contactWhatsapp || ''}
@@ -2413,7 +2413,7 @@ export default function AdminDashboard() {
                 <div className="mt-8 pt-8 border-t border-slate-200">
                     <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest leading-relaxed text-center">
                       Ces syntaxes sont cruciales pour le parcours utilisateur "Paiement Manuel". <br/>
-                      <span className="text-orange-600">Assurez-vous de vérifier le code court de votre compte marchand avant de valider.</span>
+                      <span className="text-orange-600">Assurez-vous de verifier le code court de votre compte marchand avant de valider.</span>
                     </p>
                   </div>
              </form>
@@ -2440,7 +2440,7 @@ export default function AdminDashboard() {
                       <td className="py-4 text-xs font-black text-emerald-600">{d.cost || 0} FCFA</td>
                       <td className="py-4 text-[10px] font-bold text-slate-400 uppercase">{d.paymentMethod}</td>
                       <td className="py-4">
-                        <span className="px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full text-[8px] font-black uppercase tracking-widest">Payé</span>
+                        <span className="px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full text-[8px] font-black uppercase tracking-widest">Paye</span>
                       </td>
                     </tr>
                   ))}
@@ -2504,7 +2504,7 @@ export default function AdminDashboard() {
                           <div>
                             <h4 className="font-black text-slate-900 uppercase">Support Course #{selectedChatDeliveryId.slice(0, 8)}</h4>
                             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                               {selectedDelivery?.from?.address?.slice(0, 20) || 'Lieu'}... → {selectedDelivery?.to?.address?.slice(0, 20) || 'Lieu'}...
+                               {selectedDelivery?.from?.address?.slice(0, 20) || 'Lieu'}... {'->'} {selectedDelivery?.to?.address?.slice(0, 20) || 'Lieu'}...
                             </p>
                           </div>
                        </div>
@@ -2517,7 +2517,7 @@ export default function AdminDashboard() {
                           return (
                             <div key={msg.id} className={cn("flex flex-col", isMe ? "items-end" : "items-start")}>
                                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">
-                                  {msg.senderName || 'Inconnu'} • {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString() : ''}
+                                  {msg.senderName || 'Inconnu'} * {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString() : ''}
                                </span>
                                <div className={cn(
                                  "max-w-[70%] p-5 rounded-xl text-sm font-bold shadow-sm",
@@ -2535,7 +2535,7 @@ export default function AdminDashboard() {
                          type="text" 
                          value={adminMessage}
                          onChange={e => setAdminMessage(e.target.value)}
-                         placeholder="Répondre à la discussion..."
+                         placeholder="Repondre a la discussion..."
                          className="flex-1 bg-slate-50 border-none rounded-2xl px-6 font-bold text-sm focus:ring-4 focus:ring-orange-100 transition-all"
                        />
                        <button 
@@ -2552,27 +2552,27 @@ export default function AdminDashboard() {
                         <MessageSquare className="w-12 h-12 text-slate-200" />
                      </div>
                      <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter mb-4">Centre de Support Actif</h3>
-                     <p className="text-slate-400 font-bold text-xs uppercase tracking-widest max-w-sm">Sélectionnez une discussion à gauche pour intervenir en tant qu'administrateur ou modérateur.</p>
+                     <p className="text-slate-400 font-bold text-xs uppercase tracking-widest max-w-sm">Selectionnez une discussion a gauche pour intervenir en tant qu'administrateur ou moderateur.</p>
                   </div>
                 )}
              </div>
           </div>
         );
       }
-      case 'Logs Système': {
+      case 'Logs Systeme': {
         const systemLogs = [
           { id: 1, type: 'AUTH', text: 'Nouvelle connexion SuperAdmin', user: 'Admin', time: 'Il y a 2 min', color: 'text-indigo-500' },
           { id: 2, type: 'PAYMENT', text: `Validation attendue: course de ${deliveries[0]?.clientName || 'un client'}`, user: 'System', time: 'Il y a 5 min', color: 'text-orange-500' },
-          { id: 3, type: 'LOGISTICS', text: 'Nouvelle mission publiée à Ouaga 2000', user: 'Client', time: 'Il y a 12 min', color: 'text-emerald-500' },
-          { id: 4, type: 'DB', text: 'Optimisation des index Firestore complétée', user: 'Vercel/Fire', time: 'Il y a 45 min', color: 'text-slate-500' },
-          { id: 5, type: 'AUTH', text: 'Tentative de connexion échouée (IP: 192.168.1.1)', user: 'Guest', time: 'Il y a 1h', color: 'text-red-500' },
+          { id: 3, type: 'LOGISTICS', text: 'Nouvelle mission publiee a Ouaga 2000', user: 'Client', time: 'Il y a 12 min', color: 'text-emerald-500' },
+          { id: 4, type: 'DB', text: 'Optimisation des index Firestore completee', user: 'Vercel/Fire', time: 'Il y a 45 min', color: 'text-slate-500' },
+          { id: 5, type: 'AUTH', text: 'Tentative de connexion echouee (IP: 192.168.1.1)', user: 'Guest', time: 'Il y a 1h', color: 'text-red-500' },
         ];
         return (
           <div className="bg-white rounded-3xl p-6 lg:p-5 lg:p-6 shadow-sm border border-slate-100 h-full overflow-hidden flex flex-col">
             <div className="flex items-center justify-between mb-8">
               <div>
-                <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Journaux du Système FASO EXPRESS</h3>
-                <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-1">Surveillance en temps réel des activités plateforme</p>
+                <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Journaux du Systeme FASO EXPRESS</h3>
+                <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-1">Surveillance en temps reel des activites plateforme</p>
               </div>
               <div className="flex gap-2">
                  <div className="px-3 py-1 bg-emerald-50 text-emerald-600 rounded-lg text-[9px] font-black uppercase tracking-widest flex items-center gap-2">
@@ -2615,14 +2615,14 @@ export default function AdminDashboard() {
           </div>
         );
       }
-      case 'Base de Données':
+      case 'Base de Donnees':
         return (
           <div className="bg-white rounded-3xl p-6 lg:p-5 lg:p-6 shadow-sm border border-slate-100 flex flex-col h-full min-h-[600px]">
             <div className="flex items-center justify-between mb-8">
               <div>
-                <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Exploration de la Base de Données</h3>
+                <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Exploration de la Base de Donnees</h3>
                 <p className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] mt-1">
-                   {dbInfo ? `Connecté à : ${dbInfo.engine} (${dbInfo.database})` : 'Récupération des informations de connexion...'}
+                   {dbInfo ? `Connecte a : ${dbInfo.engine} (${dbInfo.database})` : 'Recuperation des informations de connexion...'}
                 </p>
               </div>
               <div className="flex gap-2">
@@ -2672,7 +2672,7 @@ export default function AdminDashboard() {
                </div>
                
                <div className="mb-4">
-                 <label htmlFor="sql_query" className="block text-slate-400 font-bold mb-2 uppercase tracking-widest text-[10px]">Exécuter une requête SQL</label>
+                 <label htmlFor="sql_query" className="block text-slate-400 font-bold mb-2 uppercase tracking-widest text-[10px]">Executer une requete SQL</label>
                  <div className="relative">
                    <textarea
                      id="sql_query"
@@ -2708,7 +2708,7 @@ export default function AdminDashboard() {
                  {queryResult ? (
                    queryResult.length === 0 ? (
                      <div className="p-8 text-center text-slate-500 top-1/2 left-1/2 absolute -translate-x-1/2 -translate-y-1/2">
-                       <p className="font-bold uppercase tracking-widest">— Retour vide —</p>
+                       <p className="font-bold uppercase tracking-widest">- Retour vide -</p>
                      </div>
                    ) : (
                      <table className="w-full text-left border-collapse">
@@ -2763,7 +2763,7 @@ export default function AdminDashboard() {
           try {
             await api.config.update('pricing_rules', newRules);
             setPricingRules(newRules);
-            setToast({ type: 'success', message: 'Règle de tarification ajoutée avec succès !' });
+            setToast({ type: 'success', message: 'Regle de tarification ajoutee avec succes !' });
             setPricingForm({
               vehicleType: 'moto',
               poidsMin: 0,
@@ -2785,7 +2785,7 @@ export default function AdminDashboard() {
           try {
             await api.config.update('pricing_rules', newRules);
             setPricingRules(newRules);
-            setToast({ type: 'success', message: 'Règle supprimée avec succès !' });
+            setToast({ type: 'success', message: 'Regle supprimee avec succes !' });
             setConfirmingDeleteRuleId(null);
             await fetchData();
           } catch (err: any) {
@@ -2800,7 +2800,7 @@ export default function AdminDashboard() {
           setIsSaving(true);
           try {
             await api.config.update('default_pricing', defaultPricing);
-            setToast({ type: 'success', message: 'Paramètres par défaut mis à jour !' });
+            setToast({ type: 'success', message: 'Parametres par defaut mis a jour !' });
             await fetchData();
           } catch (err: any) {
             setToast({ type: 'error', message: 'Erreur: ' + err.message });
@@ -2814,8 +2814,8 @@ export default function AdminDashboard() {
             <div className="bg-white rounded-[32px] p-8 border border-slate-100 shadow-sm">
               <div className="flex items-center justify-between mb-8">
                 <div>
-                  <h3 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Paramètres par Défaut (Moto & Urgence)</h3>
-                  <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-1">Configurez la base de la tarification géolocalisée (Haversine)</p>
+                  <h3 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Parametres par Defaut (Moto & Urgence)</h3>
+                  <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-1">Configurez la base de la tarification geolocalisee (Haversine)</p>
                 </div>
                 <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center">
                   <Settings className="w-6 h-6" />
@@ -2824,15 +2824,15 @@ export default function AdminDashboard() {
 
               <form onSubmit={handleUpdateDefaultPricing} className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-50 p-6 rounded-2xl border border-slate-100 mb-8 items-end">
                 <div>
-                  <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1 pl-2">Moto: Jusqu'à 10 km (F)</label>
+                  <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1 pl-2">Moto: Jusqu'a 10 km (F)</label>
                   <input type="number" value={defaultPricing.motoBase10 || ''} onChange={e => setDefaultPricing({ ...defaultPricing, motoBase10: Number(e.target.value) })} className="w-full bg-white border border-slate-200 text-slate-900 p-3 rounded-xl focus:outline-none focus:border-indigo-500 font-bold text-xs" />
                 </div>
                 <div>
-                  <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1 pl-2">Moto: Jusqu'à 15 km (F)</label>
+                  <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1 pl-2">Moto: Jusqu'a 15 km (F)</label>
                   <input type="number" value={defaultPricing.motoBase15 || ''} onChange={e => setDefaultPricing({ ...defaultPricing, motoBase15: Number(e.target.value) })} className="w-full bg-white border border-slate-200 text-slate-900 p-3 rounded-xl focus:outline-none focus:border-indigo-500 font-bold text-xs" />
                 </div>
                 <div>
-                  <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1 pl-2">Moto: Coût par Km &gt; 15km</label>
+                  <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1 pl-2">Moto: Cout par Km &gt; 15km</label>
                   <input type="number" value={defaultPricing.motoCostPerKmAfter15 || ''} onChange={e => setDefaultPricing({ ...defaultPricing, motoCostPerKmAfter15: Number(e.target.value) })} className="w-full bg-white border border-slate-200 text-slate-900 p-3 rounded-xl focus:outline-none focus:border-indigo-500 font-bold text-xs" />
                 </div>
                 <div>
@@ -2845,7 +2845,7 @@ export default function AdminDashboard() {
                 </div>
                 <div>
                   <button type="submit" disabled={isSaving} className="w-full bg-slate-900 text-white font-bold text-sm py-3 px-4 rounded-xl hover:bg-slate-800 transition-colors disabled:opacity-50 h-[42px] flex items-center justify-center">
-                    {isSaving ? 'Enregistrement...' : 'Enregistrer les paramètres par défaut'}
+                    {isSaving ? 'Enregistrement...' : 'Enregistrer les parametres par defaut'}
                   </button>
                 </div>
               </form>
@@ -2854,8 +2854,8 @@ export default function AdminDashboard() {
             <div className="bg-white rounded-[32px] p-8 border border-slate-100 shadow-sm">
               <div className="flex items-center justify-between mb-8">
                 <div>
-                  <h3 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Règles Dynamiques Avancées</h3>
-                  <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-1">Écrase les formules standards (ex. tricycle/camionnette par poids)</p>
+                  <h3 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Regles Dynamiques Avancees</h3>
+                  <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-1">Ecrase les formules standards (ex. tricycle/camionnette par poids)</p>
                 </div>
                 <div className="w-12 h-12 bg-orange-50 text-orange-600 rounded-2xl flex items-center justify-center">
                   <Settings className="w-6 h-6" />
@@ -2864,7 +2864,7 @@ export default function AdminDashboard() {
 
               <form onSubmit={handleAddPricingRule} className="grid grid-cols-1 md:grid-cols-5 gap-4 bg-slate-50 p-6 rounded-2xl border border-slate-100 mb-8 items-end">
                 <div>
-                  <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1 pl-2">Véhicule</label>
+                  <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1 pl-2">Vehicule</label>
                   <select 
                     value={pricingForm.vehicleType}
                     onChange={e => setPricingForm({ ...pricingForm, vehicleType: e.target.value })}
@@ -2923,7 +2923,7 @@ export default function AdminDashboard() {
 
               <div className="space-y-3">
                 {pricingRules.length === 0 ? (
-                  <p className="text-center py-10 text-slate-400 text-xs font-bold uppercase tracking-widest">Aucune règle spécifique. Tarifs standards appliqués.</p>
+                  <p className="text-center py-10 text-slate-400 text-xs font-bold uppercase tracking-widest">Aucune regle specifique. Tarifs standards appliques.</p>
                 ) : (
                   pricingRules.map((rule: any) => (
                     <div key={rule.id} className="p-4 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-between hover:bg-white transition-all shadow-sm">
@@ -2932,16 +2932,16 @@ export default function AdminDashboard() {
                           {rule.vehicleType?.slice(0, 4)}
                         </div>
                         <div>
-                          <p className="text-xs font-black text-slate-900 uppercase font-black">Véhicule : {rule.vehicleType}</p>
+                          <p className="text-xs font-black text-slate-900 uppercase font-black">Vehicule : {rule.vehicleType}</p>
                           <p className="text-[10px] font-bold text-slate-400 tracking-wider">
-                            Poids admissible: {rule.poidsMin} kg à {rule.poidsMax} kg • Coût Fixe: {rule.baseCost} F • Tarif/Km: {rule.tarifKm} F/km
+                            Poids admissible: {rule.poidsMin} kg a {rule.poidsMax} kg * Cout Fixe: {rule.baseCost} F * Tarif/Km: {rule.tarifKm} F/km
                           </p>
                         </div>
                       </div>
 
                       {confirmingDeleteRuleId === rule.id ? (
                         <div className="flex items-center gap-2">
-                          <span className="text-[9px] font-black uppercase text-red-500 mr-1 animate-pulse">Sûr(e) ?</span>
+                          <span className="text-[9px] font-black uppercase text-red-500 mr-1 animate-pulse">Sur(e) ?</span>
                           <button
                             onClick={() => handleDeletePricingRule(rule.id)}
                             className="bg-red-600 hover:bg-red-700 text-white font-extrabold px-3 py-2 rounded-xl text-[9px] uppercase tracking-wider transition-all"
@@ -2982,7 +2982,7 @@ export default function AdminDashboard() {
           setIsCreatingPromo(true);
           try {
             await api.promo.create(promoForm);
-            setToast({ type: 'success', message: 'Code promo créé avec succès !' });
+            setToast({ type: 'success', message: 'Code promo cree avec succes !' });
             setPromoForm({
               code: '',
               type: 'percentage',
@@ -3003,7 +3003,7 @@ export default function AdminDashboard() {
         const handleDeletePromo = async (codeToDelete: string) => {
           try {
             await api.promo.delete(codeToDelete);
-            setToast({ type: 'success', message: 'Code promo supprimé avec succès !' });
+            setToast({ type: 'success', message: 'Code promo supprime avec succes !' });
             setConfirmingDeletePromoCode(null);
             await fetchData();
           } catch (err: any) {
@@ -3017,7 +3017,7 @@ export default function AdminDashboard() {
               <div className="flex items-center justify-between mb-8">
                 <div>
                   <h3 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Gestion des Codes Promotionnels</h3>
-                  <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-1">Créez et gérez les ristournes appliquées sur les courses</p>
+                  <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-1">Creez et gerez les ristournes appliquees sur les courses</p>
                 </div>
                 <div className="w-12 h-12 bg-orange-50 text-orange-600 rounded-2xl flex items-center justify-center">
                   <BadgePercent className="w-6 h-6" />
@@ -3059,7 +3059,7 @@ export default function AdminDashboard() {
                   <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1 pl-2">Limite utilisations</label>
                   <input 
                     type="number" 
-                    placeholder="Illimité"
+                    placeholder="Illimite"
                     value={promoForm.max_uses}
                     onChange={e => setPromoForm({ ...promoForm, max_uses: e.target.value })}
                     className="w-full bg-white border border-slate-200 text-slate-900 p-3 rounded-xl focus:outline-none focus:border-indigo-500 font-bold text-xs placeholder:text-slate-300"
@@ -3089,7 +3089,7 @@ export default function AdminDashboard() {
                     disabled={isCreatingPromo}
                     className="w-full py-4 bg-slate-900 hover:bg-orange-600 text-white font-extrabold uppercase tracking-widest text-[9px] rounded-xl transition-all"
                   >
-                    {isCreatingPromo ? "Création..." : "Enregistrer le code promo"}
+                    {isCreatingPromo ? "Creation..." : "Enregistrer le code promo"}
                   </button>
                 </div>
               </form>
@@ -3106,14 +3106,14 @@ export default function AdminDashboard() {
                         </div>
                         <div>
                           <p className="text-xs font-black text-slate-900 uppercase tracking-wider">
-                            {promo.type === 'percentage' ? `Réduction: -${promo.value}%` : `Réduction: -${promo.value} FCFA`}
+                            {promo.type === 'percentage' ? `Reduction: -${promo.value}%` : `Reduction: -${promo.value} FCFA`}
                           </p>
                           <p className="text-[10px] font-bold text-slate-400 tracking-wider">
-                            Utilisé {promo.uses_count} fois {promo.max_uses ? `sur un maximum de ${promo.max_uses}` : '(Sans limite globale)'} • Max par utilisateur : {promo.max_per_user}
+                            Utilise {promo.uses_count} fois {promo.max_uses ? `sur un maximum de ${promo.max_uses}` : '(Sans limite globale)'} * Max par utilisateur : {promo.max_per_user}
                           </p>
                           {promo.end_date && (
                             <p className="text-[9px] font-bold text-red-500 mt-1 uppercase">
-                              Expire le : {new Date(promo.end_date).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }).replace(',', ' à')}
+                              Expire le : {new Date(promo.end_date).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }).replace(',', ' a')}
                             </p>
                           )}
                         </div>
@@ -3121,7 +3121,7 @@ export default function AdminDashboard() {
 
                       {confirmingDeletePromoCode === promo.code ? (
                         <div className="flex items-center gap-2">
-                          <span className="text-[9px] font-black uppercase text-red-500 mr-1 animate-pulse">Sûr(e) ?</span>
+                          <span className="text-[9px] font-black uppercase text-red-500 mr-1 animate-pulse">Sur(e) ?</span>
                           <button
                             onClick={() => handleDeletePromo(promo.code)}
                             className="bg-red-600 hover:bg-red-700 text-white font-extrabold px-3 py-2 rounded-xl text-[9px] uppercase tracking-wider transition-all"
@@ -3156,7 +3156,7 @@ export default function AdminDashboard() {
           <div className="flex flex-col items-center justify-center py-32 bg-white rounded-3xl border border-slate-100 shadow-sm text-center px-10">
             <Store className="w-24 h-24 text-slate-100 mb-8" />
             <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter mb-4">Module {activeMenu}</h3>
-            <p className="text-slate-400 font-bold text-sm uppercase tracking-widest max-w-md">Ce module de suivi en temps réel de FASO EXPRESS est en cours de déploiement sécurisé.</p>
+            <p className="text-slate-400 font-bold text-sm uppercase tracking-widest max-w-md">Ce module de suivi en temps reel de FASO EXPRESS est en cours de deploiement securise.</p>
           </div>
         );
     }
@@ -3225,7 +3225,7 @@ export default function AdminDashboard() {
           <div className="mt-8 pt-6 border-t border-slate-100">
             <button onClick={() => {logout(); navigate('/')}} className="w-full flex items-center gap-3 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-rose-500 hover:bg-rose-50 rounded-xl transition-all mb-6">
               <LogOut className="w-4 h-4" />
-              Déconnexion
+              Deconnexion
             </button>
 
             {dbInfo ? (
@@ -3246,7 +3246,7 @@ export default function AdminDashboard() {
               </div>
             ) : (
               <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex items-center justify-center p-2">
-                <span className="text-[8px] font-bold text-slate-300 uppercase tracking-widest">Récupération DB...</span>
+                <span className="text-[8px] font-bold text-slate-300 uppercase tracking-widest">Recuperation DB...</span>
               </div>
             )}
           </div>
@@ -3268,7 +3268,7 @@ export default function AdminDashboard() {
           <div className="flex flex-wrap items-center gap-3 sm:gap-6 justify-between sm:justify-end">
             {isSuperAdmin && (
               <div className="flex flex-col items-start sm:items-end">
-                <span className="text-[7px] sm:text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Système Mode</span>
+                <span className="text-[7px] sm:text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Systeme Mode</span>
                 <button 
                   onClick={handleToggleMode}
                   className={cn(
@@ -3383,7 +3383,7 @@ export default function AdminDashboard() {
               </div>
               <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter text-center mb-4 italic">Hard Reset</h3>
               <p className="text-xs font-bold text-slate-500 mb-8 leading-relaxed text-center uppercase tracking-tight">
-                Cette action supprimera toutes les livraisons, enchères, tracking, messages et comptes utilisateurs. Tapez <span className="text-rose-600 font-black px-2 py-1 bg-rose-50 rounded-lg mx-1">RESET</span> pour confirmer le nettoyage complet de la base de données locale.
+                Cette action supprimera toutes les livraisons, encheres, tracking, messages et comptes utilisateurs. Tapez <span className="text-rose-600 font-black px-2 py-1 bg-rose-50 rounded-lg mx-1">RESET</span> pour confirmer le nettoyage complet de la base de donnees locale.
               </p>
               
               <div className="space-y-6">
@@ -3429,7 +3429,7 @@ export default function AdminDashboard() {
             >
               <div className="flex justify-between items-start mb-8">
                 <div>
-                  <h3 className="text-2xl font-black text-slate-900 tracking-tighter uppercase">Créer un Utilisateur</h3>
+                  <h3 className="text-2xl font-black text-slate-900 tracking-tighter uppercase">Creer un Utilisateur</h3>
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
                     {newUserData.role === 'client' ? 'Nouveau Client' : 'Nouveau Livreur'}
                   </p>
@@ -3453,7 +3453,7 @@ export default function AdminDashboard() {
                   <input type="password" value={newUserData.password} onChange={e => setNewUserData({...newUserData, password: e.target.value})} required className="w-full bg-slate-50 border-none rounded-2xl px-4 py-3 text-sm font-bold focus:ring-4 focus:ring-indigo-100" />
                 </div>
                 <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Téléphone</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Telephone</label>
                   <input type="tel" value={newUserData.phone} onChange={e => setNewUserData({...newUserData, phone: e.target.value})} className="w-full bg-slate-50 border-none rounded-2xl px-4 py-3 text-sm font-bold focus:ring-4 focus:ring-indigo-100" />
                 </div>
 
@@ -3461,7 +3461,7 @@ export default function AdminDashboard() {
                   <>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Type véhicule</label>
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Type vehicule</label>
                         <select value={newUserData.vehicleType} onChange={e => setNewUserData({...newUserData, vehicleType: e.target.value})} className="w-full bg-slate-50 border-none rounded-2xl px-4 py-3 text-sm font-bold focus:ring-4 focus:ring-indigo-100">
                           <option>Moto</option>
                           <option>Tricycle</option>
@@ -3471,7 +3471,7 @@ export default function AdminDashboard() {
                       <div>
                         <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Statut Pro</label>
                         <select value={newUserData.driverType} onChange={e => setNewUserData({...newUserData, driverType: e.target.value})} className="w-full bg-slate-50 border-none rounded-2xl px-4 py-3 text-sm font-bold focus:ring-4 focus:ring-indigo-100">
-                          <option value="freelance">Indépendant</option>
+                          <option value="freelance">Independant</option>
                           <option value="company">Flotte Entreprise</option>
                         </select>
                       </div>
@@ -3483,7 +3483,7 @@ export default function AdminDashboard() {
 
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Tél. Compensation (Opt.)</label>
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Tel. Compensation (Opt.)</label>
                         <input type="tel" value={newUserData.withdrawalPhone} onChange={e => setNewUserData({...newUserData, withdrawalPhone: e.target.value})} className="w-full bg-slate-50 border-none rounded-2xl px-4 py-3 text-sm font-bold focus:ring-4 focus:ring-indigo-100" />
                       </div>
                       <div>
@@ -3504,7 +3504,7 @@ export default function AdminDashboard() {
                         />
                         <input 
                           type="tel" 
-                          placeholder="Tél Garant" 
+                          placeholder="Tel Garant" 
                           value={newUserData.guarantorPhone} 
                           onChange={e => setNewUserData({...newUserData, guarantorPhone: e.target.value})} 
                           className="w-full bg-white border-none rounded-xl px-3 py-2 text-[10px] font-bold" 
@@ -3554,7 +3554,7 @@ export default function AdminDashboard() {
 
                 <div className="pt-6">
                   <button type="submit" disabled={isSubmittingNewUser} className="w-full py-4 bg-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-xl hover:bg-indigo-700 transition-all disabled:opacity-50">
-                    {isSubmittingNewUser ? 'Création...' : 'Créer l\'utilisateur'}
+                    {isSubmittingNewUser ? 'Creation...' : 'Creer l\'utilisateur'}
                   </button>
                 </div>
               </form>
@@ -3642,8 +3642,8 @@ export default function AdminDashboard() {
                     <p className="text-xs font-bold text-slate-900 break-all text-left">{selectedUser.email}</p>
                   </div>
                   <div className="bg-slate-50 p-4 rounded-3xl border border-slate-100">
-                    <p className="text-[7px] font-black text-slate-400 uppercase tracking-widest mb-1 text-left">Téléphone</p>
-                    <p className="text-xs font-bold text-slate-900 text-left">{selectedUser.phone || 'Non renseigné'}</p>
+                    <p className="text-[7px] font-black text-slate-400 uppercase tracking-widest mb-1 text-left">Telephone</p>
+                    <p className="text-xs font-bold text-slate-900 text-left">{selectedUser.phone || 'Non renseigne'}</p>
                   </div>
                 </div>
 
@@ -3678,19 +3678,19 @@ export default function AdminDashboard() {
                        selectedUser.accountStatus === 'suspended' ? "bg-emerald-100 text-emerald-600 hover:bg-emerald-200" : "bg-red-100 text-red-600 hover:bg-red-200"
                      )}
                    >
-                     {selectedUser.accountStatus === 'suspended' ? 'Réactiver le compte' : 'Suspendre le compte'}
+                     {selectedUser.accountStatus === 'suspended' ? 'Reactiver le compte' : 'Suspendre le compte'}
                    </button>
                 </div>
 
                 {selectedUser.role === 'driver' && (
                   <div className="p-5 bg-slate-900 rounded-[32px] space-y-4 shadow-xl shadow-slate-200">
                     <div className="flex items-center justify-between text-white">
-                      <p className="text-[9px] font-black uppercase tracking-[0.2em]">Détails du véhicule</p>
+                      <p className="text-[9px] font-black uppercase tracking-[0.2em]">Details du vehicule</p>
                       <Truck className="w-4 h-4 text-orange-500" />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <p className="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-1 text-left">Modèle</p>
+                        <p className="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-1 text-left">Modele</p>
                         <p className="text-xs font-bold text-white uppercase text-left">{selectedUser.vehicleType || 'Moto'}</p>
                       </div>
                       <div>
@@ -3705,7 +3705,7 @@ export default function AdminDashboard() {
                    <div className="bg-indigo-50 p-4 rounded-[32px] border border-indigo-100 space-y-3">
                       <div className="flex items-center gap-3">
                          <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 shadow-sm"><ShieldCheck className="w-4 h-4" /></div>
-                         <p className="text-[9px] font-black uppercase tracking-widest text-indigo-900">Garanti / Référence</p>
+                         <p className="text-[9px] font-black uppercase tracking-widest text-indigo-900">Garanti / Reference</p>
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                          <div>
@@ -3713,7 +3713,7 @@ export default function AdminDashboard() {
                             <p className="text-xs font-bold text-indigo-900 text-left">{selectedUser.guarantorName || 'N/A'}</p>
                          </div>
                          <div>
-                            <p className="text-[7px] font-black text-indigo-400 uppercase tracking-widest mb-1 text-left">Téléphone</p>
+                            <p className="text-[7px] font-black text-indigo-400 uppercase tracking-widest mb-1 text-left">Telephone</p>
                             <p className="text-xs font-bold text-indigo-900 text-left">{selectedUser.guarantorPhone || 'N/A'}</p>
                          </div>
                       </div>
@@ -3722,7 +3722,7 @@ export default function AdminDashboard() {
                 
                 {selectedUser.role === 'driver' && (
                   <div className="space-y-4">
-                    <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 px-2 text-left">DOCUMENTS ET PIÈCES JOINTES</p>
+                    <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 px-2 text-left">DOCUMENTS ET PIECES JOINTES</p>
                     <div className="grid grid-cols-2 gap-3">
                        {/* Identity Recto */}
                        <div className="space-y-1">
@@ -3741,7 +3741,7 @@ export default function AdminDashboard() {
 
                        {/* Identity Verso */}
                        <div className="space-y-1">
-                          <p className="text-[7px] font-black text-slate-500 uppercase tracking-widest pl-1 text-left">CNIB (Verso / Complément)</p>
+                          <p className="text-[7px] font-black text-slate-500 uppercase tracking-widest pl-1 text-left">CNIB (Verso / Complement)</p>
                           {(selectedUser.identityCardBackUrl || selectedUser.idCardBack) ? (
                             <button className="w-full relative group" onClick={() => window.open((selectedUser.identityCardBackUrl || selectedUser.idCardBack)!, '_blank')}>
                               <img src={selectedUser.identityCardBackUrl || selectedUser.idCardBack} alt="ID Back" className="w-full aspect-video object-cover rounded-2xl border border-slate-200 shadow-sm" />
@@ -3792,7 +3792,7 @@ export default function AdminDashboard() {
                     <div className="flex items-center justify-between">
                       <div className="text-left">
                         <p className="text-[10px] font-black text-slate-900 uppercase tracking-tight">Statut Dossier</p>
-                        <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Vérification de l'identité du livreur</p>
+                        <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Verification de l'identite du livreur</p>
                       </div>
                       <span className={cn(
                         "px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest shadow-sm",
@@ -3800,8 +3800,8 @@ export default function AdminDashboard() {
                         selectedUser.verificationStatus === 'rejected' ? "bg-red-50 text-red-600 border border-red-100" :
                         "bg-amber-50 text-amber-600 border border-amber-100 animate-pulse"
                       )}>
-                        {selectedUser.verificationStatus === 'verified' ? "Validé" : 
-                         selectedUser.verificationStatus === 'rejected' ? "Rejeté" : "En attente"}
+                        {selectedUser.verificationStatus === 'verified' ? "Valide" : 
+                         selectedUser.verificationStatus === 'rejected' ? "Rejete" : "En attente"}
                       </span>
                     </div>
 
@@ -3822,7 +3822,7 @@ export default function AdminDashboard() {
                             });
                             setSelectedUser({ ...selectedUser, verificationStatus: 'verified', accountStatus: 'active', isVerified: true });
                             fetchData();
-                            await sendNotification(selectedUser.userId, "Dossier Validé ! 🎉", "Votre dossier a été approuvé. Bienvenue !", 'success');
+                            await sendNotification(selectedUser.userId, "Dossier Valide ! !", "Votre dossier a ete approuve. Bienvenue !", 'success');
                           } catch (err) {
                             console.error(err);
                           } finally {
@@ -3832,7 +3832,7 @@ export default function AdminDashboard() {
                         className="flex-1 py-4 bg-emerald-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.1em] shadow-lg shadow-emerald-100 hover:bg-emerald-700 active:bg-emerald-800 transition-all disabled:opacity-50 disabled:grayscale flex items-center justify-center gap-2"
                       >
                         {isProcessingAction ? <Clock className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
-                        {selectedUser.verificationStatus === 'verified' ? 'Déjà Validé' : (isProcessingAction ? 'Attente...' : 'Valider')}
+                        {selectedUser.verificationStatus === 'verified' ? 'Deja Valide' : (isProcessingAction ? 'Attente...' : 'Valider')}
                       </motion.button>
                       <motion.button
                         whileHover={{ scale: 1.02 }}
@@ -3851,7 +3851,7 @@ export default function AdminDashboard() {
                             });
                             setSelectedUser({ ...selectedUser, verificationStatus: 'rejected', accountStatus: 'pending_approval', isVerified: false });
                             fetchData();
-                            await sendNotification(selectedUser.userId, "Dossier à corriger ⚠️", `Rejeté. Raison : ${reason || "Doc non conformes"}`, 'warning');
+                            await sendNotification(selectedUser.userId, "Dossier a corriger [!]", `Rejete. Raison : ${reason || "Doc non conformes"}`, 'warning');
                           } catch (err) {
                             console.error(err);
                           } finally {
@@ -3861,7 +3861,7 @@ export default function AdminDashboard() {
                         className="flex-1 py-4 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.1em] shadow-lg shadow-slate-200 hover:bg-black transition-all disabled:opacity-50 disabled:grayscale flex items-center justify-center gap-2"
                       >
                          {isProcessingAction ? <Clock className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
-                         {selectedUser.verificationStatus === 'rejected' ? 'Rejeté' : (isProcessingAction ? 'Attente...' : 'Rejeter')}
+                         {selectedUser.verificationStatus === 'rejected' ? 'Rejete' : (isProcessingAction ? 'Attente...' : 'Rejeter')}
                       </motion.button>
                     </div>
                   </div>
@@ -3884,7 +3884,7 @@ export default function AdminDashboard() {
                         disabled={isDeleting}
                         className="flex-1 py-4 bg-red-600 hover:bg-red-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.1em] transition-all disabled:opacity-50"
                       >
-                        {isDeleting ? 'Suppression...' : 'Sûr ! Supprimer'}
+                        {isDeleting ? 'Suppression...' : 'Sur ! Supprimer'}
                       </button>
                       <button
                         onClick={() => setConfirmingDeleteUserId(null)}
@@ -3932,7 +3932,7 @@ export default function AdminDashboard() {
                toastState.type === 'error' ? <AlertCircle className="w-5 h-5" /> : <Info className="w-5 h-5" />}
             </div>
             <div className="flex-1 text-left">
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Notification Système</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Notification Systeme</p>
               <p className="text-xs font-bold leading-relaxed mt-1 text-slate-100">{toastState.message}</p>
             </div>
             <button onClick={() => setToastState(null)} className="text-slate-500 hover:text-white transition-colors cursor-pointer self-start p-1 bg-transparent border-none outline-none">
