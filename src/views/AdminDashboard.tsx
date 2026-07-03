@@ -18,7 +18,6 @@ import { useAuth, ADMIN_EMAILS } from '../context/AuthContext';
 import { useNavigate, Navigate, useLocation } from 'react-router-dom';
 import LiveMap from '../components/LiveMap';
 import { sendNotification } from '../lib/notificationService';
-import toast from 'react-hot-toast';
 
 const chartData = [];
 
@@ -48,7 +47,25 @@ export default function AdminDashboard() {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [resetCode, setResetCode] = useState('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const [toastState, setToastState] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+
+  const toast = (arg: string | { type?: 'success' | 'error' | 'info'; message: string } | null) => {
+    if (arg === null) {
+      setToastState(null);
+    } else if (typeof arg === 'string') {
+      setToastState({ type: 'info', message: arg });
+    } else {
+      setToastState({ type: arg.type || 'info', message: arg.message });
+    }
+  };
+  toast.success = (message: string) => {
+    setToastState({ type: 'success', message });
+  };
+  toast.error = (message: string) => {
+    setToastState({ type: 'error', message });
+  };
+
+  const setToast = toast;
 
   // Promo Code States
   const [promoCodes, setPromoCodes] = useState<any[]>([]);
@@ -109,11 +126,11 @@ export default function AdminDashboard() {
   const dynamicChartData = React.useMemo(() => processChartData(), [deliveries]);
 
   useEffect(() => {
-    if (toast) {
-      const timer = setTimeout(() => setToast(null), 4000);
+    if (toastState) {
+      const timer = setTimeout(() => setToastState(null), 4000);
       return () => clearTimeout(timer);
     }
-  }, [toast]);
+  }, [toastState]);
 
   useEffect(() => {
     if (queryTab && queryTab !== activeMenu) {
@@ -477,7 +494,8 @@ export default function AdminDashboard() {
   useEffect(() => {
     // Check for new chat messages
     deliveries.forEach(d => {
-      if (d.lastMessageAt && d.lastMessageAt !== prevDeliveriesRef.current[d.id]) {
+      const prevVal = prevDeliveriesRef.current[d.id];
+      if (d.lastMessageAt && prevVal !== undefined && d.lastMessageAt !== prevVal) {
         if (activeMenu !== 'Support Chat' || selectedChatDeliveryId !== d.id) {
           setUnreadChats(prev => new Set(prev).add(d.id));
           playNotificationSound();
@@ -3898,7 +3916,7 @@ export default function AdminDashboard() {
 
       {/* FLOATING SYSTEM TOAST */}
       <AnimatePresence>
-        {toast && (
+        {toastState && (
           <motion.div
             initial={{ opacity: 0, y: 50, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -3907,17 +3925,17 @@ export default function AdminDashboard() {
           >
             <div className={cn(
               "w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-lg",
-              toast.type === 'success' ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/30" :
-              toast.type === 'error' ? "bg-rose-500 text-white shadow-lg shadow-rose-500/30" : "bg-blue-500 text-white shadow-lg shadow-blue-500/30"
+              toastState.type === 'success' ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/30" :
+              toastState.type === 'error' ? "bg-rose-500 text-white shadow-lg shadow-rose-500/30" : "bg-blue-500 text-white shadow-lg shadow-blue-500/30"
             )}>
-              {toast.type === 'success' ? <CheckCircle className="w-5 h-5" /> : 
-               toast.type === 'error' ? <AlertCircle className="w-5 h-5" /> : <Info className="w-5 h-5" />}
+              {toastState.type === 'success' ? <CheckCircle className="w-5 h-5" /> : 
+               toastState.type === 'error' ? <AlertCircle className="w-5 h-5" /> : <Info className="w-5 h-5" />}
             </div>
             <div className="flex-1 text-left">
               <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Notification Système</p>
-              <p className="text-xs font-bold leading-relaxed mt-1 text-slate-100">{toast.message}</p>
+              <p className="text-xs font-bold leading-relaxed mt-1 text-slate-100">{toastState.message}</p>
             </div>
-            <button onClick={() => setToast(null)} className="text-slate-500 hover:text-white transition-colors cursor-pointer self-start p-1 bg-transparent border-none outline-none">
+            <button onClick={() => setToastState(null)} className="text-slate-500 hover:text-white transition-colors cursor-pointer self-start p-1 bg-transparent border-none outline-none">
               <X className="w-4 h-4" />
             </button>
           </motion.div>

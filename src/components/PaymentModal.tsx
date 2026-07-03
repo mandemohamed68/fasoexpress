@@ -173,7 +173,7 @@ export default function PaymentModal({
       } else {
         // @ts-ignore
         if (window.Capacitor && window.Capacitor.isNativePlatform()) {
-          apiBase = "http://41.78.54.60:3006/api";
+          apiBase = "http://167.172.39.172:1010/api";
         }
       }
     }

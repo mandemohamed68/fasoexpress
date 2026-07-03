@@ -131,7 +131,7 @@ export default function DeliveryTracking() {
         const found = await api.deliveries.get(deliveryId);
         if (found) {
           // Check for new messages
-          if (found.lastMessageAt && found.lastMessageAt !== deliveryRef.current?.lastMessageAt) {
+          if (found.lastMessageAt && deliveryRef.current && found.lastMessageAt !== deliveryRef.current?.lastMessageAt) {
             if (!chatOpenRef.current) {
               setHasUnreadMessages(true);
               playNotificationSound();

@@ -76,6 +76,7 @@ CREATE TABLE IF NOT EXISTS `deliveries` (
   `boostAmount` double DEFAULT 0,
   `cancelReason` text DEFAULT NULL,
   `lastMessageAt` datetime DEFAULT NULL,
+  `rejectedBy` text DEFAULT NULL,
   `createdAt` datetime DEFAULT CURRENT_TIMESTAMP,
   `updatedAt` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (`clientId`) REFERENCES `users` (`userId`),

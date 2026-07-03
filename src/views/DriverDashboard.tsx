@@ -175,7 +175,8 @@ export default function DriverDashboard() {
   useEffect(() => {
     // Check for new chat messages in active jobs
     activeJobs.forEach(job => {
-      if (job.lastMessageAt && job.lastMessageAt !== prevDeliveriesRef.current[job.id]) {
+      const prevVal = prevDeliveriesRef.current[job.id];
+      if (job.lastMessageAt && prevVal !== undefined && job.lastMessageAt !== prevVal) {
         if (!chatOpen || chatDeliveryId !== job.id) {
           setUnreadChats(prev => new Set(prev).add(job.id));
           playNotificationSound();

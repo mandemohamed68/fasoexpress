@@ -224,7 +224,8 @@ const colsToAdd = [
   { name: 'urgentFee', type: 'REAL DEFAULT 0' },
   { name: 'boostAmount', type: 'REAL DEFAULT 0' },
   { name: 'lastMessageAt', type: 'TEXT' },
-  { name: 'cancelReason', type: 'TEXT' }
+  { name: 'cancelReason', type: 'TEXT' },
+  { name: 'rejectedBy', type: 'TEXT' }
 ];
 
 const withdrawCols = [

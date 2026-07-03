@@ -103,7 +103,7 @@ export default function LandingView() {
 
   const [showServerConfig, setShowServerConfig] = useState(false);
   const [customApiUrl, setCustomApiUrl] = useState(() => {
-    return localStorage.getItem('custom_api_base') || "http://41.78.54.60:3006/api";
+    return localStorage.getItem('custom_api_base') || "http://167.172.39.172:1010/api";
   });
   const [connectionStatus, setConnectionStatus] = useState<'idle' | 'checking' | 'success' | 'error'>('idle');
 
@@ -134,7 +134,7 @@ export default function LandingView() {
 
   const handleResetServerConfig = () => {
     localStorage.removeItem('custom_api_base');
-    setCustomApiUrl("http://41.78.54.60:3006/api");
+    setCustomApiUrl("http://167.172.39.172:1010/api");
     setConnectionStatus('success');
     setTimeout(() => {
       setShowServerConfig(false);

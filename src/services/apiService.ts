@@ -8,7 +8,7 @@ export const getApiBase = () => {
     return cachedUrl;
   }
   if (Capacitor.isNativePlatform()) {
-    return "http://41.78.54.60:3006/api";
+    return "http://167.172.39.172:1010/api";
   }
   return "/api";
 };

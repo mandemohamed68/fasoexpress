@@ -142,6 +142,9 @@ export default function initMariaDB() {
     try { connection.query("ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS lastMessageAt datetime DEFAULT NULL"); } catch(e){
       console.error("Failed to add lastMessageAt to deliveries:", e.message);
     }
+    try { connection.query("ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS rejectedBy TEXT DEFAULT NULL"); } catch(e){
+      console.error("Failed to add rejectedBy to deliveries:", e.message);
+    }
     
     // Create sectors table if it doesn't exist
     connection.query(`
