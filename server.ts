@@ -43,6 +43,46 @@ async function startServer() {
     return R * c; // Distance in km
   }
 
+  function getClosestAvailableDriver(deliveryId: string, fromLoc: { lat: number, lng: number }, rejectedByList: string[] = []) {
+    try {
+      const drivers = db.prepare(`
+        SELECT userId, name, currentLocation 
+        FROM users 
+        WHERE role = 'driver' 
+          AND status = 'online' 
+          AND accountStatus = 'active' 
+          AND verificationStatus = 'verified'
+      `).all() as any[];
+
+      let closestDriver = null;
+      let minDistance = Infinity;
+
+      for (const driver of drivers) {
+        if (rejectedByList.includes(driver.userId)) continue;
+        let driverLoc = null;
+        try {
+          if (driver.currentLocation) driverLoc = JSON.parse(driver.currentLocation);
+        } catch (e) {}
+
+        if (driverLoc && driverLoc.lat && driverLoc.lng) {
+          const dist = calculateDistance(fromLoc.lat, fromLoc.lng, driverLoc.lat, driverLoc.lng);
+          if (dist < minDistance) {
+            minDistance = dist;
+            closestDriver = driver;
+          }
+        } else {
+          if (!closestDriver) {
+            closestDriver = driver;
+          }
+        }
+      }
+      return closestDriver;
+    } catch (err) {
+      console.error("Error in getClosestAvailableDriver:", err);
+      return null;
+    }
+  }
+
 const MASTER_ADMIN_EMAILS = ['mandemohamed68@gmail.com', 'mandemohamed6868@gmail.com'];
 
   // --- MIDDLEWARE AUTH ---
@@ -140,6 +180,26 @@ const MASTER_ADMIN_EMAILS = ['mandemohamed68@gmail.com', 'mandemohamed6868@gmail
       const stmt = db.prepare("INSERT INTO users (id, userId, name, email, password, role) VALUES (?, ?, ?, ?, ?, ?)");
       stmt.run(userId, userId, name, email, hashedPassword, role || "client");
       
+      // Configurable approval logic for drivers
+      if (role === 'driver') {
+        let approvalMode = 'manual';
+        try {
+          const row = db.prepare("SELECT value FROM config WHERE `key` = 'app_config'").get() as any;
+          if (row && row.value) {
+            const appConfig = JSON.parse(row.value);
+            if (appConfig.driverApprovalMode) {
+              approvalMode = appConfig.driverApprovalMode;
+            }
+          }
+        } catch (err) {}
+
+        if (approvalMode === 'automatic' || approvalMode === 'disabled') {
+          db.prepare("UPDATE users SET verificationStatus = 'verified', accountStatus = 'active', isVerified = 1 WHERE userId = ?").run(userId);
+        } else {
+          db.prepare("UPDATE users SET verificationStatus = 'pending', accountStatus = 'pending_approval', isVerified = 0 WHERE userId = ?").run(userId);
+        }
+      }
+
       // Dynamically save extra registration body fields (city, neighborhood, phone, etc.)
       const allowedFields = [
         'city', 'neighborhood', 'address', 'driverType', 'phone', 'withdrawalPhone', 'rib', 'idCardFront', 'idCardBack',
@@ -226,6 +286,38 @@ const MASTER_ADMIN_EMAILS = ['mandemohamed68@gmail.com', 'mandemohamed6868@gmail
       res.json(user);
     } catch (err) {
       res.status(500).json({ error: "Échec de la récupération de l'utilisateur." });
+    }
+  });
+
+  app.get("/api/drivers/:id/mission-history", authenticate, (req: any, res) => {
+    try {
+      const driverId = req.params.id;
+      const rows = db.prepare("SELECT * FROM driver_mission_history WHERE driverId = ? ORDER BY createdAt DESC").all(driverId) as any[];
+      
+      const enhancedRows = rows.map(r => {
+        let delivery = null;
+        try {
+          delivery = db.prepare("SELECT id, origin, destination, cost, status, clientName FROM deliveries WHERE id = ?").get(r.deliveryId) as any;
+          if (delivery) {
+            if (typeof delivery.origin === 'string') {
+              try { delivery.origin = JSON.parse(delivery.origin); } catch(e){}
+            }
+            if (typeof delivery.destination === 'string') {
+              try { delivery.destination = JSON.parse(delivery.destination); } catch(e){}
+            }
+            delivery.from = delivery.origin || {};
+            delivery.to = delivery.destination || {};
+          }
+        } catch (e) {}
+        return {
+          ...r,
+          delivery
+        };
+      });
+      res.json(enhancedRows);
+    } catch (err) {
+      console.error("Failed to fetch driver mission history:", err);
+      res.status(500).json({ error: "Impossible de récupérer l'historique des missions du livreur." });
     }
   });
 
@@ -457,6 +549,81 @@ const MASTER_ADMIN_EMAILS = ['mandemohamed68@gmail.com', 'mandemohamed6868@gmail
       if (updates.status === 'accepted' && updates.driverId) {
         db.prepare("UPDATE bids SET status = 'accepted', updatedAt = CURRENT_TIMESTAMP WHERE deliveryId = ? AND driverId = ?").run(id, updates.driverId);
         db.prepare("UPDATE bids SET status = 'rejected', updatedAt = CURRENT_TIMESTAMP WHERE deliveryId = ? AND driverId != ?").run(id, updates.driverId);
+        
+        // Log acceptance to driver_mission_history
+        try {
+          db.prepare(`
+            INSERT INTO driver_mission_history (id, driverId, deliveryId, action, createdAt)
+            VALUES (?, ?, ?, 'accepted', CURRENT_TIMESTAMP)
+          `).run(uuidv4(), updates.driverId, id);
+        } catch (err) {
+          console.error("Failed to log acceptance to driver_mission_history:", err);
+        }
+      }
+
+      // Check for driver rejections and automatic reassignment
+      if (updates.rejectedBy) {
+        try {
+          const oldDelivery = db.prepare("SELECT rejectedBy, origin FROM deliveries WHERE id = ?").get(id) as any;
+          let oldRejected: string[] = [];
+          if (oldDelivery && oldDelivery.rejectedBy) {
+            oldRejected = typeof oldDelivery.rejectedBy === 'string' ? JSON.parse(oldDelivery.rejectedBy) : oldDelivery.rejectedBy;
+          }
+          const newRejected: string[] = Array.isArray(updates.rejectedBy) ? updates.rejectedBy : JSON.parse(updates.rejectedBy);
+          
+          const newlyRejectedDriverId = newRejected.find(driverId => !oldRejected.includes(driverId)) || null;
+
+          if (newlyRejectedDriverId) {
+            // Log rejection to driver_mission_history
+            db.prepare(`
+              INSERT INTO driver_mission_history (id, driverId, deliveryId, action, createdAt)
+              VALUES (?, ?, ?, 'rejected', CURRENT_TIMESTAMP)
+            `).run(uuidv4(), newlyRejectedDriverId, id);
+
+            // Handle Automatic Reassignment
+            let reassignmentMode = 'manual';
+            try {
+              const configRow = db.prepare("SELECT value FROM config WHERE `key` = 'app_config'").get() as any;
+              if (configRow && configRow.value) {
+                const appConfig = JSON.parse(configRow.value);
+                if (appConfig.reassignmentMode) reassignmentMode = appConfig.reassignmentMode;
+              }
+            } catch (err) {}
+
+            if (reassignmentMode === 'automatic' && oldDelivery) {
+              let originLoc = null;
+              try {
+                originLoc = typeof oldDelivery.origin === 'string' ? JSON.parse(oldDelivery.origin) : oldDelivery.origin;
+              } catch (e) {}
+
+              if (originLoc && originLoc.lat && originLoc.lng) {
+                const nextDriver = getClosestAvailableDriver(id, originLoc, newRejected);
+                if (nextDriver) {
+                  // Reassign to next driver
+                  db.prepare(`
+                    UPDATE deliveries 
+                    SET driverId = ?, driverName = ?, status = 'accepted', updatedAt = CURRENT_TIMESTAMP 
+                    WHERE id = ?
+                  `).run(nextDriver.userId, nextDriver.name, id);
+
+                  // Send notification
+                  db.prepare(`
+                    INSERT INTO notifications (id, userId, title, message, type)
+                    VALUES (?, ?, ?, ?, 'success')
+                  `).run(uuidv4(), nextDriver.userId, 'Mission affectée automatiquement', `La course #${id.slice(-6).toUpperCase()} vous a été réaffectée automatiquement.`, 'success');
+
+                  // Log assignment
+                  db.prepare(`
+                    INSERT INTO driver_mission_history (id, driverId, deliveryId, action, createdAt)
+                    VALUES (?, ?, ?, 'assigned', CURRENT_TIMESTAMP)
+                  `).run(uuidv4(), nextDriver.userId, id);
+                }
+              }
+            }
+          }
+        } catch (err) {
+          console.error("Error processing driver rejection or auto-reassignment:", err);
+        }
       }
 
       // If delivery is marked as delivered, log the driver gain in historique_gains

@@ -4,7 +4,7 @@ import { api } from '../services/apiService';
 import { DeliveryRequest, UserProfile } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { MapContainer, TileLayer, Marker, Polyline, useMap } from 'react-leaflet';
-import { ArrowLeft, Package, MessageSquare, CheckCircle, Navigation, Copy, Truck, Phone, Clock, ChevronRight, Loader2, X, Target, Eye, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Package, MessageSquare, CheckCircle, Navigation, Copy, Truck, Phone, Clock, ChevronRight, Loader2, X, Target, Eye, AlertCircle, Star } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Chat } from '../components/Chat';
 import PaymentModal from '../components/PaymentModal';
@@ -81,6 +81,61 @@ export default function DeliveryTracking() {
   const [hasUnreadMessages, setHasUnreadMessages] = useState(false);
   const [lastMessageSeenAt, setLastMessageSeenAt] = useState<string | null>(null);
 
+  const [selectedRating, setSelectedRating] = useState<number>(5);
+  const [commentText, setCommentText] = useState<string>('');
+  const [isSubmittingRating, setIsSubmittingRating] = useState(false);
+
+  const [availableDrivers, setAvailableDrivers] = useState<any[]>([]);
+  const [isAssigningDriver, setIsAssigningDriver] = useState(false);
+
+  const handleManualReassign = async (targetDriverId: string) => {
+    if (!delivery) return;
+    setIsAssigningDriver(true);
+    try {
+      await api.deliveries.update(delivery.id, {
+        driverId: targetDriverId,
+        status: 'accepted',
+        updatedAt: new Date().toISOString()
+      });
+      
+      const refreshed = await api.deliveries.get(delivery.id);
+      if (refreshed) {
+        setDelivery(refreshed);
+        if (refreshed.driverId) {
+          const dInfo = await api.users.get(refreshed.driverId);
+          if (dInfo) setDriver(dInfo);
+        }
+      }
+      toast.success("Livreur reaffecte avec succes !");
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || "Erreur lors de la reaffectation");
+    } finally {
+      setIsAssigningDriver(false);
+    }
+  };
+
+  const handleSubmitRating = async () => {
+    if (!delivery) return;
+    setIsSubmittingRating(true);
+    try {
+      await api.deliveries.update(delivery.id, {
+        rating: selectedRating,
+        feedback: commentText,
+        updatedAt: new Date().toISOString()
+      });
+      // Refresh local delivery status
+      const updated = await api.deliveries.get(delivery.id);
+      if (updated) setDelivery(updated);
+      toast.success("Merci pour votre avis !");
+    } catch (err: any) {
+      console.error(err);
+      toast.error("Erreur lors de la soumission de l'avis.");
+    } finally {
+      setIsSubmittingRating(false);
+    }
+  };
+
   const handleVerifyCode = async () => {
     if (!delivery || !showKeypadFor) return;
     setIsValidatingCode(true);
@@ -139,6 +194,16 @@ export default function DeliveryTracking() {
           }
           
           setDelivery(found);
+          if (profile?.role === 'admin' || profile?.role === 'superadmin') {
+            try {
+              const allUsers = await api.admin.users.list();
+              if (Array.isArray(allUsers)) {
+                setAvailableDrivers(allUsers.filter((u: any) => u.role === 'driver' && u.accountStatus === 'active'));
+              }
+            } catch (err) {
+              console.warn("Could not fetch available drivers for admin manually", err);
+            }
+          }
           if (found.driverId) {
             try {
               const dInfo = await api.users.get(found.driverId);
@@ -738,6 +803,97 @@ export default function DeliveryTracking() {
                    </div>
                 )}
 
+                {/* Client Rating and Feedback Section */}
+                {delivery.status === 'delivered' && delivery.driverId && (
+                   <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 flex flex-col gap-4">
+                      {delivery.rating && delivery.rating > 0 ? (
+                         // Read-only rating display
+                         <div>
+                            <div className="flex items-center gap-3 mb-2">
+                               <div className="w-8 h-8 bg-amber-50 text-amber-500 rounded-lg flex items-center justify-center">
+                                  <Star className="w-4 h-4 fill-amber-500" />
+                               </div>
+                               <div>
+                                  <h4 className="text-xs font-black uppercase text-slate-900 tracking-tight">Votre evaluation</h4>
+                                  <p className="text-[10px] text-slate-400 font-bold uppercase">Avis enregistre pour cette course</p>
+                               </div>
+                            </div>
+                            <div className="flex items-center gap-1 my-3">
+                               {[1, 2, 3, 4, 5].map((star) => (
+                                  <Star 
+                                     key={star} 
+                                     className={cn(
+                                        "w-5 h-5",
+                                        star <= (delivery.rating || 0) ? "text-amber-400 fill-amber-400" : "text-slate-200"
+                                     )}
+                                  />
+                               ))}
+                            </div>
+                            {delivery.feedback ? (
+                               <p className="text-xs text-slate-600 bg-slate-50 border border-slate-100 rounded-xl p-3 font-medium mt-2">
+                                  "{delivery.feedback}"
+                               </p>
+                            ) : (
+                               <p className="text-xs text-slate-400 italic mt-1">Aucun commentaire ecrit.</p>
+                            )}
+                         </div>
+                      ) : (
+                         // Active Rating form (Only for Clients!)
+                         profile?.role === 'client' ? (
+                            <div>
+                               <div className="flex items-center gap-3 mb-2">
+                                  <div className="w-8 h-8 bg-amber-100 text-amber-600 rounded-lg flex items-center justify-center">
+                                     <Star className="w-4 h-4 fill-amber-600" />
+                                  </div>
+                                  <div>
+                                     <h4 className="text-xs font-black uppercase text-slate-900 tracking-tight">Notez votre livreur</h4>
+                                     <p className="text-[10px] text-slate-400 font-bold uppercase">Partagez votre avis sur la livraison</p>
+                                  </div>
+                               </div>
+                               
+                               <div className="flex items-center gap-1.5 my-4">
+                                  {[1, 2, 3, 4, 5].map((star) => (
+                                     <button
+                                        key={star}
+                                        type="button"
+                                        onClick={() => setSelectedRating(star)}
+                                        className="focus:outline-none transition-transform hover:scale-125"
+                                     >
+                                        <Star 
+                                           className={cn(
+                                              "w-7 h-7 transition-colors",
+                                              star <= selectedRating ? "text-amber-400 fill-amber-400" : "text-slate-200"
+                                           )}
+                                        />
+                                     </button>
+                                  ))}
+                                </div>
+
+                               <textarea
+                                  placeholder="Ecrivez un avis ou commentaire (facultatif)..."
+                                  value={commentText}
+                                  onChange={(e) => setCommentText(e.target.value)}
+                                  rows={3}
+                                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-medium focus:ring-4 focus:ring-amber-50 focus:border-amber-400 placeholder:text-slate-400 mb-3 resize-none"
+                               />
+
+                               <button
+                                  onClick={handleSubmitRating}
+                                  disabled={isSubmittingRating}
+                                  className="w-full py-3 bg-amber-500 text-white font-black text-[10px] uppercase tracking-widest rounded-xl hover:bg-amber-600 transition-all shadow-lg shadow-amber-200 disabled:opacity-50 flex items-center justify-center gap-2"
+                               >
+                                  {isSubmittingRating ? <Loader2 className="w-4 h-4 animate-spin" /> : "Envoyer l'avis"}
+                               </button>
+                            </div>
+                         ) : (
+                            <div className="text-center p-3 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                               <p className="text-[10px] text-slate-400 font-black uppercase">En attente de l'avis du client</p>
+                            </div>
+                         )
+                      )}
+                   </div>
+                )}
+
                 {/* Details Section */}
                 <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex flex-col gap-6">
                     <div className="flex items-center justify-between">
@@ -772,6 +928,59 @@ export default function DeliveryTracking() {
                        </div>
                     </div>
                 </div>
+
+                 {(profile?.role === 'admin' || profile?.role === 'superadmin') && ['pending', 'accepted', 'picked_up'].includes(delivery.status) && (
+                    <div className="bg-slate-900 text-white rounded-[32px] p-6 shadow-xl border border-slate-800 space-y-4">
+                       <div className="flex items-center justify-between">
+                          <div className="text-left">
+                             <p className="text-[10px] font-black text-orange-400 uppercase tracking-[0.2em]">Administration</p>
+                             <h4 className="text-xs font-black uppercase tracking-tight text-white mt-0.5">Réaffectation de la course</h4>
+                          </div>
+                          <Truck className="w-5 h-5 text-orange-500" />
+                       </div>
+                       
+                       <p className="text-[10px] font-medium text-slate-400 text-left leading-normal">
+                          En tant qu'administrateur, vous pouvez réaffecter manuellement cette mission à n'importe quel livreur actif et approuvé de la plateforme.
+                       </p>
+
+                       <div className="space-y-2">
+                          <label className="text-[8px] font-black uppercase tracking-widest text-slate-500 block text-left">Sélectionner un livreur actif</label>
+                          {availableDrivers.length > 0 ? (
+                             <div className="flex flex-col gap-2 max-h-48 overflow-y-auto custom-scrollbar pr-1">
+                                {availableDrivers.map((drv) => {
+                                   const isCurrent = delivery.driverId === drv.userId;
+                                   return (
+                                      <button
+                                         key={drv.userId}
+                                         onClick={() => handleManualReassign(drv.userId)}
+                                         disabled={isAssigningDriver || isCurrent}
+                                         className={cn(
+                                            "w-full p-3 rounded-2xl border text-left flex items-center justify-between transition-all",
+                                            isCurrent 
+                                               ? "bg-orange-500/10 border-orange-500/30 text-orange-400" 
+                                               : "bg-slate-800/50 border-slate-700/50 text-slate-200 hover:bg-slate-800 hover:border-slate-600"
+                                         )}
+                                      >
+                                         <div className="text-left">
+                                            <p className="text-xs font-black uppercase tracking-tight">{drv.name}</p>
+                                            <p className="text-[8px] font-medium text-slate-400 mt-0.5">{drv.phone || "Sans téléphone"} • {drv.vehicleType || "Moto"}</p>
+                                         </div>
+                                         <span className={cn(
+                                            "text-[8px] font-black uppercase px-2 py-1 rounded-lg",
+                                            isCurrent ? "bg-orange-500 text-white" : "bg-slate-700 text-slate-300"
+                                         )}>
+                                            {isCurrent ? "Assigné" : (isAssigningDriver ? "En cours..." : "Choisir")}
+                                         </span>
+                                      </button>
+                                   );
+                                })}
+                             </div>
+                          ) : (
+                             <p className="text-[10px] font-bold text-slate-500 uppercase italic py-2 text-center">Aucun livreur actif disponible pour le moment</p>
+                          )}
+                       </div>
+                    </div>
+                 )}
 
                 {((delivery.status !== 'delivered' && delivery.status !== 'cancelled') || profile?.role === 'admin' || profile?.role === 'superadmin') && (
                    <div className="mt-4 flex flex-col gap-2">

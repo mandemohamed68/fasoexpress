@@ -3,6 +3,8 @@ export interface AppConfig {
   updatedAt: string;
   maintenanceMessage?: string;
   isMaintenanceMode?: boolean;
+  driverApprovalMode?: 'manual' | 'automatic' | 'disabled';
+  reassignmentMode?: 'manual' | 'automatic';
   ussdSyntaxOrange?: string;
   ussdSyntaxMoov?: string;
   ussdSyntaxTelecel?: string;

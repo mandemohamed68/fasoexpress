@@ -102,6 +102,7 @@ export const api = {
   },
   drivers: {
     status: () => request('/drivers/status'),
+    getMissionHistory: (id: string) => request(`/drivers/${id}/mission-history`),
   },
   config: {
     get: (key: string) => request(`/preferences-majeures/${key}`),

@@ -145,6 +145,8 @@ export default function initMariaDB() {
     try { connection.query("ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS rejectedBy TEXT DEFAULT NULL"); } catch(e){
       console.error("Failed to add rejectedBy to deliveries:", e.message);
     }
+    try { connection.query("ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS rating double DEFAULT NULL"); } catch(e){}
+    try { connection.query("ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS feedback TEXT DEFAULT NULL"); } catch(e){}
     
     // Create sectors table if it doesn't exist
     connection.query(`
@@ -215,6 +217,17 @@ export default function initMariaDB() {
         driverId varchar(255) NOT NULL,
         type varchar(50) NOT NULL,
         amount double NOT NULL,
+        createdAt datetime DEFAULT CURRENT_TIMESTAMP
+      ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
+    `);
+
+    // Create driver_mission_history table if it doesn't exist
+    connection.query(`
+      CREATE TABLE IF NOT EXISTS driver_mission_history (
+        id varchar(255) PRIMARY KEY,
+        driverId varchar(255) NOT NULL,
+        deliveryId varchar(255) NOT NULL,
+        action varchar(50) NOT NULL,
         createdAt datetime DEFAULT CURRENT_TIMESTAMP
       ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
     `);

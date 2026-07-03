@@ -7,7 +7,7 @@ import {
   ClipboardCheck, History, Store, Map as MapIcon, Globe, 
   BadgePercent, CreditCard, Wallet, LogOut, Bell, Settings, Play,
   Plus, Navigation, UserCircle, Percent, Database, Download, Building2, X, Trash2, Zap, Smartphone, Menu,
-  CheckCircle, AlertCircle, Landmark, Info, Phone
+  CheckCircle, AlertCircle, Landmark, Info, Phone, Star
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
@@ -215,6 +215,60 @@ export default function AdminDashboard() {
   const [paymentFilter, setPaymentFilter] = useState<'all' | 'freelance' | 'company'>('all');
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [isProcessingAction, setIsProcessingAction] = useState(false);
+  const [driverMissionHistory, setDriverMissionHistory] = useState<any[]>([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+
+  useEffect(() => {
+    if (selectedUser && selectedUser.role === 'driver') {
+      setIsLoadingHistory(true);
+      api.drivers.getMissionHistory(selectedUser.userId)
+        .then(data => {
+          setDriverMissionHistory(data || []);
+        })
+        .catch(err => {
+          console.error(err);
+        })
+        .finally(() => {
+          setIsLoadingHistory(false);
+        });
+    } else {
+      setDriverMissionHistory([]);
+    }
+  }, [selectedUser]);
+
+  const getDriverStatsAndRank = (driverId: string) => {
+    const driverDeliveries = deliveries.filter(d => d.driverId === driverId && d.status === 'delivered');
+    const ratings = driverDeliveries.map(d => d.rating).filter(r => typeof r === 'number' && r > 0) as number[];
+    const avgRating = ratings.length > 0 ? (ratings.reduce((sum, r) => sum + r, 0) / ratings.length) : 0;
+    
+    // Sort all drivers to find rank
+    const allDriversStats = users
+      .filter(u => u.role === 'driver')
+      .map(u => {
+        const dDeliveries = deliveries.filter(d => d.driverId === u.userId && d.status === 'delivered');
+        const dRatings = dDeliveries.map(d => d.rating).filter(r => typeof r === 'number' && r > 0) as number[];
+        const dAvgRating = dRatings.length > 0 ? (dRatings.reduce((sum, r) => sum + r, 0) / dRatings.length) : 0;
+        return {
+          userId: u.userId,
+          avgRating: dAvgRating,
+          completedCount: dDeliveries.length
+        };
+      })
+      .sort((a, b) => {
+        if (b.avgRating !== a.avgRating) return b.avgRating - a.avgRating;
+        return b.completedCount - a.completedCount;
+      });
+    
+    const rankIndex = allDriversStats.findIndex(s => s.userId === driverId);
+    const rank = rankIndex !== -1 ? rankIndex + 1 : null;
+    
+    return {
+      avgRating,
+      completedCount: driverDeliveries.length,
+      rank,
+      totalDrivers: allDriversStats.length
+    };
+  };
   const [showNewAnnonceForm, setShowNewAnnonceForm] = useState(false);
   const [newAnnonce, setNewAnnonce] = useState({ title: '', message: '', type: 'info' as 'info' | 'warning' | 'success' });
 
@@ -1132,6 +1186,24 @@ export default function AdminDashboard() {
                   </div>
                   <h4 className="font-black text-slate-900 uppercase tracking-tight">{u.name}</h4>
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">{u.email}</p>
+
+                  {u.role === 'driver' && (() => {
+                    const stats = getDriverStatsAndRank(u.userId);
+                    return (
+                      <div className="flex flex-wrap items-center justify-center gap-1.5 mt-2">
+                        <div className="flex items-center gap-1 px-2.5 py-0.5 bg-amber-50 text-amber-600 rounded-full text-[8px] font-black uppercase tracking-widest border border-amber-100/50 shadow-sm">
+                          <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />
+                          <span>{stats.avgRating > 0 ? stats.avgRating.toFixed(1) : "N/A"}</span>
+                        </div>
+                        <div className="px-2.5 py-0.5 bg-indigo-50 text-indigo-600 rounded-full text-[8px] font-black uppercase tracking-widest border border-indigo-100/50 shadow-sm">
+                          Rang #{stats.rank || "-"}
+                        </div>
+                        <div className="px-2.5 py-0.5 bg-slate-100 text-slate-600 rounded-full text-[8px] font-black uppercase tracking-widest border border-slate-200/50">
+                          {stats.completedCount} course(s)
+                        </div>
+                      </div>
+                    );
+                  })()}
                   
                   <div className="flex flex-wrap justify-center gap-2 mt-3">
                     {u.role === 'driver' && (
@@ -2023,6 +2095,75 @@ export default function AdminDashboard() {
                         className="w-full bg-white border-none rounded-xl px-4 py-3 text-xs font-bold focus:ring-4 focus:ring-rose-100"
                      />
                      <p className="text-[10px] text-slate-400 font-bold mt-4 leading-relaxed uppercase tracking-tight">Une fois actif, bloquera tout acces aux clients et drivers avec le message ci-dessus.</p>
+                  </div>
+
+                  <div className="p-5 lg:p-6 bg-slate-50 rounded-2xl border border-slate-100">
+                     <div className="flex justify-between items-center mb-6">
+                        <div className="flex items-center gap-4">
+                           <div className="w-10 h-10 bg-indigo-100 text-indigo-600 rounded-xl flex items-center justify-center">
+                              <Users className="w-5 h-5" />
+                           </div>
+                           <div>
+                             <h4 className="font-black text-slate-900 uppercase text-sm tracking-tight leading-tight">Approbation des Livreurs</h4>
+                             <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Workflow de creation de compte</p>
+                           </div>
+                        </div>
+                     </div>
+                     <div className="flex flex-col gap-2">
+                        <button 
+                          type="button"
+                          onClick={() => setConfigForm({ ...configForm!, driverApprovalMode: 'manual' })}
+                          className={cn("w-full py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all text-center", (configForm?.driverApprovalMode || 'manual') === 'manual' ? "bg-indigo-600 text-white shadow-lg shadow-indigo-100" : "bg-white border border-slate-200 text-slate-400 hover:bg-slate-50")}
+                        >
+                          Approbation Manuelle
+                        </button>
+                        <button 
+                          type="button"
+                          onClick={() => setConfigForm({ ...configForm!, driverApprovalMode: 'automatic' })}
+                          className={cn("w-full py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all text-center", configForm?.driverApprovalMode === 'automatic' ? "bg-emerald-600 text-white shadow-lg shadow-emerald-100" : "bg-white border border-slate-200 text-slate-400 hover:bg-slate-50")}
+                        >
+                          Approbation Automatique
+                        </button>
+                        <button 
+                          type="button"
+                          onClick={() => setConfigForm({ ...configForm!, driverApprovalMode: 'disabled' })}
+                          className={cn("w-full py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all text-center", configForm?.driverApprovalMode === 'disabled' ? "bg-amber-600 text-white shadow-lg shadow-amber-100" : "bg-white border border-slate-200 text-slate-400 hover:bg-slate-50")}
+                        >
+                          Desactivee (Tous actifs)
+                        </button>
+                     </div>
+                     <p className="text-[10px] text-slate-400 font-bold mt-4 leading-relaxed uppercase tracking-tight">Configure le mode d'approbation et d'activation des nouveaux comptes livreurs inscrits.</p>
+                  </div>
+
+                  <div className="p-5 lg:p-6 bg-slate-50 rounded-2xl border border-slate-100">
+                     <div className="flex justify-between items-center mb-6">
+                        <div className="flex items-center gap-4">
+                           <div className="w-10 h-10 bg-orange-100 text-orange-600 rounded-xl flex items-center justify-center">
+                              <Truck className="w-5 h-5" />
+                           </div>
+                           <div>
+                             <h4 className="font-black text-slate-900 uppercase text-sm tracking-tight leading-tight">Reaffectation de Mission</h4>
+                             <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Algorithme de dispatch automatique</p>
+                           </div>
+                        </div>
+                     </div>
+                     <div className="flex gap-2">
+                        <button 
+                          type="button"
+                          onClick={() => setConfigForm({ ...configForm!, reassignmentMode: 'manual' })}
+                          className={cn("flex-1 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all", (configForm?.reassignmentMode || 'manual') === 'manual' ? "bg-slate-900 text-white shadow-lg shadow-slate-200" : "bg-white border border-slate-200 text-slate-400 hover:bg-slate-50")}
+                        >
+                          Manuelle
+                        </button>
+                        <button 
+                          type="button"
+                          onClick={() => setConfigForm({ ...configForm!, reassignmentMode: 'automatic' })}
+                          className={cn("flex-1 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all", configForm?.reassignmentMode === 'automatic' ? "bg-orange-500 text-white shadow-lg shadow-orange-200" : "bg-white border border-slate-200 text-slate-400 hover:bg-slate-50")}
+                        >
+                          Automatique
+                        </button>
+                     </div>
+                     <p className="text-[10px] text-slate-400 font-bold mt-4 leading-relaxed uppercase tracking-tight">Si automatique, le systeme recherche immediatement un autre livreur lorsqu'un refus survient.</p>
                   </div>
 
                   {/* Moyens de Paiement Actifs */}
@@ -3871,6 +4012,104 @@ export default function AdminDashboard() {
                    <p className="text-[7px] font-black text-orange-400 uppercase tracking-widest mb-1 text-left">Localisation / Zone</p>
                    <p className="text-xs font-bold text-orange-900 text-left">{(selectedUser as any).address || 'Ouagadougou'}</p>
                 </div>
+
+                {selectedUser.role === 'driver' && (
+                  <div className="space-y-4 pt-4 border-t border-slate-100">
+                    {/* Driver Stats & Rank Header */}
+                    {(() => {
+                      const stats = getDriverStatsAndRank(selectedUser.userId);
+                      return (
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="bg-amber-50 border border-amber-100 p-3 rounded-2xl flex flex-col items-center">
+                            <span className="text-[7px] font-black uppercase text-amber-500 tracking-wider">Moyenne</span>
+                            <div className="flex items-center gap-1 mt-1">
+                              <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                              <span className="text-xs font-black text-amber-950">{stats.avgRating > 0 ? stats.avgRating.toFixed(1) : "N/A"}</span>
+                            </div>
+                          </div>
+                          <div className="bg-indigo-50 border border-indigo-100 p-3 rounded-2xl flex flex-col items-center">
+                            <span className="text-[7px] font-black uppercase text-indigo-500 tracking-wider">Classement</span>
+                            <span className="text-xs font-black text-indigo-950 mt-1">#{stats.rank || "-"}</span>
+                          </div>
+                          <div className="bg-emerald-50 border border-emerald-100 p-3 rounded-2xl flex flex-col items-center">
+                            <span className="text-[7px] font-black uppercase text-emerald-500 tracking-wider">Completes</span>
+                            <span className="text-xs font-black text-emerald-950 mt-1">{stats.completedCount}</span>
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    {/* Mission History (Logs) */}
+                    <div className="bg-slate-50 border border-slate-100 rounded-3xl p-4">
+                      <h4 className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 mb-3 text-left">Log d'Activite & Missions</h4>
+                      {isLoadingHistory ? (
+                        <div className="flex items-center justify-center py-4">
+                          <Clock className="w-4 h-4 animate-spin text-slate-400" />
+                        </div>
+                      ) : driverMissionHistory && driverMissionHistory.length > 0 ? (
+                        <div className="space-y-2.5 max-h-40 overflow-y-auto custom-scrollbar pr-1">
+                          {driverMissionHistory.map((historyItem: any, index: number) => (
+                            <div key={index} className="flex items-start justify-between bg-white border border-slate-100 rounded-xl p-2.5 text-left">
+                              <div className="space-y-0.5">
+                                <p className="text-[9px] font-black uppercase text-slate-800 leading-none">Course #{historyItem.deliveryId}</p>
+                                <p className="text-[8px] font-medium text-slate-400 mt-1 leading-normal">{historyItem.details || historyItem.reason || "Action enregistree"}</p>
+                              </div>
+                              <span className={cn(
+                                "text-[7px] font-black uppercase px-2 py-0.5 rounded-full shadow-xs shrink-0",
+                                historyItem.action === 'accepted' ? "bg-emerald-50 text-emerald-600 border border-emerald-100" :
+                                historyItem.action === 'rejected' ? "bg-rose-50 text-rose-600 border border-rose-100" :
+                                "bg-indigo-50 text-indigo-600 border border-indigo-100"
+                              )}>
+                                {historyItem.action === 'accepted' ? "Accepte" :
+                                 historyItem.action === 'rejected' ? "Refuse" :
+                                 historyItem.action}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-[9px] font-bold text-slate-400 uppercase italic text-center py-2">Aucun historique de mission disponible</p>
+                      )}
+                    </div>
+
+                    {/* Client Reviews / Comments */}
+                    <div className="bg-slate-50 border border-slate-100 rounded-3xl p-4">
+                      <h4 className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 mb-3 text-left">Avis & Commentaires Clients</h4>
+                      {(() => {
+                        const ratedDeliveries = deliveries.filter(d => d.driverId === selectedUser.userId && d.rating && d.rating > 0);
+                        return ratedDeliveries.length > 0 ? (
+                          <div className="space-y-2 max-h-40 overflow-y-auto custom-scrollbar pr-1">
+                            {ratedDeliveries.map((deliveryItem: any) => (
+                              <div key={deliveryItem.deliveryId || deliveryItem.id} className="bg-white border border-slate-100 rounded-xl p-2.5 text-left">
+                                <div className="flex items-center justify-between mb-1.5">
+                                  <div className="flex items-center gap-0.5">
+                                    {[1, 2, 3, 4, 5].map((star) => (
+                                      <Star 
+                                        key={star} 
+                                        className={cn(
+                                          "w-2.5 h-2.5",
+                                          star <= deliveryItem.rating ? "text-amber-400 fill-amber-400" : "text-slate-200"
+                                        )}
+                                      />
+                                    ))}
+                                  </div>
+                                  <span className="text-[7px] font-bold text-slate-400 uppercase">{deliveryItem.clientPhone || "Client"}</span>
+                                </div>
+                                {deliveryItem.feedback && (
+                                  <p className="text-[9px] font-bold text-slate-600 bg-slate-50 rounded-lg p-2 mt-1">
+                                    "{deliveryItem.feedback}"
+                                  </p>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-[9px] font-bold text-slate-400 uppercase italic text-center py-2">Aucun avis client pour le moment</p>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="mt-8 flex flex-col gap-3">

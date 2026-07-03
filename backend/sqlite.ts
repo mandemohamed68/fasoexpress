@@ -201,6 +201,14 @@ try {
     FOREIGN KEY(deliveryId) REFERENCES deliveries(id),
     FOREIGN KEY(driverId) REFERENCES users(userId)
   );
+
+  CREATE TABLE IF NOT EXISTS driver_mission_history (
+    id TEXT PRIMARY KEY,
+    driverId TEXT NOT NULL,
+    deliveryId TEXT NOT NULL,
+    action TEXT NOT NULL, -- 'accepted', 'rejected', 'assigned'
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
 `);
 } catch (err) {
   console.error("Critical error during database schema creation:", err);
@@ -225,7 +233,9 @@ const colsToAdd = [
   { name: 'boostAmount', type: 'REAL DEFAULT 0' },
   { name: 'lastMessageAt', type: 'TEXT' },
   { name: 'cancelReason', type: 'TEXT' },
-  { name: 'rejectedBy', type: 'TEXT' }
+  { name: 'rejectedBy', type: 'TEXT' },
+  { name: 'rating', type: 'REAL' },
+  { name: 'feedback', type: 'TEXT' }
 ];
 
 const withdrawCols = [
