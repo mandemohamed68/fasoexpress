@@ -24,9 +24,15 @@ export interface AppConfig {
   sappayPassword?: string;
   companyName?: string;
   contactPhone?: string;
+  contactPhoneActive?: boolean;
   contactEmail?: string;
+  contactEmailActive?: boolean;
   contactWhatsapp?: string;
+  contactWhatsappActive?: boolean;
   contactFacebook?: string;
+  contactFacebookActive?: boolean;
+  contactMessenger?: string;
+  contactMessengerActive?: boolean;
   smtpHost?: string;
   smtpPort?: number;
   smtpUser?: string;

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { User, LogOut, Package, ShieldCheck, MapPin, CheckCircle, Menu, X, Clock, Sun, Moon } from 'lucide-react';
+import { User, LogOut, Package, ShieldCheck, MapPin, CheckCircle, Menu, X, Clock, Sun, Moon, HelpCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import NotificationBell from './NotificationBell';
 import { cn } from '../lib/utils';
@@ -9,6 +9,7 @@ import { AppLanguage } from '../lib/translations';
 import { api } from '../services/apiService';
 import { AppConfig } from '../types';
 import Logo from './Logo';
+import SupportModal from './SupportModal';
 
 const logoImg = '/logofaso.png';
 
@@ -17,6 +18,7 @@ export default function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [supportOpen, setSupportOpen] = useState(false);
   const [appConfig, setAppConfig] = useState<AppConfig | null>(null);
   const [logoUrl, setLogoUrl] = useState(logoImg);
   const [logoError, setLogoError] = useState(false);
@@ -157,6 +159,21 @@ export default function Navbar() {
       {/* Master Admin Emergency Switch (Always visible for the owner but not mixed with other roles) */}
       {isMasterAdmin && profile?.role !== 'admin' && profile?.role !== 'superadmin' && (
         <NavLink to="/admin" icon={ShieldCheck} onClick={onClick}>{t('admin_board')}</NavLink>
+      )}
+
+      {/* Support menu button */}
+      {profile && (
+        <button
+          onClick={(e) => {
+            e.preventDefault();
+            setSupportOpen(true);
+            if (onClick) onClick();
+          }}
+          className="px-4 py-2 rounded-xl transition-all flex items-center gap-2 text-xs font-black uppercase tracking-widest w-full lg:w-auto text-white/70 hover:text-white hover:bg-orange-600/50 cursor-pointer text-left"
+        >
+          <HelpCircle className="h-4 w-4 shrink-0" />
+          <span>SUPPORT</span>
+        </button>
       )}
     </>
   );
@@ -359,6 +376,7 @@ export default function Navbar() {
           </motion.div>
         )}
       </AnimatePresence>
+      <SupportModal isOpen={supportOpen} onClose={() => setSupportOpen(false)} />
     </nav>
   );
 }

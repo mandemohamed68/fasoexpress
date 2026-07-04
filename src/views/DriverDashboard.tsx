@@ -1000,7 +1000,7 @@ export default function DriverDashboard() {
                                           setChatDeliveryId(focusedJob.id);
                                           setChatOpen(true);
                                        }}
-                                       className="w-12 h-14 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center hover:bg-indigo-100 transition-all active:scale-95"
+                                       className="relative w-12 h-14 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center hover:bg-indigo-100 transition-all active:scale-95"
                                        title="Chat avec client"
                                     >
                                        <MessageSquare className="w-5 h-5" />
@@ -1022,7 +1022,7 @@ export default function DriverDashboard() {
                                          const target = focusedJob.status === 'accepted' ? focusedJob.from : focusedJob.to;
                                          window.open(`https://www.google.com/maps/dir/?api=1&destination=${target.lat},${target.lng}`, '_blank');
                                        }} 
-                                       className="w-12 h-14 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center hover:bg-indigo-100 transition-all active:scale-95"
+                                       className="relative w-12 h-14 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center hover:bg-indigo-100 transition-all active:scale-95"
                                        title="Ouvrir GPS"
                                     >
                                        <Navigation className="w-5 h-5" />

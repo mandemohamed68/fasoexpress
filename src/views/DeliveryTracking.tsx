@@ -57,6 +57,22 @@ function MapUpdater({ driver, delivery, isFollowing }: { driver: UserProfile | n
   return null;
 }
 
+const getCleanProofImage = (imgStr: string | null | undefined): string => {
+  if (!imgStr) return '';
+  let s = imgStr.trim();
+  if (s.startsWith('"') && s.endsWith('"')) {
+     try {
+        return JSON.parse(s);
+     } catch (e) {
+        return s.slice(1, -1);
+     }
+  }
+  if (s.startsWith("'") && s.endsWith("'")) {
+     return s.slice(1, -1);
+  }
+  return s;
+};
+
 export default function DeliveryTracking() {
   const { deliveryId } = useParams<{ deliveryId: string }>();
   const { profile } = useAuth();
@@ -647,7 +663,7 @@ export default function DeliveryTracking() {
                       </p>
                       <div className="rounded-2xl overflow-hidden border border-slate-200 bg-white max-h-72 flex justify-center items-center">
                          <img 
-                            src={delivery.proofImage} 
+                            src={getCleanProofImage(delivery.proofImage)} 
                             alt="Preuve de livraison" 
                             className="max-w-full max-h-72 object-contain"
                             referrerPolicy="no-referrer"
@@ -676,7 +692,7 @@ export default function DeliveryTracking() {
                          <button onClick={() => window.open(`tel:${driver.phone}`)} className="w-12 h-12 bg-slate-50 text-slate-600 rounded-2xl flex items-center justify-center hover:bg-emerald-50 hover:text-emerald-500 transition-all active:scale-90 border border-slate-100/50">
                              <Phone className="w-5 h-5" />
                          </button>
-                         <button onClick={() => setChatOpen(true)} className="w-12 h-12 bg-slate-50 text-slate-600 rounded-2xl flex items-center justify-center hover:bg-indigo-50 hover:text-indigo-600 transition-all active:scale-90 border border-slate-100/50">
+                         <button onClick={() => setChatOpen(true)} className="relative w-12 h-12 bg-slate-50 text-slate-600 rounded-2xl flex items-center justify-center hover:bg-indigo-50 hover:text-indigo-600 transition-all active:scale-90 border border-slate-100/50">
                              <MessageSquare className="w-5 h-5" />
                               {hasUnreadMessages && (
                                 <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 border-2 border-white rounded-full animate-bounce" />

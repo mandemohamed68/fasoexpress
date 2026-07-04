@@ -5,7 +5,7 @@ import {
   ShieldCheck, Package, Users, Truck, DollarSign, 
   ArrowUpRight, Clock, LayoutDashboard, MessageSquare, 
   ClipboardCheck, History, Store, Map as MapIcon, Globe, 
-  BadgePercent, CreditCard, Wallet, LogOut, Bell, Settings, Play, Mail,
+  BadgePercent, CreditCard, Wallet, LogOut, Bell, Settings, Play, Mail, Facebook,
   Plus, Navigation, UserCircle, Percent, Database, Download, Building2, X, Trash2, Zap, Smartphone, Menu,
   CheckCircle, AlertCircle, Landmark, Info, Phone, Star
 } from 'lucide-react';
@@ -2505,46 +2505,157 @@ export default function AdminDashboard() {
                       />
                     </div>
                     
-                    <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
-                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 px-2">Numero de telephone</label>
+                    <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 flex flex-col justify-between">
+                      <div className="flex items-center justify-between mb-3 px-2">
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Numero de telephone</label>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">
+                            {configForm?.contactPhoneActive !== false ? 'Actif' : 'Masque'}
+                          </span>
+                          <label className="relative inline-flex items-center cursor-pointer shrink-0 scale-75">
+                            <input 
+                              type="checkbox" 
+                              checked={configForm?.contactPhoneActive !== false}
+                              onChange={(e) => setConfigForm({ ...configForm!, contactPhoneActive: e.target.checked })}
+                              className="sr-only peer"
+                            />
+                            <div className="w-11 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:bg-emerald-500 after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+                          </label>
+                        </div>
+                      </div>
                       <input 
                         type="text" 
                         value={configForm?.contactPhone || ''}
+                        disabled={configForm?.contactPhoneActive === false}
                         onChange={e => setConfigForm({ ...configForm!, contactPhone: e.target.value })}
-                        className="w-full bg-white border-none rounded-xl px-5 py-3 text-sm font-black focus:ring-4 focus:ring-blue-100 transition-all"
+                        className={cn(
+                          "w-full bg-white border-none rounded-xl px-5 py-3 text-sm font-black focus:ring-4 focus:ring-blue-100 transition-all",
+                          configForm?.contactPhoneActive === false ? "opacity-50 cursor-not-allowed bg-slate-100" : ""
+                        )}
                         placeholder="Ex: 72567606"
                       />
                     </div>
 
-                    <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
-                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 px-2">Numero WhatsApp</label>
+                    <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 flex flex-col justify-between">
+                      <div className="flex items-center justify-between mb-3 px-2">
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Numero WhatsApp</label>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">
+                            {configForm?.contactWhatsappActive !== false ? 'Actif' : 'Masque'}
+                          </span>
+                          <label className="relative inline-flex items-center cursor-pointer shrink-0 scale-75">
+                            <input 
+                              type="checkbox" 
+                              checked={configForm?.contactWhatsappActive !== false}
+                              onChange={(e) => setConfigForm({ ...configForm!, contactWhatsappActive: e.target.checked })}
+                              className="sr-only peer"
+                            />
+                            <div className="w-11 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:bg-emerald-500 after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+                          </label>
+                        </div>
+                      </div>
                       <input 
                         type="text" 
                         value={configForm?.contactWhatsapp || ''}
+                        disabled={configForm?.contactWhatsappActive === false}
                         onChange={e => setConfigForm({ ...configForm!, contactWhatsapp: e.target.value })}
-                        className="w-full bg-white border-none rounded-xl px-5 py-3 text-sm font-black focus:ring-4 focus:ring-blue-100 transition-all"
+                        className={cn(
+                          "w-full bg-white border-none rounded-xl px-5 py-3 text-sm font-black focus:ring-4 focus:ring-blue-100 transition-all",
+                          configForm?.contactWhatsappActive === false ? "opacity-50 cursor-not-allowed bg-slate-100" : ""
+                        )}
                         placeholder="Ex: 72567606"
                       />
                     </div>
 
-                    <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
-                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 px-2">Lien Facebook</label>
+                    <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 flex flex-col justify-between">
+                      <div className="flex items-center justify-between mb-3 px-2">
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Lien Facebook</label>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">
+                            {configForm?.contactFacebookActive !== false ? 'Actif' : 'Masque'}
+                          </span>
+                          <label className="relative inline-flex items-center cursor-pointer shrink-0 scale-75">
+                            <input 
+                              type="checkbox" 
+                              checked={configForm?.contactFacebookActive !== false}
+                              onChange={(e) => setConfigForm({ ...configForm!, contactFacebookActive: e.target.checked })}
+                              className="sr-only peer"
+                            />
+                            <div className="w-11 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:bg-emerald-500 after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+                          </label>
+                        </div>
+                      </div>
                       <input 
                         type="text" 
                         value={configForm?.contactFacebook || ''}
+                        disabled={configForm?.contactFacebookActive === false}
                         onChange={e => setConfigForm({ ...configForm!, contactFacebook: e.target.value })}
-                        className="w-full bg-white border-none rounded-xl px-5 py-3 text-sm font-black focus:ring-4 focus:ring-blue-100 transition-all"
+                        className={cn(
+                          "w-full bg-white border-none rounded-xl px-5 py-3 text-sm font-black focus:ring-4 focus:ring-blue-100 transition-all",
+                          configForm?.contactFacebookActive === false ? "opacity-50 cursor-not-allowed bg-slate-100" : ""
+                        )}
                         placeholder="Ex: https://facebook.com/nmetechnologie"
                       />
                     </div>
 
-                    <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
-                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 px-2">Adresse Email</label>
+                    <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 flex flex-col justify-between">
+                      <div className="flex items-center justify-between mb-3 px-2">
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Lien Messenger</label>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">
+                            {configForm?.contactMessengerActive !== false ? 'Actif' : 'Masque'}
+                          </span>
+                          <label className="relative inline-flex items-center cursor-pointer shrink-0 scale-75">
+                            <input 
+                              type="checkbox" 
+                              checked={configForm?.contactMessengerActive !== false}
+                              onChange={(e) => setConfigForm({ ...configForm!, contactMessengerActive: e.target.checked })}
+                              className="sr-only peer"
+                            />
+                            <div className="w-11 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:bg-emerald-500 after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+                          </label>
+                        </div>
+                      </div>
+                      <input 
+                        type="text" 
+                        value={configForm?.contactMessenger || ''}
+                        disabled={configForm?.contactMessengerActive === false}
+                        onChange={e => setConfigForm({ ...configForm!, contactMessenger: e.target.value })}
+                        className={cn(
+                          "w-full bg-white border-none rounded-xl px-5 py-3 text-sm font-black focus:ring-4 focus:ring-blue-100 transition-all",
+                          configForm?.contactMessengerActive === false ? "opacity-50 cursor-not-allowed bg-slate-100" : ""
+                        )}
+                        placeholder="Ex: https://m.me/nmetechnologie"
+                      />
+                    </div>
+
+                    <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 flex flex-col justify-between">
+                      <div className="flex items-center justify-between mb-3 px-2">
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Adresse Email</label>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">
+                            {configForm?.contactEmailActive !== false ? 'Actif' : 'Masque'}
+                          </span>
+                          <label className="relative inline-flex items-center cursor-pointer shrink-0 scale-75">
+                            <input 
+                              type="checkbox" 
+                              checked={configForm?.contactEmailActive !== false}
+                              onChange={(e) => setConfigForm({ ...configForm!, contactEmailActive: e.target.checked })}
+                              className="sr-only peer"
+                            />
+                            <div className="w-11 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:bg-emerald-500 after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+                          </label>
+                        </div>
+                      </div>
                       <input 
                         type="text" 
                         value={configForm?.contactEmail || ''}
+                        disabled={configForm?.contactEmailActive === false}
                         onChange={e => setConfigForm({ ...configForm!, contactEmail: e.target.value })}
-                        className="w-full bg-white border-none rounded-xl px-5 py-3 text-sm font-black focus:ring-4 focus:ring-blue-100 transition-all"
+                        className={cn(
+                          "w-full bg-white border-none rounded-xl px-5 py-3 text-sm font-black focus:ring-4 focus:ring-blue-100 transition-all",
+                          configForm?.contactEmailActive === false ? "opacity-50 cursor-not-allowed bg-slate-100" : ""
+                        )}
                         placeholder="Ex: nmetechnologiegroup@gmail.com"
                       />
                     </div>
@@ -2712,7 +2823,7 @@ export default function AdminDashboard() {
                        key={d.id}
                        onClick={() => setSelectedChatDeliveryId(d.id)}
                        className={cn(
-                         "w-full p-4 rounded-2xl text-left transition-all border flex items-center gap-4",
+                         "relative w-full p-4 rounded-2xl text-left transition-all border flex items-center gap-4",
                          selectedChatDeliveryId === d.id 
                            ? "bg-white border-orange-200 shadow-xl shadow-orange-100/50" 
                            : "bg-transparent border-transparent hover:bg-white hover:border-slate-100"
