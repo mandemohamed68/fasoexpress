@@ -7,6 +7,8 @@ import { cn } from '../lib/utils';
 import { UserRole } from '../types';
 import LoadingScreen from '../components/LoadingScreen';
 import Logo from '../components/Logo';
+import toast from 'react-hot-toast';
+import { api } from '../services/apiService';
 
 const logoImg = '/logofaso.png';
 
@@ -100,6 +102,8 @@ export default function LandingView() {
   
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [resetSent, setResetSent] = useState(false);
+  const [resetCode, setResetCode] = useState('');
+  const [newPassword, setNewPassword] = useState('');
 
   const [showServerConfig, setShowServerConfig] = useState(false);
   const [customApiUrl, setCustomApiUrl] = useState(() => {
@@ -152,14 +156,43 @@ export default function LandingView() {
     setLocalLoading(true);
     setError('');
     
-    // Simulate forgot password action
     try {
-      // If we had a real endpoint to request reset link, we would call it here.
-      // await api.post('/auth/forgot-password', { email });
-      await new Promise(resolve => setTimeout(resolve, 800));
+      const res = await api.auth.forgotPassword(email) as any;
+      if (res && res.sandbox && res.code) {
+        toast.success(`[Test Sandbox] Code généré : ${res.code}`, { duration: 10000 });
+      } else {
+        toast.success("Code de réinitialisation envoyé par e-mail.");
+      }
       setResetSent(true);
     } catch (e: any) {
-      setError(e.message || "Impossible d'envoyer le lien de réinitialisation.");
+      setError(e.message || "Impossible d'envoyer le code de réinitialisation.");
+    } finally {
+      setLocalLoading(false);
+    }
+  };
+
+  const handleConfirmResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resetCode) {
+      setError('Veuillez saisir le code reçu');
+      return;
+    }
+    if (!newPassword || newPassword.length < 6) {
+      setError('Le nouveau mot de passe doit contenir au moins 6 caractères');
+      return;
+    }
+    setLocalLoading(true);
+    setError('');
+    
+    try {
+      await api.auth.resetPassword({ email, code: resetCode, newPassword });
+      toast.success("Votre mot de passe a été modifié avec succès !");
+      setIsForgotPassword(false);
+      setResetSent(false);
+      setResetCode('');
+      setNewPassword('');
+    } catch (e: any) {
+      setError(e.message || "Impossible de réinitialiser le mot de passe.");
     } finally {
       setLocalLoading(false);
     }
@@ -403,18 +436,55 @@ export default function LandingView() {
             <div className="space-y-4">
               <h3 className="text-lg font-black text-slate-900 uppercase italic tracking-tight text-center mb-4">Réinitialisation</h3>
               {resetSent ? (
-                <div className="p-4 bg-emerald-50 border border-emerald-100 rounded-xl text-center">
-                  <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">
-                    Lien envoyé ! Vérifiez votre boîte mail.
-                  </p>
+                <form onSubmit={handleConfirmResetPassword} className="space-y-4">
+                  <div className="p-4 bg-orange-50 border border-orange-100 rounded-2xl text-center mb-2">
+                    <p className="text-[10px] font-black text-orange-600 uppercase tracking-widest leading-relaxed">
+                      Un code à 6 chiffres a été envoyé à <strong>{email}</strong>. Veuillez le saisir ci-dessous pour modifier votre mot de passe.
+                    </p>
+                  </div>
+                  
+                  <div className="relative">
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
+                    <input 
+                      required
+                      type="text"
+                      maxLength={6}
+                      value={resetCode}
+                      onChange={e => setResetCode(e.target.value.replace(/[^0-9]/g, ''))}
+                      placeholder="Code de validation (Ex: 123456)"
+                      className="w-full bg-slate-50 border border-slate-100 rounded-xl pl-12 pr-4 py-3.5 text-sm font-bold text-slate-900 focus:border-orange-500 transition-all outline-none"
+                    />
+                  </div>
+
+                  <div className="relative">
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
+                    <input 
+                      required
+                      type="password"
+                      value={newPassword}
+                      onChange={e => setNewPassword(e.target.value)}
+                      placeholder="Nouveau mot de passe"
+                      className="w-full bg-slate-50 border border-slate-100 rounded-xl pl-12 pr-4 py-3.5 text-sm font-bold text-slate-900 focus:border-orange-500 transition-all outline-none"
+                    />
+                  </div>
+
+                  <button 
+                    type="submit"
+                    disabled={localLoading}
+                    className="w-full bg-slate-900 hover:bg-orange-600 text-white rounded-xl py-4 font-black text-[10px] uppercase tracking-[0.3em] shadow-xl transition-all flex items-center justify-center gap-2 group mt-2 cursor-pointer"
+                  >
+                    {localLoading ? "Chargement..." : "Enregistrer le mot de passe"}
+                    <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                  </button>
+
                   <button 
                     type="button"
-                    onClick={() => { setIsForgotPassword(false); setResetSent(false); }}
-                    className="mt-4 text-[10px] font-black text-emerald-700 hover:text-emerald-800 uppercase tracking-widest transition-colors underline cursor-pointer"
+                    onClick={() => setResetSent(false)}
+                    className="w-full text-center text-[10px] font-black text-slate-400 hover:text-slate-600 uppercase tracking-widest transition-colors mt-2 cursor-pointer"
                   >
-                    Retour à la connexion
+                    Renvoyer un code
                   </button>
-                </div>
+                </form>
               ) : (
                 <form onSubmit={handleResetPassword} className="space-y-4">
                   <div className="relative">
@@ -433,7 +503,7 @@ export default function LandingView() {
                     disabled={localLoading}
                     className="w-full bg-slate-900 hover:bg-orange-600 text-white rounded-xl py-4 font-black text-[10px] uppercase tracking-[0.3em] shadow-xl transition-all flex items-center justify-center gap-2 group mt-2 cursor-pointer"
                   >
-                    {localLoading ? "Chargement..." : "Envoyer le lien"}
+                    {localLoading ? "Chargement..." : "Envoyer le code de validation"}
                     <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                   </button>
                   <button 

@@ -128,6 +128,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     init();
   }, []);
 
+  // AUTOMATIC UPDATES (POLLING): Auto-refresh app_config from backend every 12 seconds in background
+  useEffect(() => {
+    const interval = setInterval(() => {
+      refreshAppConfig();
+    }, 12000);
+    return () => clearInterval(interval);
+  }, []);
+
   const loginWithEmail = async (email: string, pass: string) => {
     setLoading(true);
     try {

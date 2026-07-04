@@ -5,7 +5,7 @@ import {
   ShieldCheck, Package, Users, Truck, DollarSign, 
   ArrowUpRight, Clock, LayoutDashboard, MessageSquare, 
   ClipboardCheck, History, Store, Map as MapIcon, Globe, 
-  BadgePercent, CreditCard, Wallet, LogOut, Bell, Settings, Play,
+  BadgePercent, CreditCard, Wallet, LogOut, Bell, Settings, Play, Mail,
   Plus, Navigation, UserCircle, Percent, Database, Download, Building2, X, Trash2, Zap, Smartphone, Menu,
   CheckCircle, AlertCircle, Landmark, Info, Phone, Star
 } from 'lucide-react';
@@ -2547,6 +2547,110 @@ export default function AdminDashboard() {
                         className="w-full bg-white border-none rounded-xl px-5 py-3 text-sm font-black focus:ring-4 focus:ring-blue-100 transition-all"
                         placeholder="Ex: nmetechnologiegroup@gmail.com"
                       />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Configuration Mot de Passe Oublié & SMTP */}
+                <div className="mt-8 pt-8 border-t border-slate-200">
+                  <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-orange-100 text-orange-600 rounded-2xl flex items-center justify-center">
+                        <Mail className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <h4 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Mot de passe oublié & SMTP</h4>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Gérez le flux de récupération de mot de passe et l'envoi de mail</p>
+                      </div>
+                    </div>
+                    
+                    {/* Toggle activation button */}
+                    <div className="flex items-center gap-3 bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Flux Activé</span>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input 
+                          type="checkbox" 
+                          checked={configForm?.isForgotPasswordActive !== false}
+                          onChange={(e) => setConfigForm({ ...configForm!, isForgotPasswordActive: e.target.checked })}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500"></div>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 px-2">Serveur SMTP (Host)</label>
+                      <input 
+                        type="text" 
+                        value={configForm?.smtpHost || ''}
+                        onChange={e => setConfigForm({ ...configForm!, smtpHost: e.target.value })}
+                        className="w-full bg-white border-none rounded-xl px-5 py-3 text-sm font-black focus:ring-4 focus:ring-blue-100 transition-all"
+                        placeholder="Ex: smtp.gmail.com"
+                      />
+                    </div>
+                    
+                    <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 px-2">Port SMTP</label>
+                      <input 
+                        type="text" 
+                        value={configForm?.smtpPort !== undefined ? String(configForm.smtpPort) : ''}
+                        onChange={e => setConfigForm({ ...configForm!, smtpPort: e.target.value ? parseInt(e.target.value) || 0 : undefined })}
+                        className="w-full bg-white border-none rounded-xl px-5 py-3 text-sm font-black focus:ring-4 focus:ring-blue-100 transition-all"
+                        placeholder="Ex: 587 ou 465"
+                      />
+                    </div>
+
+                    <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 px-2">Utilisateur SMTP</label>
+                      <input 
+                        type="text" 
+                        value={configForm?.smtpUser || ''}
+                        onChange={e => setConfigForm({ ...configForm!, smtpUser: e.target.value })}
+                        className="w-full bg-white border-none rounded-xl px-5 py-3 text-sm font-black focus:ring-4 focus:ring-blue-100 transition-all"
+                        placeholder="Ex: contact@fasoexpress.com"
+                      />
+                    </div>
+
+                    <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 px-2">Mot de passe SMTP</label>
+                      <input 
+                        type="password" 
+                        value={configForm?.smtpPass || ''}
+                        onChange={e => setConfigForm({ ...configForm!, smtpPass: e.target.value })}
+                        className="w-full bg-white border-none rounded-xl px-5 py-3 text-sm font-black focus:ring-4 focus:ring-blue-100 transition-all"
+                        placeholder="Mot de passe SMTP"
+                      />
+                    </div>
+
+                    <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 px-2">Adresse d'expédition (From)</label>
+                      <input 
+                        type="text" 
+                        value={configForm?.smtpFrom || ''}
+                        onChange={e => setConfigForm({ ...configForm!, smtpFrom: e.target.value })}
+                        className="w-full bg-white border-none rounded-xl px-5 py-3 text-sm font-black focus:ring-4 focus:ring-blue-100 transition-all"
+                        placeholder='Ex: "Faso Express" <noreply@fasoexpress.com>'
+                      />
+                    </div>
+
+                    <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 flex flex-col justify-center">
+                      <div className="flex items-center justify-between px-2">
+                        <div>
+                          <label className="block text-[10px] font-black text-slate-800 uppercase tracking-widest mb-1">Connexion Sécurisée (SSL/TLS)</label>
+                          <p className="text-[9px] text-slate-400 font-bold">Activer pour le port 465 (SSL)</p>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input 
+                            type="checkbox" 
+                            checked={configForm?.smtpSecure || false}
+                            onChange={(e) => setConfigForm({ ...configForm!, smtpSecure: e.target.checked })}
+                            className="sr-only peer"
+                          />
+                          <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                      </div>
                     </div>
                   </div>
                 </div>

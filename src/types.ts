@@ -27,6 +27,13 @@ export interface AppConfig {
   contactEmail?: string;
   contactWhatsapp?: string;
   contactFacebook?: string;
+  smtpHost?: string;
+  smtpPort?: number;
+  smtpUser?: string;
+  smtpPass?: string;
+  smtpSecure?: boolean;
+  smtpFrom?: string;
+  isForgotPasswordActive?: boolean;
 }
 
 export interface Sector {

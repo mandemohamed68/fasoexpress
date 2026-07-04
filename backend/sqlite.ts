@@ -251,7 +251,9 @@ const userCols = [
   { name: 'identityCardUrl', type: 'TEXT' },
   { name: 'identityCardBackUrl', type: 'TEXT' },
   { name: 'criminalRecordUrl', type: 'TEXT' },
-  { name: 'verificationStatus', type: 'TEXT' }
+  { name: 'verificationStatus', type: 'TEXT' },
+  { name: 'resetCode', type: 'TEXT' },
+  { name: 'resetExpires', type: 'TEXT' }
 ];
 
 colsToAdd.forEach(col => {

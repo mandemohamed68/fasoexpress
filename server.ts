@@ -8,6 +8,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { v4 as uuidv4 } from "uuid";
 import { GoogleGenAI } from "@google/genai";
+import nodemailer from "nodemailer";
 
 // Configuration robuste du chargement de dotenv pour les serveurs locaux ou distants
 dotenv.config();
@@ -261,6 +262,128 @@ const MASTER_ADMIN_EMAILS = ['mandemohamed68@gmail.com', 'mandemohamed6868@gmail
       res.json({ token, user });
     } catch (error) {
       res.status(500).json({ error: "Erreur de connexion serveur." });
+    }
+  });
+
+  app.post("/api/auth/forgot-password", async (req, res) => {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ error: "L'adresse email est requise." });
+    }
+
+    try {
+      const user = db.prepare("SELECT * FROM users WHERE email = ?").get(email) as any;
+      if (!user) {
+        return res.json({ status: "ok", message: "Si cette adresse existe, un code de réinitialisation lui a été envoyé." });
+      }
+
+      const configRow = db.prepare("SELECT value FROM config WHERE `key` = 'app_config'").get() as any;
+      const appConfig = configRow ? JSON.parse(configRow.value) : {};
+
+      const isForgotActive = appConfig.isForgotPasswordActive !== false;
+      if (!isForgotActive) {
+        return res.status(400).json({ error: "La réinitialisation de mot de passe par email est désactivée. Veuillez contacter un administrateur." });
+      }
+
+      const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
+      const expiresAt = (Date.now() + 15 * 60 * 1000).toString();
+
+      db.prepare("UPDATE users SET resetCode = ?, resetExpires = ? WHERE email = ?").run(resetCode, expiresAt, email);
+
+      const host = appConfig.smtpHost || process.env.SMTP_HOST;
+      const port = parseInt(appConfig.smtpPort || process.env.SMTP_PORT || "587");
+      const userMail = appConfig.smtpUser || process.env.SMTP_USER;
+      const passMail = appConfig.smtpPass || process.env.SMTP_PASS;
+      const secure = appConfig.smtpSecure !== undefined ? appConfig.smtpSecure : (process.env.SMTP_SECURE === "true" || port === 465);
+      const fromMail = appConfig.smtpFrom || process.env.SMTP_FROM || userMail || '"Faso Express" <noreply@fasoexpress.com>';
+
+      if (host && userMail && passMail) {
+        const transporter = nodemailer.createTransport({
+          host,
+          port,
+          secure,
+          auth: {
+            user: userMail,
+            pass: passMail,
+          },
+          tls: {
+            rejectUnauthorized: false
+          }
+        });
+
+        const mailOptions = {
+          from: fromMail,
+          to: email,
+          subject: "Réinitialisation de votre mot de passe - Faso Express",
+          text: `Bonjour ${user.name},\n\nVous avez demandé la réinitialisation de votre mot de passe pour votre compte Faso Express.\n\nVotre code de réinitialisation est : ${resetCode}\nCe code est valable pendant 15 minutes.\n\nSi vous n'êtes pas à l'origine de cette demande, vous pouvez ignorer cet e-mail.\n\nCordialement,\nL'équipe Faso Express`,
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #f1f5f9; border-radius: 12px;">
+              <h2 style="color: #f97316; text-align: center; font-weight: 900; text-transform: uppercase; margin-bottom: 20px;">FASO EXPRESS</h2>
+              <p>Bonjour <strong>${user.name}</strong>,</p>
+              <p>Vous avez demandé la réinitialisation de votre mot de passe pour votre compte Faso Express.</p>
+              <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 20px; text-align: center; margin: 20px 0; border-radius: 8px;">
+                <p style="font-size: 14px; color: #64748b; margin-top: 0; margin-bottom: 5px; text-transform: uppercase; font-weight: bold; letter-spacing: 0.1em;">Code de réinitialisation</p>
+                <h1 style="font-size: 36px; color: #0f172a; margin: 0; font-weight: 900; letter-spacing: 0.2em;">${resetCode}</h1>
+                <p style="font-size: 12px; color: #94a3b8; margin-top: 5px; margin-bottom: 0;">Valable pendant 15 minutes</p>
+              </div>
+              <p style="color: #64748b; font-size: 13px;">Si vous n'êtes pas à l'origine de cette demande, veuillez ignorer cet e-mail en toute sécurité.</p>
+              <hr style="border: none; border-top: 1px solid #f1f5f9; margin: 20px 0;" />
+              <p style="color: #94a3b8; font-size: 11px; text-align: center; margin-bottom: 0;">Édité par NME TECHNOLOGIE GROUP</p>
+            </div>
+          `,
+        };
+
+        await transporter.sendMail(mailOptions);
+        console.log(`[SMTP] Reset email successfully sent to ${email} with code ${resetCode}`);
+      } else {
+        console.log(`\n==========================================`);
+        console.log(`[DEV MODE] SMTP non configuré pour Forgot Password`);
+        console.log(`Email : ${email}`);
+        console.log(`Code de réinitialisation : ${resetCode}`);
+        console.log(`==========================================\n`);
+        return res.json({ 
+          status: "ok", 
+          sandbox: true,
+          code: resetCode,
+          message: "L'envoi d'e-mail n'est pas entièrement configuré. Le code de réinitialisation s'affiche ici pour vos tests : " + resetCode 
+        });
+      }
+
+      res.json({ status: "ok", message: "Le code de réinitialisation a été envoyé par e-mail." });
+    } catch (err: any) {
+      console.error("Forgot password error:", err);
+      res.status(500).json({ error: "Erreur lors du traitement de la demande de réinitialisation." });
+    }
+  });
+
+  app.post("/api/auth/reset-password", async (req, res) => {
+    const { email, code, newPassword } = req.body;
+    if (!email || !code || !newPassword) {
+      return res.status(400).json({ error: "Tous les champs sont requis (email, code, nouveau mot de passe)." });
+    }
+
+    try {
+      const user = db.prepare("SELECT * FROM users WHERE email = ?").get(email) as any;
+      if (!user) {
+        return res.status(404).json({ error: "Aucun utilisateur trouvé avec cette adresse email." });
+      }
+
+      if (!user.resetCode || user.resetCode !== code.trim()) {
+        return res.status(400).json({ error: "Le code de réinitialisation est incorrect." });
+      }
+
+      const expires = parseFloat(user.resetExpires || "0");
+      if (Date.now() > expires) {
+        return res.status(400).json({ error: "Le code de réinitialisation a expiré (limite de 15 minutes dépassée)." });
+      }
+
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      db.prepare("UPDATE users SET password = ?, resetCode = NULL, resetExpires = NULL WHERE email = ?").run(hashedPassword, email);
+
+      res.json({ status: "ok", message: "Votre mot de passe a été modifié avec succès. Vous pouvez maintenant vous connecter." });
+    } catch (err: any) {
+      console.error("Reset password error:", err);
+      res.status(500).json({ error: "Erreur lors de la réinitialisation du mot de passe." });
     }
   });
 

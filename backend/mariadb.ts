@@ -113,6 +113,8 @@ export default function initMariaDB() {
     try { connection.query("ALTER TABLE users MODIFY COLUMN idCardBack LONGTEXT"); } catch(e){}
     connection.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS termsAcceptedAt datetime DEFAULT NULL");
     connection.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS driverType varchar(50) DEFAULT 'freelance'");
+    connection.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS resetCode varchar(255) DEFAULT NULL");
+    connection.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS resetExpires varchar(255) DEFAULT NULL");
     
     // Ensure announcements table has all required columns
     connection.query(`

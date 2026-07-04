@@ -65,6 +65,8 @@ export const api = {
   auth: {
     login: (credentials: any) => request('/auth/login', 'POST', credentials),
     register: (userData: any) => request('/auth/register', 'POST', userData),
+    forgotPassword: (email: string) => request('/auth/forgot-password', 'POST', { email }),
+    resetPassword: (data: { email: string; code: string; newPassword: any }) => request('/auth/reset-password', 'POST', data),
   },
   profile: {
     get: () => request('/profile'),

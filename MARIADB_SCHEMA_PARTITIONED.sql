@@ -23,6 +23,8 @@ CREATE TABLE IF NOT EXISTS `users` (
   `verificationStatus` varchar(50) DEFAULT 'unverified',
   `termsAcceptedAt` datetime DEFAULT NULL,
   `driverType` varchar(50) DEFAULT 'freelance',
+  `resetCode` varchar(255) DEFAULT NULL,
+  `resetExpires` varchar(255) DEFAULT NULL,
   `identityCardUrl` LONGTEXT DEFAULT NULL,
   `criminalRecordUrl` LONGTEXT DEFAULT NULL,
   `currentLocation` text DEFAULT NULL,
