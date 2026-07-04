@@ -77,6 +77,7 @@ CREATE TABLE IF NOT EXISTS `deliveries` (
   `boostAmount` double DEFAULT 0,
   `cancelReason` text DEFAULT NULL,
   `lastMessageAt` datetime DEFAULT NULL,
+  `proofImage` LONGTEXT DEFAULT NULL,
   `createdAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updatedAt` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`, `createdAt`)

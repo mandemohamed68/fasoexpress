@@ -147,6 +147,7 @@ export default function initMariaDB() {
     }
     try { connection.query("ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS rating double DEFAULT NULL"); } catch(e){}
     try { connection.query("ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS feedback TEXT DEFAULT NULL"); } catch(e){}
+    try { connection.query("ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS proofImage LONGTEXT DEFAULT NULL"); } catch(e){}
     
     // Create sectors table if it doesn't exist
     connection.query(`

@@ -4,7 +4,7 @@ import { api } from '../services/apiService';
 import { DeliveryRequest, UserProfile } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { MapContainer, TileLayer, Marker, Polyline, useMap } from 'react-leaflet';
-import { ArrowLeft, Package, MessageSquare, CheckCircle, Navigation, Copy, Truck, Phone, Clock, ChevronRight, Loader2, X, Target, Eye, AlertCircle, Star } from 'lucide-react';
+import { ArrowLeft, Package, MessageSquare, CheckCircle, Navigation, Copy, Truck, Phone, Clock, ChevronRight, Loader2, X, Target, Eye, AlertCircle, Star, Camera } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Chat } from '../components/Chat';
 import PaymentModal from '../components/PaymentModal';
@@ -638,6 +638,23 @@ export default function DeliveryTracking() {
                       )}
                    </div>
                 </div>
+
+                {/* Preuve de livraison */}
+                {delivery.proofImage && (
+                   <div className="bg-slate-50/80 rounded-3xl p-5 mb-6 border border-slate-100 shadow-inner">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-3 flex items-center gap-1.5">
+                         <Camera className="w-3.5 h-3.5 text-indigo-600" /> Photo Preuve de Livraison
+                      </p>
+                      <div className="rounded-2xl overflow-hidden border border-slate-200 bg-white max-h-72 flex justify-center items-center">
+                         <img 
+                            src={delivery.proofImage} 
+                            alt="Preuve de livraison" 
+                            className="max-w-full max-h-72 object-contain"
+                            referrerPolicy="no-referrer"
+                         />
+                      </div>
+                   </div>
+                )}
 
                 {/* Driver Interaction Panel */}
                 {driver ? (

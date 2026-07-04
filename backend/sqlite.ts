@@ -110,6 +110,7 @@ try {
     pickupCode TEXT,
     deliveryCode TEXT,
     rejectedBy TEXT, -- JSON array
+    proofImage TEXT,
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
     updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(clientId) REFERENCES users(userId),
@@ -235,7 +236,8 @@ const colsToAdd = [
   { name: 'cancelReason', type: 'TEXT' },
   { name: 'rejectedBy', type: 'TEXT' },
   { name: 'rating', type: 'REAL' },
-  { name: 'feedback', type: 'TEXT' }
+  { name: 'feedback', type: 'TEXT' },
+  { name: 'proofImage', type: 'TEXT' }
 ];
 
 const withdrawCols = [
