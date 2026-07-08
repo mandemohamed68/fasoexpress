@@ -175,14 +175,20 @@ const MASTER_ADMIN_EMAILS = ['mandemohamed68@gmail.com', 'mandemohamed6868@gmail
       return res.status(400).json({ error: "Le mot de passe doit contenir au moins 6 caractères." });
     }
 
+    const targetRole = role || "client";
     try {
+      const existingUser = db.prepare("SELECT * FROM users WHERE email = ? AND role = ?").get(email, targetRole);
+      if (existingUser) {
+        return res.status(400).json({ error: "Cette adresse email est déjà utilisée pour ce rôle." });
+      }
+
       const hashedPassword = await bcrypt.hash(password, 10);
       const userId = uuidv4();
       const stmt = db.prepare("INSERT INTO users (id, userId, name, email, password, role) VALUES (?, ?, ?, ?, ?, ?)");
-      stmt.run(userId, userId, name, email, hashedPassword, role || "client");
+      stmt.run(userId, userId, name, email, hashedPassword, targetRole);
       
       // Configurable approval logic for drivers
-      if (role === 'driver') {
+      if (targetRole === 'driver') {
         let approvalMode = 'manual';
         try {
           const row = db.prepare("SELECT value FROM config WHERE `key` = 'app_config'").get() as any;
@@ -237,20 +243,27 @@ const MASTER_ADMIN_EMAILS = ['mandemohamed68@gmail.com', 'mandemohamed6868@gmail
         try { fullUser.currentLocation = JSON.parse(fullUser.currentLocation); } catch(e){}
       }
 
-      const token = jwt.sign({ userId, email, role }, JWT_SECRET);
+      const token = jwt.sign({ userId, email, role: targetRole }, JWT_SECRET);
       res.json({ token, user: fullUser });
     } catch (error: any) {
       if (error.message.includes("UNIQUE")) {
-        return res.status(400).json({ error: "Cette adresse email est déjà utilisée." });
+        return res.status(400).json({ error: "Cette adresse email est déjà utilisée pour ce rôle." });
       }
       res.status(500).json({ error: "Erreur lors de l'inscription. Veuillez réessayer." });
     }
   });
 
   app.post("/api/auth/login", async (req, res) => {
-    const { email, password } = req.body;
+    const { email, password, role } = req.body;
     try {
-      const user = db.prepare("SELECT * FROM users WHERE email = ?").get(email) as any;
+      let user = null;
+      if (role) {
+        user = db.prepare("SELECT * FROM users WHERE email = ? AND role = ?").get(email, role) as any;
+      }
+      if (!user) {
+        user = db.prepare("SELECT * FROM users WHERE email = ?").get(email) as any;
+      }
+
       if (!user || !(await bcrypt.compare(password, user.password))) {
         return res.status(401).json({ error: "Email ou mot de passe incorrect." });
       }

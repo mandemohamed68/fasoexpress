@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS `users` (
   `id` varchar(255) PRIMARY KEY,
   `userId` varchar(255) UNIQUE,
   `name` varchar(255) NOT NULL,
-  `email` varchar(255) UNIQUE NOT NULL,
+  `email` varchar(255) NOT NULL,
   `password` varchar(255) DEFAULT NULL,
   `role` enum('client', 'driver', 'admin', 'superadmin') NOT NULL,
   `status` varchar(50) DEFAULT 'online',
@@ -44,7 +44,8 @@ CREATE TABLE IF NOT EXISTS `users` (
   `photoURL` LONGTEXT DEFAULT NULL,
   `address` text DEFAULT NULL,
   `createdAt` datetime DEFAULT CURRENT_TIMESTAMP,
-  `updatedAt` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  `updatedAt` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY `email_role` (`email`, `role`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ----------------------------

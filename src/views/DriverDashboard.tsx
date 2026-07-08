@@ -246,8 +246,17 @@ export default function DriverDashboard() {
     setIsProcessingAction(false);
   };
   const [selectedPendingJob, setSelectedPendingJob] = useState<DeliveryRequest | null>(null);
+  const [showAvailableMissionsModal, setShowAvailableMissionsModal] = useState(false);
   const [myBidOnJob, setMyBidOnJob] = useState<any | null>(null);
   const [fetchingBids, setFetchingBids] = useState(false);
+
+  const sortedPendingJobs = useMemo(() => {
+    return [...filteredPendingJobs].sort((a, b) => {
+      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return dateB - dateA;
+    });
+  }, [filteredPendingJobs]);
 
   useEffect(() => {
     if (!selectedPendingJob || !profile) {
@@ -875,24 +884,25 @@ export default function DriverDashboard() {
                              
                              {/* Available Missions Indicator */}
                              {isOnline && (
-                                <motion.div 
+                                <motion.button 
                                   key={`avail-${filteredPendingJobs.length}`}
                                   initial={{ x: -20, opacity: 0 }} 
                                   animate={{ x: 0, opacity: 1 }} 
+                                  onClick={() => setShowAvailableMissionsModal(true)}
                                   className={cn(
-                                    "px-4 py-2.5 rounded-2xl flex items-center gap-2.5 shadow-xl pointer-events-auto border select-none transition-all duration-300",
+                                    "px-4 py-2.5 rounded-2xl flex items-center gap-2.5 shadow-xl pointer-events-auto border select-none transition-all duration-300 cursor-pointer hover:scale-105 active:scale-95 text-left",
                                     filteredPendingJobs.length > 0 
                                       ? "bg-gradient-to-r from-orange-600 to-amber-500 text-white border-white/20" 
                                       : "bg-slate-900/90 backdrop-blur-xl text-slate-300 border-slate-800"
                                   )}
                                 >
                                    {filteredPendingJobs.length > 0 ? (
-                                      <div className="relative flex h-2 w-2">
+                                      <div className="relative flex h-2 w-2 shrink-0">
                                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
                                          <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
                                       </div>
                                    ) : (
-                                      <div className="relative flex h-2 w-2">
+                                      <div className="relative flex h-2 w-2 shrink-0">
                                          <span className="animate-pulse absolute inline-flex h-full w-full rounded-full bg-amber-500/50 opacity-75"></span>
                                          <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
                                       </div>
@@ -908,7 +918,7 @@ export default function DriverDashboard() {
                                          }
                                       </p>
                                    </div>
-                                </motion.div>
+                                </motion.button>
                              )}
 
                              {/* Verification Warning Floating below status */}
@@ -2041,6 +2051,139 @@ export default function DriverDashboard() {
         )}
       </AnimatePresence>
 
+      {/* Available Missions List Modal */}
+      <AnimatePresence>
+        {showAvailableMissionsModal && (
+          <div className="fixed inset-0 z-[999] flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 overflow-y-auto">
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              className="bg-slate-50 rounded-[32px] w-full max-w-lg p-6 shadow-2xl border border-slate-100 relative max-h-[85vh] overflow-y-auto flex flex-col"
+            >
+              <div className="flex justify-between items-center mb-6 shrink-0 border-b border-slate-100 pb-4">
+                <div>
+                  <h3 className="text-lg font-black italic text-slate-900 tracking-tighter uppercase flex items-center gap-2">
+                    <Compass className="w-5 h-5 text-orange-500 animate-spin-slow" />
+                    Radar de course
+                  </h3>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mt-1">
+                    Missions disponibles (Du plus récent au plus ancien)
+                  </p>
+                </div>
+                <button 
+                  onClick={() => setShowAvailableMissionsModal(false)}
+                  className="p-2 hover:bg-slate-200 rounded-full transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5 text-slate-400" />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto pr-1 space-y-4">
+                {sortedPendingJobs.length === 0 ? (
+                  <div className="text-center py-12 px-4">
+                    <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 mx-auto mb-4 border border-slate-200">
+                      <Compass className="w-8 h-8" />
+                    </div>
+                    <p className="text-sm font-black text-slate-700 uppercase tracking-tight">Aucune mission disponible</p>
+                    <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-wider">
+                      Le radar cherche en temps réel... Restez connecté !
+                    </p>
+                  </div>
+                ) : (
+                  sortedPendingJobs.map((job) => {
+                    const distanceToPickup = userLocation 
+                      ? calculateDistance(userLocation.lat, userLocation.lng, job.from.lat, job.from.lng)
+                      : null;
+                    const distanceToDropoff = calculateDistance(job.from.lat, job.from.lng, job.to.lat, job.to.lng);
+                    
+                    return (
+                      <div 
+                        key={job.id}
+                        className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition-all relative flex flex-col gap-4 group"
+                      >
+                        {/* Header: ID, Price, Time, and Type */}
+                        <div className="flex justify-between items-start gap-2">
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="px-2 py-0.5 bg-orange-100 text-orange-600 rounded-lg text-[9px] font-black uppercase tracking-widest">
+                                #{job.id.slice(-6).toUpperCase()}
+                              </span>
+                              {job.isUrgent && (
+                                <span className="px-2 py-0.5 bg-rose-100 text-rose-600 rounded-lg text-[9px] font-black uppercase tracking-widest flex items-center gap-1">
+                                  <Zap className="w-2.5 h-2.5 fill-rose-500 text-rose-500 animate-pulse" /> Urgent
+                                </span>
+                              )}
+                              <span className="px-2 py-0.5 bg-slate-100 text-slate-500 rounded-lg text-[9px] font-black uppercase tracking-widest">
+                                {job.vehicleType || "moto"}
+                              </span>
+                            </div>
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                              Publié {formatTimeAgo(job.createdAt)}
+                            </span>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <span className="text-xl font-black italic tracking-tight text-slate-900 block leading-none">
+                              {job.clientProposedPrice || job.cost} FCFA
+                            </span>
+                            <span className="text-[9px] font-black text-indigo-500 uppercase tracking-wider block mt-1">
+                              {distanceToDropoff.toFixed(1)} km de course
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Route details */}
+                        <div className="space-y-3 relative pl-3 border-l-2 border-dashed border-slate-200 ml-1">
+                          <div className="relative">
+                            <div className="absolute left-[-17px] top-1 w-2.5 h-2.5 rounded-full bg-slate-300 ring-4 ring-white" />
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">Ramassage (Collecte)</p>
+                            <p className="text-xs font-bold text-slate-700 truncate mt-1">{job.from.address}</p>
+                            {distanceToPickup !== null && (
+                              <p className="text-[10px] font-bold text-slate-400 mt-0.5 flex items-center gap-1">
+                                📍 À {distanceToPickup.toFixed(1)} km de votre position
+                              </p>
+                            )}
+                          </div>
+                          <div className="relative">
+                            <div className="absolute left-[-17px] bottom-1 w-2.5 h-2.5 rounded-full bg-orange-500 ring-4 ring-white" />
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">Livraison (Destinataire)</p>
+                            <p className="text-xs font-bold text-slate-900 truncate mt-1">{job.to.address}</p>
+                          </div>
+                        </div>
+
+                        {/* Action buttons */}
+                        <div className="flex gap-2 mt-2">
+                          <button
+                            onClick={() => {
+                              setSelectedPendingJob(job);
+                              setRadarMode('search');
+                              setShowAvailableMissionsModal(false);
+                            }}
+                            className="flex-1 py-3 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-orange-500/20 cursor-pointer text-center"
+                          >
+                            Sélectionner &amp; Continuer
+                          </button>
+                          
+                          <button 
+                            onClick={() => {
+                              handleRejectJob(job.id);
+                            }}
+                            className="px-4 py-3 bg-rose-50 hover:bg-rose-100 text-rose-500 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer border border-rose-100"
+                            title="Masquer cette mission"
+                          >
+                            Masquer
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
      {profile && chatDeliveryId && (
         <Chat 
            deliveryId={chatDeliveryId} 
@@ -2052,3 +2195,19 @@ export default function DriverDashboard() {
     </div>
   );
 }
+
+// Utility to format elapsed time in French
+const formatTimeAgo = (dateStr?: string) => {
+  if (!dateStr) return '';
+  try {
+    const diffMs = Date.now() - new Date(dateStr).getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    if (diffMins < 1) return "à l'instant";
+    if (diffMins < 60) return `il y a ${diffMins} min`;
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `il y a ${diffHours} h`;
+    return `le ${new Date(dateStr).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`;
+  } catch (e) {
+    return '';
+  }
+};

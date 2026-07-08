@@ -15,8 +15,8 @@ interface AuthContextType {
   appConfig: AppConfig | null;
   refreshAppConfig: () => Promise<void>;
   t: (key: keyof typeof translations.fr, params?: Record<string, any>) => string;
-  login: (email: string, pass: string) => Promise<void>;
-  loginWithEmail: (email: string, pass: string) => Promise<void>;
+  login: (email: string, pass: string, role?: UserRole) => Promise<void>;
+  loginWithEmail: (email: string, pass: string, role?: UserRole) => Promise<void>;
   registerWithEmail: (email: string, pass: string, name: string, role: UserRole, extra?: Partial<UserProfile>) => Promise<void>;
   loginWithPhone: (phoneNumber: string) => Promise<any>;
   logout: () => Promise<void>;
@@ -136,10 +136,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => clearInterval(interval);
   }, []);
 
-  const loginWithEmail = async (email: string, pass: string) => {
+  const loginWithEmail = async (email: string, pass: string, role?: UserRole) => {
     setLoading(true);
     try {
-      const res = await api.auth.login({ email, password: pass });
+      const res = await api.auth.login({ email, password: pass, role });
       localStorage.setItem('auth_token', res.token);
       setUser(res.user);
       setProfile(res.user); // Initial profile match user object from server

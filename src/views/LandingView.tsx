@@ -79,6 +79,7 @@ export default function LandingView() {
   const [logoError, setLogoError] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
   const [role, setRole] = useState<UserRole>('client');
+  const [loginRole, setLoginRole] = useState<UserRole>('client');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -242,7 +243,7 @@ export default function LandingView() {
           status: role === 'driver' ? 'online' : 'offline'
         });
       } else {
-        await loginWithEmail(email, password);
+        await loginWithEmail(email, password, loginRole);
       }
     } catch (err: any) {
       setLocalLoading(false);
@@ -816,6 +817,29 @@ export default function LandingView() {
             </form>
           ) : (
             <form onSubmit={handleAuth} className="space-y-4">
+              <div className="flex gap-2 p-1 bg-slate-50 rounded-2xl border border-slate-100 overflow-hidden mb-6">
+                <button 
+                  type="button"
+                  onClick={() => setLoginRole('client')}
+                  className={cn(
+                    "flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer",
+                    loginRole === 'client' ? "bg-orange-500 text-white shadow-lg shadow-orange-500/20" : "text-slate-400 hover:text-slate-600"
+                  )}
+                >
+                  Client
+                </button>
+                <button 
+                  type="button"
+                  onClick={() => setLoginRole('driver')}
+                  className={cn(
+                    "flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer",
+                    loginRole === 'driver' ? "bg-slate-900 text-white shadow-lg" : "text-slate-400 hover:text-slate-600"
+                  )}
+                >
+                  Livreur
+                </button>
+              </div>
+
               <div className="relative">
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
                 <input 

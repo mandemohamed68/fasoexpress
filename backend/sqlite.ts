@@ -73,7 +73,7 @@ try {
     id TEXT PRIMARY KEY,
     userId TEXT UNIQUE,
     name TEXT NOT NULL,
-    email TEXT UNIQUE NOT NULL,
+    email TEXT NOT NULL,
     password TEXT, -- For local auth
     role TEXT CHECK(role IN ('client', 'driver', 'admin', 'superadmin')) NOT NULL,
     status TEXT DEFAULT 'online',
@@ -89,7 +89,8 @@ try {
     currentLocation TEXT, -- JSON string
     balance REAL DEFAULT 0,
     earnings REAL DEFAULT 0,
-    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(email, role)
   );
 
   CREATE TABLE IF NOT EXISTS deliveries (
@@ -334,6 +335,69 @@ try {
   }
 } catch (migrationError: any) {
   console.error("Migration to support superadmin failed:", migrationError);
+}
+
+// MIGRATION: Upgrade 'users' table to replace unique email constraint with composite unique(email, role)
+try {
+  const tableInfo = db.prepare("SELECT sql FROM sqlite_schema WHERE type='table' AND name='users'").get() as { sql: string } | undefined;
+  if (tableInfo && tableInfo.sql && (tableInfo.sql.includes('email TEXT UNIQUE') || tableInfo.sql.includes('email TEXT NOT NULL UNIQUE') || tableInfo.sql.includes('UNIQUE(email)') || tableInfo.sql.includes('UNIQUE (email)'))) {
+    console.log("Migration: Upgrading 'users' table email constraint to support composite unique(email, role)...");
+    
+    // Disable foreign keys temporarily and turn on legacy_alter_table to prevent ref corruption
+    db.exec("PRAGMA foreign_keys=OFF;");
+    db.exec("PRAGMA legacy_alter_table=ON;");
+    
+    db.transaction(() => {
+      // Rename existing table
+      db.exec("ALTER TABLE users RENAME TO _users_old_email;");
+      
+      // Create new table with updated constraints (email is not unique alone, but unique on (email, role))
+      db.exec(`
+        CREATE TABLE users (
+          id TEXT PRIMARY KEY,
+          userId TEXT UNIQUE,
+          name TEXT NOT NULL,
+          email TEXT NOT NULL,
+          password TEXT,
+          role TEXT CHECK(role IN ('client', 'driver', 'admin', 'superadmin')) NOT NULL,
+          status TEXT DEFAULT 'online',
+          accountStatus TEXT DEFAULT 'active',
+          isVerified INTEGER DEFAULT 0,
+          city TEXT,
+          neighborhood TEXT,
+          verificationStatus TEXT DEFAULT 'pending',
+          guarantorName TEXT,
+          guarantorPhone TEXT,
+          identityCardUrl TEXT,
+          criminalRecordUrl TEXT,
+          currentLocation TEXT,
+          balance REAL DEFAULT 0,
+          earnings REAL DEFAULT 0,
+          createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(email, role)
+        );
+      `);
+      
+      const pragmaOld = db.prepare("PRAGMA table_info(_users_old_email)").all() as Array<{ name: string }>;
+      const pragmaNew = db.prepare("PRAGMA table_info(users)").all() as Array<{ name: string }>;
+      
+      const oldColNames = new Set(pragmaOld.map(c => c.name));
+      const newColNames = pragmaNew.map(c => c.name);
+      
+      const commonCols = newColNames.filter(c => oldColNames.has(c)).join(', ');
+      
+      db.exec(`INSERT INTO users (${commonCols}) SELECT ${commonCols} FROM _users_old_email;`);
+      
+      // Drop old table
+      db.exec("DROP TABLE _users_old_email;");
+    })();
+    
+    db.exec("PRAGMA legacy_alter_table=OFF;");
+    db.exec("PRAGMA foreign_keys=ON;");
+    console.log("Migration: 'users' table email constraint upgraded successfully.");
+  }
+} catch (migrationError: any) {
+  console.error("Migration to allow same email for multiple roles failed:", migrationError);
 }
 
 // MIGRATIONS: Add columns if they do not exist

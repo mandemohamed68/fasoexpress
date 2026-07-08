@@ -7,7 +7,7 @@ import {
   ClipboardCheck, History, Store, Map as MapIcon, Globe, 
   BadgePercent, CreditCard, Wallet, LogOut, Bell, Settings, Play, Mail, Facebook,
   Plus, Navigation, UserCircle, Percent, Database, Download, Building2, X, Trash2, Zap, Smartphone, Menu,
-  CheckCircle, AlertCircle, Landmark, Info, Phone, Star
+  CheckCircle, AlertCircle, Landmark, Info, Phone, Star, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
@@ -47,6 +47,7 @@ export default function AdminDashboard() {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [resetCode, setResetCode] = useState('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
   const [toastState, setToastState] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
   const toast = (arg: string | { type?: 'success' | 'error' | 'info'; message: string } | null) => {
@@ -147,6 +148,7 @@ export default function AdminDashboard() {
   useEffect(() => {
     // Reset configForm when activeMenu tab changes, to force loading fresh appConfig on next render
     setConfigForm(null);
+    setCurrentPage(1);
   }, [activeMenu]);
 
   const handleUpdateConfig = async (e: React.FormEvent) => {
@@ -1150,10 +1152,26 @@ export default function AdminDashboard() {
           if (activeMenu === 'Administrateurs') return u.role === 'admin' || u.role === 'superadmin';
           return false;
         });
+
+        // Pagination calculations (50 per page)
+        const itemsPerPage = 50;
+        const totalItems = filteredUsers.length;
+        const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
+        const activePage = Math.min(currentPage, totalPages);
+        const startIndex = (activePage - 1) * itemsPerPage;
+        const paginatedUsers = filteredUsers.slice(startIndex, startIndex + itemsPerPage);
+
         return (
-          <div className="bg-white rounded-3xl p-6 lg:p-5 lg:p-6 shadow-sm border border-slate-100">
-            <div className="flex justify-between items-center mb-8">
-              <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">{activeMenu} ({filteredUsers.length})</h3>
+          <div className="bg-white rounded-3xl p-6 lg:p-8 shadow-sm border border-slate-100 flex flex-col h-full min-h-0">
+            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-8">
+              <div>
+                <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">
+                  {activeMenu} ({totalItems})
+                </h3>
+                <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-1">
+                  Gestion et vue d'ensemble des utilisateurs ({activePage} / {totalPages})
+                </p>
+              </div>
               <button 
                 onClick={() => {
                   setNewUserData(prev => ({ 
@@ -1162,156 +1180,285 @@ export default function AdminDashboard() {
                   }));
                   setShowCreateUserModal(true);
                 }}
-                className="bg-indigo-600 text-white px-6 py-3 rounded-2xl text-[10px] uppercase font-black tracking-widest hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-600/20 flex items-center gap-2"
+                className="bg-indigo-600 text-white px-6 py-3.5 rounded-2xl text-[10px] uppercase font-black tracking-widest hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-600/20 flex items-center justify-center gap-2 self-start sm:self-auto"
               >
                 <Plus className="w-4 h-4" /> Nouvel Utilisateur
               </button>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredUsers.map(u => (
-                <div key={u.userId} className={cn(
-                  "p-6 bg-slate-50 rounded-3xl border flex flex-col items-center text-center group hover:bg-white hover:shadow-2xl transition-all relative overflow-hidden",
-                  u.accountStatus === 'suspended' ? 'border-red-500/30' : 'border-slate-100'
-                )}>
-                  {u.accountStatus === 'suspended' && (
-                    <div className="absolute top-3 right-3 w-2 h-2 bg-red-500 rounded-full animate-pulse" title="Compte suspendu" />
-                  )}
-                  <div className="absolute top-3 left-3">
-                    <button onClick={() => toast('Ouverture du support chat avec ' + u.name)} className="p-2 text-slate-400 hover:text-orange-500 transition-colors bg-white rounded-full shadow-sm">
-                      <MessageSquare className="w-4 h-4" />
-                    </button>
-                  </div>
-                  <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-orange-600 shadow-sm border border-slate-100 mb-4 group-hover:scale-110 transition-transform">
-                    <UserCircle className="w-10 h-10" />
-                  </div>
-                  <h4 className="font-black text-slate-900 uppercase tracking-tight">{u.name}</h4>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">{u.email}</p>
 
-                  {u.role === 'driver' && (() => {
-                    const stats = getDriverStatsAndRank(u.userId);
+            <div className="overflow-x-auto rounded-2xl border border-slate-100">
+              <table className="w-full text-left border-collapse min-w-[900px]">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-100">
+                    <th className="py-4 px-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Utilisateur</th>
+                    <th className="py-4 px-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Contact & Ville</th>
+                    <th className="py-4 px-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Statuts & Dossiers</th>
+                    <th className="py-4 px-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Activité & Véhicule</th>
+                    <th className="py-4 px-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {paginatedUsers.map(u => {
+                    const stats = u.role === 'driver' ? getDriverStatsAndRank(u.userId) : null;
                     return (
-                      <div className="flex flex-wrap items-center justify-center gap-1.5 mt-2">
-                        <div className="flex items-center gap-1 px-2.5 py-0.5 bg-amber-50 text-amber-600 rounded-full text-[8px] font-black uppercase tracking-widest border border-amber-100/50 shadow-sm">
-                          <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />
-                          <span>{stats.avgRating > 0 ? stats.avgRating.toFixed(1) : "N/A"}</span>
-                        </div>
-                        <div className="px-2.5 py-0.5 bg-indigo-50 text-indigo-600 rounded-full text-[8px] font-black uppercase tracking-widest border border-indigo-100/50 shadow-sm">
-                          Rang #{stats.rank || "-"}
-                        </div>
-                        <div className="px-2.5 py-0.5 bg-slate-100 text-slate-600 rounded-full text-[8px] font-black uppercase tracking-widest border border-slate-200/50">
-                          {stats.completedCount} course(s)
-                        </div>
-                      </div>
-                    );
-                  })()}
-                  
-                  <div className="flex flex-wrap justify-center gap-2 mt-3">
-                    {u.role === 'driver' && (
-                      <div className="flex flex-col gap-1 items-center">
-                        <div className="px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-[8px] font-black uppercase tracking-widest">
-                           {u.vehicleType || 'Moto'} * {u.licensePlate || 'Nouveau'}
-                        </div>
-                        <div className={cn(
-                          "px-3 py-1 rounded-full text-[7px] font-black uppercase tracking-widest flex items-center gap-1.5 shadow-sm border",
-                          u.status === 'online' ? "bg-emerald-50 text-emerald-600 border-emerald-100" :
-                          u.status === 'busy' ? "bg-amber-50 text-amber-600 border-amber-100" :
-                          "bg-slate-50 text-slate-400 border-slate-100"
-                        )}>
-                          <div className={cn("w-1.5 h-1.5 rounded-full", u.status === 'online' ? "bg-emerald-500 animate-pulse" : u.status === 'busy' ? "bg-amber-500" : "bg-slate-300")} />
-                          {u.status === 'online' ? 'Disponible' : u.status === 'busy' ? 'Occupe' : 'Hors Ligne'}
-                        </div>
-                      </div>
-                    )}
-                    {u.role === 'driver' && u.verificationStatus === 'pending' && (
-                      <div className="px-3 py-1 bg-blue-100 text-blue-600 rounded-full text-[8px] font-black uppercase tracking-widest animate-pulse border border-blue-200">
-                         Dossier a verifier
-                      </div>
-                    )}
-                    {u.role === 'driver' && (!u.idCardFront || !u.idCardBack || !u.guarantorName) && (
-                      <div className="px-3 py-1 bg-rose-50 text-rose-500 rounded-full text-[8px] font-black uppercase tracking-widest border border-rose-100">
-                         Dossier Incomplet
-                      </div>
-                    )}
-                    {u.accountStatus === 'pending_approval' && (
-                      <div className="px-3 py-1 bg-amber-100 text-amber-600 rounded-full text-[8px] font-black uppercase tracking-widest animate-pulse">
-                         Attente Approbation
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="mt-6 flex flex-col gap-2 w-full">
-                    {(u.accountStatus === 'pending_approval' || u.verificationStatus === 'pending') && u.role === 'driver' && (
-                      <button 
-                        onClick={async () => {
-                          try {
-                            const updates = { 
-                              accountStatus: 'active',
-                              verificationStatus: 'verified',
-                              isVerified: true,
-                              updatedAt: new Date().toISOString()
-                            };
-                            await api.admin.users.update(u.userId, updates);
-                            fetchData();
-                            
-                            await sendNotification(
-                              u.userId, 
-                              "Dossier Approuve !", 
-                              "Bienvenue chez FASO EXPRESS ! Votre compte est active et vos documents sont valides.", 
-                              'success'
-                            );
-                          } catch(err) {
-                            console.error(err);
-                          }
-                        }}
-                        className="w-full bg-emerald-500 text-white py-2.5 rounded-xl text-[8px] font-black uppercase tracking-widest hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20"
+                      <tr 
+                        key={u.userId} 
+                        className={cn(
+                          "hover:bg-slate-50/50 transition-colors group",
+                          u.accountStatus === 'suspended' && "bg-red-50/20"
+                        )}
                       >
-                        Valider Livreur & Dossier
-                      </button>
-                    )}
-                    
-                    <div className="flex gap-2">
-                       <button 
-                         onClick={() => setSelectedUser(u)}
-                         className="flex-1 bg-white border border-slate-200 py-2.5 rounded-xl text-[8px] font-black uppercase tracking-widest hover:bg-orange-50 transition-all font-sans"
-                       >
-                         Details
-                       </button>
-                    </div>
-                    {isSuperAdmin && (
-                      <div className="flex gap-2">
-                         <button 
-                           onClick={async () => {
-                             const action = u.accountStatus === 'suspended' ? 'active' : 'suspended';
-                             try {
-                               await api.admin.users.update(u.userId, { 
-                                 accountStatus: action,
-                                 updatedAt: new Date().toISOString()
-                               });
-                                fetchData();
-                             } catch(err) {
-                               console.error('Erreur lors de la modification');
-                             }
-                           }}
-                           className={cn(
-                             "flex-1 py-2.5 rounded-xl text-[8px] font-black uppercase tracking-widest transition-all shadow-sm",
-                             u.accountStatus === 'suspended' 
-                               ? "bg-emerald-500 hover:bg-emerald-600 text-white" 
-                               : "bg-red-50 text-red-600 hover:bg-red-100"
-                           )}
-                         >
-                           {u.accountStatus === 'suspended' ? 'Reactiver' : 'Suspendre'}
-                         </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-              {filteredUsers.length === 0 && (
-                <div className="col-span-full py-20 text-center">
-                  <p className="text-slate-400 font-black uppercase text-xs tracking-widest">Aucun utilisateur trouve</p>
-                </div>
-              )}
+                        {/* 1. User block */}
+                        <td className="py-4 px-6">
+                          <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-orange-600 border border-slate-200 shrink-0 relative">
+                              <UserCircle className="w-6 h-6" />
+                              {u.accountStatus === 'suspended' && (
+                                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full ring-2 ring-white animate-pulse" title="Compte suspendu" />
+                              )}
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <h4 className="font-black text-slate-900 uppercase tracking-tight text-sm">{u.name}</h4>
+                                  {u.isVerified ? (
+                                    <CheckCircle className="w-4 h-4 text-emerald-500" />
+                                  ) : null}
+                              </div>
+                              <p className="text-xs font-medium text-slate-400 tracking-tight">{u.email}</p>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* 2. Contact & City */}
+                        <td className="py-4 px-6">
+                          <div className="flex flex-col">
+                            <span className="text-xs font-bold text-slate-800 flex items-center gap-1">
+                              <Phone className="w-3 h-3 text-slate-400" /> {u.phone || "Non renseigné"}
+                            </span>
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">
+                              {u.city ? `${u.city} - ${u.neighborhood || ""}` : "Aucune zone"}
+                            </span>
+                          </div>
+                        </td>
+
+                        {/* 3. Statuses */}
+                        <td className="py-4 px-6">
+                          <div className="flex flex-wrap gap-1.5 max-w-[220px]">
+                            {u.role === 'driver' && (
+                              <span className={cn(
+                                "px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest flex items-center gap-1 border",
+                                u.status === 'online' ? "bg-emerald-50 text-emerald-600 border-emerald-100" :
+                                u.status === 'busy' ? "bg-amber-50 text-amber-600 border-amber-100" :
+                                "bg-slate-50 text-slate-400 border-slate-150"
+                              )}>
+                                <span className={cn("w-1 h-1 rounded-full", u.status === 'online' ? "bg-emerald-500" : u.status === 'busy' ? "bg-amber-500" : "bg-slate-300")} />
+                                {u.status === 'online' ? 'Disponible' : u.status === 'busy' ? 'Occupé' : 'Hors Ligne'}
+                              </span>
+                            )}
+                            
+                            {u.accountStatus === 'pending_approval' && (
+                              <span className="px-2 py-0.5 bg-amber-100 text-amber-700 border border-amber-200 rounded-full text-[8px] font-black uppercase tracking-widest animate-pulse">
+                                Attente Approbation
+                              </span>
+                            )}
+
+                            {u.role === 'driver' && u.verificationStatus === 'pending' && (
+                              <span className="px-2 py-0.5 bg-blue-100 text-blue-700 border border-blue-200 rounded-full text-[8px] font-black uppercase tracking-widest animate-pulse">
+                                Dossier à vérifier
+                              </span>
+                            )}
+
+                            {u.role === 'driver' && (!u.idCardFront || !u.idCardBack || !u.guarantorName) && (
+                              <span className="px-2 py-0.5 bg-rose-50 text-rose-600 border border-rose-100 rounded-full text-[8px] font-black uppercase tracking-widest">
+                                Dossier Incomplet
+                              </span>
+                            )}
+
+                            {u.accountStatus === 'suspended' && (
+                              <span className="px-2 py-0.5 bg-red-100 text-red-700 border border-red-200 rounded-full text-[8px] font-black uppercase tracking-widest">
+                                Suspendu
+                              </span>
+                            )}
+
+                            {u.accountStatus === 'active' && (
+                              <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-full text-[8px] font-black uppercase tracking-widest">
+                                Actif
+                              </span>
+                            )}
+                          </div>
+                        </td>
+
+                        {/* 4. Activity / Vehicle */}
+                        <td className="py-4 px-6">
+                          {u.role === 'driver' && stats ? (
+                            <div className="flex flex-col gap-1">
+                              <div className="flex items-center gap-1.5">
+                                <span className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded-full text-[8px] font-black uppercase tracking-widest border border-blue-100/50">
+                                  {u.vehicleType || 'Moto'} • {u.licensePlate || 'Nouveau'}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2 mt-0.5 text-[10px] font-bold text-slate-500">
+                                <span className="flex items-center gap-0.5 text-amber-500">
+                                  <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                                  {stats.avgRating > 0 ? stats.avgRating.toFixed(1) : "N/A"}
+                                </span>
+                                <span>• Rang #{stats.rank || "-"}</span>
+                                <span>• {stats.completedCount} courses</span>
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Client classique</span>
+                          )}
+                        </td>
+
+                        {/* 5. Actions row */}
+                        <td className="py-4 px-6 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <button 
+                              onClick={() => toast('Ouverture du support chat avec ' + u.name)} 
+                              className="p-2 text-slate-400 hover:text-orange-500 hover:bg-slate-100 transition-all rounded-xl cursor-pointer"
+                              title="Discuter"
+                            >
+                              <MessageSquare className="w-4 h-4" />
+                            </button>
+
+                            <button 
+                              onClick={() => setSelectedUser(u)}
+                              className="bg-white border border-slate-200 px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-orange-50 hover:border-orange-200 transition-all text-slate-700 cursor-pointer"
+                            >
+                              Détails
+                            </button>
+
+                            {(u.accountStatus === 'pending_approval' || u.verificationStatus === 'pending') && u.role === 'driver' && (
+                              <button 
+                                onClick={async () => {
+                                  try {
+                                    const updates = { 
+                                      accountStatus: 'active',
+                                      verificationStatus: 'verified',
+                                      isVerified: true,
+                                      updatedAt: new Date().toISOString()
+                                    };
+                                    await api.admin.users.update(u.userId, updates);
+                                    fetchData();
+                                    
+                                    await sendNotification(
+                                      u.userId, 
+                                      "Dossier Approuvé !", 
+                                      "Bienvenue chez FASO EXPRESS ! Votre compte est activé et vos documents sont validés.", 
+                                      'success'
+                                    );
+                                  } catch(err) {
+                                    console.error(err);
+                                  }
+                                }}
+                                className="bg-emerald-500 text-white px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-emerald-600 transition-all shadow-md shadow-emerald-500/20 cursor-pointer"
+                              >
+                                Valider
+                              </button>
+                            )}
+
+                            {isSuperAdmin && (
+                              <button 
+                                onClick={async () => {
+                                  const action = u.accountStatus === 'suspended' ? 'active' : 'suspended';
+                                  try {
+                                    await api.admin.users.update(u.userId, { 
+                                      accountStatus: action,
+                                      updatedAt: new Date().toISOString()
+                                    });
+                                    fetchData();
+                                  } catch(err) {
+                                    console.error('Erreur lors de la modification');
+                                  }
+                                }}
+                                className={cn(
+                                  "px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border shadow-sm cursor-pointer",
+                                  u.accountStatus === 'suspended' 
+                                    ? "bg-emerald-50 text-emerald-600 border-emerald-100 hover:bg-emerald-100" 
+                                    : "bg-red-50 text-red-600 border-red-100 hover:bg-red-100"
+                                )}
+                              >
+                                {u.accountStatus === 'suspended' ? 'Activer' : 'Suspendre'}
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {totalItems === 0 && (
+                    <tr>
+                      <td colSpan={5} className="py-20 text-center">
+                        <p className="text-slate-400 font-black uppercase text-xs tracking-widest">Aucun utilisateur trouvé</p>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between border-t border-slate-100 pt-6 mt-6 flex-wrap gap-4">
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                  Affichage de <span className="text-slate-900 font-black">{startIndex + 1}</span> à{" "}
+                  <span className="text-slate-900 font-black">{Math.min(startIndex + itemsPerPage, totalItems)}</span> sur{" "}
+                  <span className="text-slate-900 font-black">{totalItems}</span> utilisateurs
+                </p>
+                <div className="flex items-center gap-1">
+                  <button
+                    disabled={activePage === 1}
+                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    className="p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                    title="Page précédente"
+                  >
+                    <ChevronLeft className="w-4 h-4 text-slate-600" />
+                  </button>
+                  {Array.from({ length: totalPages }).map((_, i) => {
+                    const pageNum = i + 1;
+                    if (
+                      pageNum === 1 ||
+                      pageNum === totalPages ||
+                      Math.abs(pageNum - activePage) <= 1
+                    ) {
+                      return (
+                        <button
+                          key={pageNum}
+                          onClick={() => setCurrentPage(pageNum)}
+                          className={cn(
+                            "w-8 h-8 rounded-xl font-black text-xs transition-all border cursor-pointer",
+                            activePage === pageNum
+                              ? "bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-600/25"
+                              : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                          )}
+                        >
+                          {pageNum}
+                        </button>
+                      );
+                    } else if (
+                      pageNum === 2 ||
+                      pageNum === totalPages - 1
+                    ) {
+                      return (
+                        <span key={pageNum} className="px-1 text-slate-400 font-bold text-xs select-none">
+                          ...
+                        </span>
+                      );
+                    }
+                    return null;
+                  })}
+                  <button
+                    disabled={activePage === totalPages}
+                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                    className="p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                    title="Page suivante"
+                  >
+                    <ChevronRight className="w-4 h-4 text-slate-600" />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         );
       case 'Commissions':
