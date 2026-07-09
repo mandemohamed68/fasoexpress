@@ -292,10 +292,9 @@ export default function Settings() {
                       onChange={e => setVehicleType(e.target.value)}
                       className="w-full bg-slate-50 border border-slate-100 text-slate-900 p-5 rounded-2xl focus:outline-none focus:border-orange-500 transition-all font-bold text-sm appearance-none"
                     >
-                      <option value="moto">Moto (P4, Zem)</option>
-                      <option value="tricycle">Tricycle Cargo</option>
-                      <option value="voiture">Voiture / Van</option>
-                      <option value="camionnette">Fourgonnette</option>
+                      <option value="moto">Moto</option>
+                      <option value="tricycle">Tricycle</option>
+                      <option value="camion">Camion</option>
                     </select>
                   </div>
                   <div className="space-y-2">

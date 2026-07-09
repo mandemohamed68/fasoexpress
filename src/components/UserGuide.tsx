@@ -19,7 +19,7 @@ export default function UserGuide() {
       description: "Saisissez les adresses et informations de contact pour le ramassage et la livraison.",
       icon: <MapPin className="w-6 h-6 text-orange-600" />,
       details: [
-        "Sélectionnez le type de véhicule adapté (moto, tricycle, camionnette).",
+        "Sélectionnez le type de véhicule adapté (moto, tricycle, camion).",
         "Précisez la nature de l'expédition (colis, documents, nourriture).",
         "Renseignez les numéros de téléphone de l'expéditeur et du destinataire au Burkina Faso."
       ]

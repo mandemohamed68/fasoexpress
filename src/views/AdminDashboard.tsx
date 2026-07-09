@@ -3358,7 +3358,7 @@ export default function AdminDashboard() {
               <div className="flex items-center justify-between mb-8">
                 <div>
                   <h3 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Regles Dynamiques Avancees</h3>
-                  <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-1">Ecrase les formules standards (ex. tricycle/camionnette par poids)</p>
+                  <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-1">Ecrase les formules standards (ex. tricycle/camion par poids)</p>
                 </div>
                 <div className="w-12 h-12 bg-orange-50 text-orange-600 rounded-2xl flex items-center justify-center">
                   <Settings className="w-6 h-6" />
@@ -3373,10 +3373,9 @@ export default function AdminDashboard() {
                     onChange={e => setPricingForm({ ...pricingForm, vehicleType: e.target.value })}
                     className="w-full bg-white border border-slate-200 text-slate-900 p-3 rounded-xl focus:outline-none focus:border-indigo-500 font-bold text-xs appearance-none"
                   >
-                    <option value="moto">Moto (P4, Zem)</option>
-                    <option value="tricycle">Tricycle Cargo</option>
-                    <option value="voiture">Voiture / Van</option>
-                    <option value="camionnette">Fourgonnette</option>
+                    <option value="moto">Moto</option>
+                    <option value="tricycle">Tricycle</option>
+                    <option value="camion">Camion</option>
                   </select>
                 </div>
                 <div>

@@ -35,7 +35,7 @@ export default function StaticFAQ() {
         },
         {
           question: "Quels types de colis puis-je faire livrer ?",
-          answer: "Vous pouvez faire livrer tout pli, colis, repas, marchandise ou document respectant les lois en vigueur. Le poids et le volume doivent être compatibles avec le véhicule choisi (moto, tricycle, ou camionnette)."
+          answer: "Vous pouvez faire livrer tout pli, colis, repas, marchandise ou document respectant les lois en vigueur. Le poids et le volume doivent être compatibles avec le véhicule choisi (moto, tricycle, ou camion)."
         }
       ]
     },
