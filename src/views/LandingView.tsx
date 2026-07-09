@@ -95,6 +95,8 @@ export default function LandingView() {
   const [neighborhood, setNeighborhood] = useState('');
   const [address, setAddress] = useState('');
   const [driverType, setDriverType] = useState<'freelance' | 'company'>('freelance');
+  const [vehicleType, setVehicleType] = useState<'moto' | 'tricycle' | 'camion'>('moto');
+  const [licensePlate, setLicensePlate] = useState('');
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [verificationCode, setVerificationCode] = useState('');
   const [confirmResult, setConfirmResult] = useState<any>(null);
@@ -227,21 +229,23 @@ export default function LandingView() {
           // ID Card validation removed (made optional)
         }
 
-        await registerWithEmail(email, password, name, role, {
-          city,
-          neighborhood,
-          address,
-          driverType,
-          phone,
-          withdrawalPhone,
-          rib,
-          idCardFront,
-          idCardBack,
-          guarantorName,
-          guarantorPhone,
-          guarantorCniUrl,
-          status: role === 'driver' ? 'online' : 'offline'
-        });
+          await registerWithEmail(email, password, name, role, {
+            city,
+            neighborhood,
+            address,
+            driverType,
+            vehicleType,
+            licensePlate,
+            phone,
+            withdrawalPhone,
+            rib,
+            idCardFront,
+            idCardBack,
+            guarantorName,
+            guarantorPhone,
+            guarantorCniUrl,
+            status: role === 'driver' ? 'online' : 'offline'
+          });
       } else {
         await loginWithEmail(email, password, loginRole);
       }
@@ -543,28 +547,61 @@ export default function LandingView() {
               </div>
 
               {role === 'driver' && (
-                <div className="flex bg-slate-50 rounded-2xl p-1 border border-slate-100 mb-6">
-                   <button
-                     type="button"
-                     onClick={() => setDriverType('freelance')}
-                     className={cn(
-                       "flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all", 
-                       driverType === 'freelance' ? "bg-orange-500 text-white shadow-lg shadow-orange-500/20" : "text-slate-400 hover:text-slate-600"
-                     )}
-                   >
-                     Indépendant
-                   </button>
-                   <button
-                     type="button"
-                     onClick={() => setDriverType('company')}
-                     className={cn(
-                       "flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all", 
-                       driverType === 'company' ? "bg-orange-500 text-white shadow-lg shadow-orange-500/20" : "text-slate-400 hover:text-slate-600"
-                     )}
-                   >
-                     Société
-                   </button>
-                </div>
+                <>
+                  <div className="flex bg-slate-50 rounded-2xl p-1 border border-slate-100 mb-6">
+                    <button
+                      type="button"
+                      onClick={() => setDriverType('freelance')}
+                      className={cn(
+                        "flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all", 
+                        driverType === 'freelance' ? "bg-orange-500 text-white shadow-lg shadow-orange-500/20" : "text-slate-400 hover:text-slate-600"
+                      )}
+                    >
+                      Indépendant
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDriverType('company')}
+                      className={cn(
+                        "flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all", 
+                        driverType === 'company' ? "bg-orange-500 text-white shadow-lg shadow-orange-500/20" : "text-slate-400 hover:text-slate-600"
+                      )}
+                    >
+                      Société
+                    </button>
+                  </div>
+
+                  {/* Vehicle Selection */}
+                  <div className="space-y-1.5 mb-6">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1 italic">Type de Véhicule</label>
+                    <div className="flex gap-2 p-1 bg-slate-50 rounded-2xl border border-slate-100 overflow-hidden">
+                      {['moto', 'tricycle', 'camion'].map((type) => (
+                        <button 
+                          key={type}
+                          type="button"
+                          onClick={() => setVehicleType(type as any)}
+                          className={cn(
+                            "flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                            vehicleType === type ? "bg-slate-900 text-white shadow-lg" : "text-slate-400 hover:text-slate-600"
+                          )}
+                        >
+                          {type === 'camion' ? 'Camion' : type.charAt(0).toUpperCase() + type.slice(1)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5 mb-6">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1 italic">Immatriculation (Optionnel)</label>
+                    <input 
+                      type="text"
+                      value={licensePlate}
+                      onChange={e => setLicensePlate(e.target.value)}
+                      placeholder="Ex: 11 LL 1111 BF"
+                      className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-sm font-bold text-slate-900 focus:border-orange-500 transition-all outline-none"
+                    />
+                  </div>
+                </>
               )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

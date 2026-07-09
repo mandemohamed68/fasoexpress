@@ -122,7 +122,7 @@ export interface UserProfile {
   };
   // Driver specific
   licensePlate?: string;
-  vehicleType?: 'moto' | 'tricycle' | 'camionnette';
+  vehicleType?: 'moto' | 'tricycle' | 'camion';
   isVerified?: boolean;
   verificationStatus?: 'pending' | 'verified' | 'rejected';
   identityCardUrl?: string; // Existing: idCardFront/Back
@@ -176,7 +176,7 @@ export interface DeliveryRequest {
   clientName: string;
   driverId?: string;
   driverName?: string;
-  vehicleType?: 'moto' | 'tricycle' | 'camionnette';
+  vehicleType?: 'moto' | 'tricycle' | 'camion';
   from: {
     lat: number;
     lng: number;

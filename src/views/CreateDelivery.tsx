@@ -20,6 +20,8 @@ import {
   MapPin,
   Info,
   X,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { cn, calculateDistance } from "../lib/utils";
 import { CommissionSettings } from "../types";
@@ -96,8 +98,9 @@ export default function CreateDelivery() {
 
   // Step Management
   const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [isMinimized, setIsMinimized] = useState(false);
   const [directionStep, setDirectionStep] = useState<"from" | "to">("from");
-
+  
   // Adresses
   const [from, setFrom] = useState<{
     lat: number;
@@ -116,7 +119,7 @@ export default function CreateDelivery() {
   const [size, setSize] = useState<"small" | "medium" | "large">("small");
   const [weight, setWeight] = useState("");
   const [vehicleType, setVehicleType] = useState<
-    "moto" | "tricycle" | "camionnette"
+    "moto" | "tricycle" | "camion"
   >("moto");
   const [notes, setNotes] = useState("");
   const [senderPhone, setSenderPhone] = useState("");
@@ -405,7 +408,7 @@ export default function CreateDelivery() {
   useEffect(() => {
     const w = Number(weight || 0);
     if (w > 20) {
-      setVehicleType("camionnette");
+      setVehicleType("camion");
     } else if (w > 10 || size === "large") {
       setVehicleType("tricycle");
     } else {
@@ -443,7 +446,7 @@ export default function CreateDelivery() {
             else basePrice = motoBase15 + Math.ceil(distToUse - 15) * motoCostAfter15;
           } else if (vehicleType === "tricycle") {
             basePrice = 3000 + (distToUse > 5 ? Math.ceil(distToUse - 5) * 250 : 0);
-          } else if (vehicleType === "camionnette") {
+          } else if (vehicleType === "camion") {
             basePrice = 7500 + (distToUse > 5 ? Math.ceil(distToUse - 5) * 500 : 0);
           }
         }
@@ -605,11 +608,17 @@ export default function CreateDelivery() {
         {step === 1 && (
           <motion.div
             initial={{ y: 200, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
+            animate={{ 
+              y: isMinimized ? "calc(100% - 60px)" : 0, 
+              opacity: 1 
+            }}
             exit={{ y: 200, opacity: 0 }}
-            className="absolute bottom-0 left-0 right-0 z-50 bg-white rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.1)] flex flex-col max-h-[75vh] overflow-y-auto p-4 pb-[calc(6rem+env(safe-area-inset-bottom))] xl:pb-8"
+            className={cn(
+              "absolute bottom-0 left-0 right-0 z-50 bg-white rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.1)] flex flex-col transition-all duration-300",
+              isMinimized ? "max-h-16 overflow-hidden" : "max-h-[75vh] overflow-y-auto"
+            )}
           >
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify-between p-4 pb-2">
               <div className="flex items-center gap-2">
                 <h2 className="text-lg font-black">Adresses</h2>
                 {distance && (
@@ -618,16 +627,23 @@ export default function CreateDelivery() {
                   </div>
                 )}
               </div>
-              <div
-                className={cn(
-                  "flex items-center gap-1.5 px-2 py-1 rounded-full text-[8px] font-black uppercase tracking-widest",
-                  driversAvailable > 0
-                    ? "bg-emerald-50 text-emerald-600"
-                    : driversBusy > 0
-                    ? "bg-orange-50 text-orange-600"
-                    : "bg-rose-50 text-rose-600"
-                )}
-              >
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => setIsMinimized(!isMinimized)}
+                  className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center text-slate-500 hover:bg-slate-200 transition-colors"
+                >
+                  {isMinimized ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                </button>
+                <div
+                  className={cn(
+                    "flex items-center gap-1.5 px-2 py-1 rounded-full text-[8px] font-black uppercase tracking-widest",
+                    driversAvailable > 0
+                      ? "bg-emerald-50 text-emerald-600"
+                      : driversBusy > 0
+                      ? "bg-orange-50 text-orange-600"
+                      : "bg-rose-50 text-rose-600"
+                  )}
+                >
                 <div
                   className={cn(
                     "w-1.5 h-1.5 rounded-full",
@@ -647,6 +663,12 @@ export default function CreateDelivery() {
                   : "Aucun livreur"}
               </div>
             </div>
+          </div>
+
+          <div className={cn(
+            "p-4 pt-0 transition-opacity duration-300 pb-20",
+            isMinimized ? "opacity-0 pointer-events-none h-0 p-0" : "opacity-100"
+          )}>
             <div className="space-y-2.5 relative">
               {/* Favorites Selector if profile has them */}
               {profile?.favoriteAddresses &&
@@ -886,8 +908,9 @@ export default function CreateDelivery() {
             >
               Suivant <ArrowRight className="w-4 h-4" />
             </button>
-          </motion.div>
-        )}
+          </div>
+        </motion.div>
+      )}
       </AnimatePresence>
 
       {/* Step 2: Détails du colis */}
@@ -916,7 +939,7 @@ export default function CreateDelivery() {
                   img: "🛺",
                 },
                 {
-                  id: "camionnette",
+                  id: "camion",
                   label: "Camion",
                   d: "Gros volumes",
                   img: "🚛",

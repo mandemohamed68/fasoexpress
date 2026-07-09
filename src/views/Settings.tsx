@@ -200,6 +200,42 @@ export default function Settings() {
                     className="w-full bg-slate-50 border border-slate-100 text-slate-900 p-5 rounded-2xl focus:outline-none focus:border-orange-500 transition-all font-bold text-sm"
                   />
                 </div>
+
+                {profile.role === 'driver' && (
+                  <>
+                    <div className="space-y-2 lg:col-span-2">
+                      <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 pl-2">Type de Véhicule</label>
+                      <div className="grid grid-cols-3 gap-2 p-1 bg-slate-50 rounded-2xl border border-slate-100 overflow-hidden">
+                        {['moto', 'tricycle', 'camion'].map((type) => (
+                          <button
+                            key={type}
+                            type="button"
+                            onClick={() => setVehicleType(type)}
+                            className={cn(
+                              "py-3.5 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all",
+                              vehicleType === type 
+                                ? "bg-slate-900 text-white border-slate-900 shadow-lg" 
+                                : "bg-white text-slate-400 border-slate-100 hover:border-slate-200"
+                            )}
+                          >
+                            {type === 'camion' ? 'Camion' : type.charAt(0).toUpperCase() + type.slice(1)}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="space-y-2 lg:col-span-2">
+                      <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 pl-2">Immatriculation</label>
+                      <input 
+                        type="text" 
+                        value={licensePlate}
+                        onChange={e => setLicensePlate(e.target.value)}
+                        placeholder="Ex: 11 LL 1111 BF"
+                        className="w-full bg-slate-50 border border-slate-100 text-slate-900 p-5 rounded-2xl focus:outline-none focus:border-orange-500 transition-all font-bold text-sm uppercase"
+                      />
+                    </div>
+                  </>
+                )}
+
                 <div className="space-y-2">
                   <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 pl-2">Ville</label>
                   <input 
