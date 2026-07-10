@@ -190,6 +190,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [user]);
 
+  // Handle account suspension event
+  useEffect(() => {
+    const handleAccountSuspended = (e: any) => {
+      const message = e.detail || "Votre compte a été suspendu par l'administration. Veuillez prendre attache avec le support.";
+      
+      try {
+        import('../services/pushNotificationService').then(({ pushNotificationService }) => {
+          pushNotificationService.unregister();
+        });
+      } catch (err) { }
+      
+      localStorage.removeItem('auth_token');
+      setUser(null);
+      setProfile(null);
+      
+      toast.error(message, { duration: 10000 });
+      
+      // Optionally redirect if using router outside of App rendering
+      window.location.hash = '#/';
+    };
+
+    window.addEventListener('account_suspended', handleAccountSuspended);
+    return () => {
+      window.removeEventListener('account_suspended', handleAccountSuspended);
+    };
+  }, []);
+
   const loginWithPhone = async (phone: string) => {
     console.warn("Phone login is not fully implemented in current version", phone);
     return Promise.reject("Authentification par téléphone non implémentée.");

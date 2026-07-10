@@ -277,7 +277,7 @@ const MASTER_ADMIN_EMAILS = ['mandemohamed68@gmail.com', 'mandemohamed6868@gmail
       if (user.accountStatus === 'suspended') {
         const isMaster = MASTER_ADMIN_EMAILS.includes(user.email);
         if (!isMaster) {
-          return res.status(400).json({ error: "Votre compte a été suspendu par l'administrateur. Veuillez contacter le support." });
+          return res.status(403).json({ error: "ACCOUNT_SUSPENDED", details: "Votre compte a été suspendu par l'administrateur. Veuillez prendre attache avec le support." });
         }
       }
       req.user = {
@@ -422,7 +422,7 @@ const MASTER_ADMIN_EMAILS = ['mandemohamed68@gmail.com', 'mandemohamed6868@gmail
         return res.status(401).json({ error: "Email ou mot de passe incorrect." });
       }
       if (user.accountStatus === 'suspended') {
-        return res.status(400).json({ error: "Votre compte a été suspendu par l'administrateur. Veuillez contacter le support." });
+        return res.status(403).json({ error: "ACCOUNT_SUSPENDED", details: "Votre compte a été suspendu par l'administrateur. Veuillez prendre attache avec le support." });
       }
       delete user.password;
       const token = jwt.sign({ userId: user.userId || user.id, email: user.email, role: user.role }, JWT_SECRET);
@@ -1506,8 +1506,21 @@ const MASTER_ADMIN_EMAILS = ['mandemohamed68@gmail.com', 'mandemohamed6868@gmail
     });
     
     try {
+      const oldUser = db.prepare("SELECT accountStatus FROM users WHERE userId = ?").get(userId) as any;
+      
       const stmt = db.prepare(`UPDATE users SET ${setClause} WHERE userId = ?`);
       stmt.run(...values, userId);
+      
+      if (oldUser && updates.accountStatus && oldUser.accountStatus !== updates.accountStatus) {
+        if (updates.accountStatus === 'suspended') {
+           db.prepare("INSERT INTO notifications (id, userId, title, message, type) VALUES (?, ?, ?, ?, ?)")
+             .run(uuidv4(), userId, 'Compte Suspendu', 'Votre compte a été suspendu par l\'administration. Veuillez prendre attache avec le support.', 'error');
+        } else if (updates.accountStatus === 'active') {
+           db.prepare("INSERT INTO notifications (id, userId, title, message, type) VALUES (?, ?, ?, ?, ?)")
+             .run(uuidv4(), userId, 'Compte Réactivé', 'Excellente nouvelle ! Votre compte a été réactivé avec succès. Vous pouvez vous reconnecter.', 'success');
+        }
+      }
+
       res.json({ status: "ok" });
     } catch (err) {
       res.status(500).json({ error: "Update failed" });

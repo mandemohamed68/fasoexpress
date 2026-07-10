@@ -45,6 +45,12 @@ async function request(endpoint: string, method = 'GET', body?: any, retryCount 
     } catch (e) {
       err = null;
     }
+    
+    if (response.status === 403 && err?.error === "ACCOUNT_SUSPENDED") {
+      window.dispatchEvent(new CustomEvent('account_suspended', { detail: err?.details }));
+      throw new Error(err?.details || "Compte suspendu");
+    }
+    
     if (response.status === 403) {
       throw new Error(err?.details || err?.error || "Vous n’avez pas les droits pour accéder à cette ressource.");
     }
