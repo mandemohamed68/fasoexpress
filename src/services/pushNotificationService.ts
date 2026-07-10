@@ -22,11 +22,19 @@ export const pushNotificationService = {
         return;
       }
 
-      // 2. Register with APNs/FCM
-      await PushNotifications.register();
-
-      // 3. Register native event listeners
+      // 3. Register native event listeners (setup BEFORE register)
+      console.log('[Push] Setting up listeners...');
       await this.setupListeners(userId);
+      console.log('[Push] Listeners setup complete.');
+
+      // 2. Register with APNs/FCM
+      console.log('[Push] Registering with native platform...');
+      await PushNotifications.register().catch(err => {
+        console.error('[Push] Critical error during register():', err);
+        throw err; // Re-throw to be caught by the outer catch
+      });
+
+      console.log('[Push] Registration complete.');
     } catch (error) {
       console.error('[Push] Native push notification configuration error:', error);
     }

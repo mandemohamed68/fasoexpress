@@ -890,7 +890,7 @@ const MASTER_ADMIN_EMAILS = ['mandemohamed68@gmail.com', 'mandemohamed6868@gmail
         delete updates.cancellationReason;
     }
     
-    const fields = Object.keys(updates).filter(k => k !== 'id' && k !== 'clientId' && k !== 'updatedAt' && k !== 'createdAt');
+    const fields = Object.keys(updates).filter(k => k !== 'id' && k !== 'clientId' && k !== 'updatedAt' && k !== 'createdAt' && k !== 'cancelledBy');
     
     if (fields.length === 0) return res.json({ status: "no changes" });
 
