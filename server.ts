@@ -883,6 +883,13 @@ const MASTER_ADMIN_EMAILS = ['mandemohamed68@gmail.com', 'mandemohamed6868@gmail
   app.patch("/api/deliveries/:id", authenticate, (req: any, res) => {
     const { id } = req.params;
     const updates = req.body;
+    
+    // Map deprecated cancellationReason to cancelReason if present
+    if (updates.cancellationReason) {
+        updates.cancelReason = updates.cancellationReason;
+        delete updates.cancellationReason;
+    }
+    
     const fields = Object.keys(updates).filter(k => k !== 'id' && k !== 'clientId' && k !== 'updatedAt' && k !== 'createdAt');
     
     if (fields.length === 0) return res.json({ status: "no changes" });

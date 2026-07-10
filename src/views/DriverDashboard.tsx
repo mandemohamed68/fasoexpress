@@ -118,6 +118,7 @@ export default function DriverDashboard() {
   
   const [pendingJobs, setPendingJobs] = useState<DeliveryRequest[]>([]);
   const [activeJobs, setActiveJobs] = useState<DeliveryRequest[]>([]);
+  const [pendingPaymentJobs, setPendingPaymentJobs] = useState<DeliveryRequest[]>([]);
   const [deliveredJobs, setDeliveredJobs] = useState<DeliveryRequest[]>([]);
   
   const prevPendingJobIds = useRef<string[]>([]);
@@ -433,10 +434,12 @@ export default function DriverDashboard() {
       const allMyJobs = jobs.filter((j: any) => j.driverId === currentProfile.userId);
       allMyJobs.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       
-      const activeList = allMyJobs.filter((j: any) => ['accepted', 'picked_up', 'ready_for_pickup'].includes(j.status) || j.paymentStatus === 'pending');
+      const activeList = allMyJobs.filter((j: any) => ['accepted', 'picked_up', 'ready_for_pickup'].includes(j.status));
+      const pendingPaymentList = allMyJobs.filter((j: any) => j.paymentStatus === 'pending' && j.status !== 'cancelled');
       const deliveredList = allMyJobs.filter((j: any) => j.status === 'delivered');
       
       setActiveJobs(activeList);
+      setPendingPaymentJobs(pendingPaymentList);
       setDeliveredJobs(deliveredList);
       
       const wdList = await api.withdrawals.list().catch(() => []);
