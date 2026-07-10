@@ -15,6 +15,7 @@ import NotificationBell from '../components/NotificationBell';
 import { LineChart, Line, ResponsiveContainer, Tooltip } from 'recharts';
 import { Chat } from '../components/Chat';
 import { sendNotification } from '../lib/notificationService';
+import toast from 'react-hot-toast';
 import UserGuide from '../components/UserGuide';
 import StaticFAQ from '../components/StaticFAQ';
 
@@ -147,6 +148,35 @@ export default function DriverDashboard() {
     if (!profile) return [];
     return pendingJobs.filter(job => !job.rejectedBy?.includes(profile.userId));
   }, [pendingJobs, profile]);
+
+  const [showMissionDetails, setShowMissionDetails] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [isCancelling, setIsCancelling] = useState(false);
+
+  const handleCancelJob = async (jobId: string) => {
+    if (!cancelReason) {
+      toast.error("Veuillez saisir un motif d'annulation");
+      return;
+    }
+    setIsCancelling(true);
+    try {
+      await api.deliveries.update(jobId, {
+        status: 'cancelled',
+        cancellationReason: cancelReason,
+        cancelledBy: profile?.userId,
+        updatedAt: new Date().toISOString()
+      });
+      toast.success("Course annulée avec succès");
+      setShowMissionDetails(false);
+      setCancelReason('');
+      setRadarMode('search');
+      setFocusedJobId(null);
+    } catch (err: any) {
+      toast.error("Erreur lors de l'annulation");
+    } finally {
+      setIsCancelling(false);
+    }
+  };
   
   useEffect(() => {
     if (!profile || profile.role !== 'driver') return;
@@ -930,9 +960,25 @@ export default function DriverDashboard() {
                                   className="bg-indigo-600/95 backdrop-blur-md px-4 py-2.5 rounded-2xl flex items-center justify-between shadow-xl pointer-events-auto border border-white/20"
                                 >
                                    <ShieldCheck className="w-4 h-4 text-white" />
-                                   <div className="text-left">
+                                   <div className="text-left ml-3">
                                       <p className="text-[8px] font-black uppercase tracking-widest text-orange-100 leading-none">Dossier Incomplet</p>
                                       <p className="text-[9px] font-bold text-white mt-1">Finalisez KYC</p>
+                                   </div>
+                                </motion.button>
+                             )}
+
+                             {!profile?.photoURL && (
+                                <motion.button 
+                                  initial={{ x: -20, opacity: 0 }} 
+                                  animate={{ x: 0, opacity: 1 }}
+                                  transition={{ delay: 0.1 }}
+                                  onClick={() => navigate('/settings')}
+                                  className="bg-white/95 backdrop-blur-md px-4 py-2.5 rounded-2xl flex items-center justify-between shadow-xl pointer-events-auto border border-slate-200"
+                                >
+                                   <Camera className="w-4 h-4 text-slate-400" />
+                                   <div className="text-left ml-3">
+                                      <p className="text-[8px] font-black uppercase tracking-widest text-slate-400 leading-none">Profil Incomplet</p>
+                                      <p className="text-[9px] font-bold text-slate-900 mt-1">Ajoutez une photo</p>
                                    </div>
                                 </motion.button>
                              )}
@@ -967,7 +1013,7 @@ export default function DriverDashboard() {
                        <div className="pointer-events-auto px-4 w-full max-w-sm mx-auto relative">
                           {/* FOCUS MODE BOTTOM SHEET */}
                           {radarMode === 'focus' && focusedJob && !showKeypadFor && (
-                             <motion.div initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className={cn("rounded-3xl p-5 shadow-2xl border relative z-[60]", focusedJob.status === 'picked_up' ? "bg-indigo-50 border-indigo-100" : "bg-white border-slate-100")}>
+                             <motion.div onClick={() => setShowMissionDetails(true)} initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className={cn("rounded-3xl p-5 shadow-2xl border relative z-[60] cursor-pointer hover:shadow-emerald-100 transition-shadow", focusedJob.status === 'picked_up' ? "bg-indigo-50 border-indigo-100" : "bg-white border-slate-100 border-2 border-emerald-400")}>
                                 {focusedJob.status === 'accepted' ? (
                                    <>
                                   <div className="flex justify-between items-start mb-4">
@@ -1037,7 +1083,7 @@ export default function DriverDashboard() {
                                     >
                                        <Navigation className="w-5 h-5" />
                                     </button>
-                                    <button onClick={() => cancelJob(focusedJob.id)} className="w-12 h-14 bg-slate-100 text-slate-400 rounded-2xl flex items-center justify-center hover:text-rose-500 transition-all active:scale-95">
+                                    <button onClick={(e) => { e.stopPropagation(); setShowMissionDetails(true); }} className="w-12 h-14 bg-slate-100 text-slate-400 rounded-2xl flex items-center justify-center hover:text-rose-500 transition-all active:scale-95">
                                        <X className="w-5 h-5" />
                                     </button>
                                   </div>
@@ -1553,8 +1599,34 @@ export default function DriverDashboard() {
                 </div>
                 
                  <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex items-center gap-6 mb-8">
-                    <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 border-4 border-slate-50 shadow-inner overflow-hidden">
-                       {profile?.photoURL ? <img src={profile.photoURL} alt="Profil" className="w-full h-full object-cover" /> : <User className="w-8 h-8" />}
+                    <div 
+                       onClick={() => document.getElementById('driverPhotoInput')?.click()}
+                       className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 border-4 border-slate-50 shadow-inner overflow-hidden relative cursor-pointer group"
+                    >
+                       {profile?.photoURL ? (
+                          <>
+                            <img src={profile.photoURL} alt="Profil" className="w-full h-full object-cover" />
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                               <Camera className="w-6 h-6 text-white" />
+                            </div>
+                          </>
+                       ) : (
+                          <User className="w-8 h-8" />
+                       )}
+                       <input id="driverPhotoInput" type="file" accept="image/*" className="hidden" onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            try {
+                              setToastMessage("Téléchargement...");
+                              const base64 = await compressImage(file);
+                              await api.profile.update({ photoURL: base64 });
+                              await refreshProfile?.();
+                              setToastMessage("Photo mise à jour !");
+                            } catch (err: any) {
+                              setToastMessage(err.message || "Erreur photo");
+                            }
+                          }
+                       }} />
                     </div>
                     <div>
                       <h3 className="text-xl font-black text-slate-900">{profile?.displayName || profile?.name}</h3>
@@ -2192,6 +2264,86 @@ export default function DriverDashboard() {
            onClose={() => setChatOpen(false)} 
         />
       )}
+
+      {/* MISSION DETAILS MODAL */}
+      <AnimatePresence>
+        {showMissionDetails && focusedJob && (
+          <div className="fixed inset-0 z-[110] flex items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-sm p-0 sm:p-4">
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              className="bg-white rounded-t-[40px] sm:rounded-3xl w-full max-w-lg p-6 pb-12 sm:pb-6 shadow-2xl overflow-y-auto max-h-[90vh] pointer-events-auto"
+            >
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">Détails de la Mission</h3>
+                <button onClick={() => setShowMissionDetails(false)} className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-500"><X className="w-5 h-5" /></button>
+              </div>
+
+              <div className="space-y-6">
+                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Expéditeur</p>
+                  <p className="text-sm font-bold text-slate-900">{focusedJob.clientName}</p>
+                  <p className="text-xs text-slate-500 mt-1">{focusedJob.from.address}</p>
+                  {focusedJob.senderPhone && (
+                    <button onClick={() => window.open(`tel:${focusedJob.senderPhone}`)} className="mt-3 flex items-center gap-2 text-indigo-600 text-[10px] font-black uppercase tracking-widest">
+                      <Phone className="w-3.5 h-3.5" /> Appeler l'expéditeur
+                    </button>
+                  )}
+                </div>
+
+                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Destinataire</p>
+                  <p className="text-sm font-bold text-slate-900">{focusedJob.to.address}</p>
+                  {focusedJob.recipientPhone && (
+                    <button onClick={() => window.open(`tel:${focusedJob.recipientPhone}`)} className="mt-3 flex items-center gap-2 text-indigo-600 text-[10px] font-black uppercase tracking-widest">
+                      <Phone className="w-3.5 h-3.5" /> Appeler le destinataire
+                    </button>
+                  )}
+                </div>
+
+                <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
+                  <div className="flex justify-between items-center">
+                    <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Gains Prévus</p>
+                    <p className="text-lg font-black text-emerald-700">{focusedJob.cost} FCFA</p>
+                  </div>
+                </div>
+
+                {/* Cancellation Section */}
+                {focusedJob.status === 'accepted' && (
+                  <div className="pt-4 border-t border-slate-100 space-y-4">
+                    <h4 className="text-xs font-black text-slate-900 uppercase tracking-widest">Annulation de Course</h4>
+                    <p className="text-[10px] text-slate-500 leading-relaxed italic">
+                      Si le client met trop de temps pour effectuer le paiement ou si vous rencontrez un problème majeur.
+                    </p>
+                    <div className="space-y-2">
+                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Motif d'annulation</label>
+                       <select 
+                          value={cancelReason}
+                          onChange={(e) => setCancelReason(e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold focus:ring-4 focus:ring-rose-100 outline-none"
+                       >
+                          <option value="">Sélectionnez un motif</option>
+                          <option value="client_slow_payment">Délai de paiement trop long</option>
+                          <option value="client_unreachable">Client injoignable</option>
+                          <option value="vehicle_breakdown">Panne de véhicule</option>
+                          <option value="other">Autre motif</option>
+                       </select>
+                    </div>
+                    <button 
+                      disabled={isCancelling || !cancelReason}
+                      onClick={() => handleCancelJob(focusedJob.id)}
+                      className="w-full py-4 bg-rose-50 text-rose-600 border border-rose-100 rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-rose-100 transition-all disabled:opacity-50"
+                    >
+                      {isCancelling ? 'Annulation...' : 'Annuler la mission'}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

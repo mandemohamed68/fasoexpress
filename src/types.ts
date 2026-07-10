@@ -40,6 +40,12 @@ export interface AppConfig {
   smtpSecure?: boolean;
   smtpFrom?: string;
   isForgotPasswordActive?: boolean;
+
+  // Flash Info
+  flashInfoActive?: boolean;
+  flashInfoAudience?: 'all' | 'client' | 'driver';
+  flashInfoMessages?: string[];
+  flashInfoColor?: string;
 }
 
 export interface Sector {
@@ -55,6 +61,7 @@ export interface AppAnnouncement {
   message: string;
   targetRole: 'all' | 'client' | 'driver';
   type: 'info' | 'warning' | 'success';
+  backgroundColor?: string;
   activeUntil: string;
   createdAt: string;
 }
@@ -176,6 +183,8 @@ export interface DeliveryRequest {
   clientName: string;
   driverId?: string;
   driverName?: string;
+  driverPhoto?: string;
+  driverPhone?: string;
   vehicleType?: 'moto' | 'tricycle' | 'camion';
   from: {
     lat: number;

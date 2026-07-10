@@ -439,7 +439,7 @@ export default function DeliveryTracking() {
                     position={[driver.currentLocation.lat, driver.currentLocation.lng]} 
                     icon={new L.DivIcon({ 
                       className: 'driver-marker', 
-                      html: `<div class="relative w-10 h-10"><div class="absolute inset-0 bg-indigo-500/30 rounded-full animate-ping"></div><div class="relative w-10 h-10 bg-indigo-600 rounded-full border-4 border-white shadow-xl flex items-center justify-center text-white"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg></div></div>`, 
+                      html: `<div class="relative w-10 h-10"><div class="absolute inset-0 bg-indigo-500/30 rounded-full animate-ping"></div><div class="relative w-10 h-10 bg-indigo-600 rounded-full border-2 border-white shadow-xl flex items-center justify-center text-white overflow-hidden">${(driver.photoURL || driver.avatar) ? `<img src="${driver.photoURL || driver.avatar}" class="w-full h-full object-cover" />` : `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>`}</div></div>`, 
                       iconAnchor: [20,20] 
                     })} 
                   />
@@ -677,7 +677,7 @@ export default function DeliveryTracking() {
                    <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 flex items-center justify-between">
                       <div className="flex items-center gap-3">
                          <div className="w-14 h-14 bg-indigo-50 rounded-2xl text-indigo-600 flex items-center justify-center font-black overflow-hidden border border-indigo-100/50 relative">
-                            {driver.avatar ? <img src={driver.avatar} alt="Driver" className="w-full h-full object-cover" /> : <span className="text-xl">{driver.name[0]}</span>}
+                            {(driver.photoURL || driver.avatar) ? <img src={driver.photoURL || driver.avatar} alt="Driver" className="w-full h-full object-cover" /> : <span className="text-xl">{driver.name[0]}</span>}
                          </div>
                          <div>
                             <p className="font-black text-sm text-slate-900 tracking-tight">{driver.name}</p>

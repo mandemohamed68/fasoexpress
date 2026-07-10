@@ -81,7 +81,8 @@ export default function AnnouncementBanner({ userRole }: { userRole?: string }) 
           initial={{ height: 0, opacity: 0 }}
           animate={{ height: 'auto', opacity: 1 }}
           exit={{ height: 0, opacity: 0 }}
-          className={cn("w-full relative z-50 overflow-hidden", getColors(current.type))}
+          className={cn("w-full relative z-50 overflow-hidden", !current.backgroundColor && getColors(current.type))}
+          style={current.backgroundColor ? { backgroundColor: current.backgroundColor, color: '#fff' } : {}}
         >
           <div className="container mx-auto px-4 py-3 flex items-start justify-between gap-4">
             <div className="flex items-start gap-3 flex-1 min-w-0">

@@ -299,12 +299,19 @@ export default function ClientDashboard() {
                                  </h4>
                                  {(activeDelivery.bids || []).filter((b: any) => b.status === 'pending').map((bid: any) => (
                                     <div key={bid.id} className="w-full bg-white rounded-xl shadow-sm border border-indigo-100 p-3 flex flex-col gap-3">
-                                      <div className="flex justify-between items-center">
-                                         <div>
-                                            <p className="text-[9px] uppercase font-bold tracking-widest text-slate-500">{bid.driverName}</p>
-                                            <p className="text-xl font-black text-indigo-600">{bid.price} FCFA</p>
+                                      <div className="flex justify-between items-center gap-3">
+                                         <div className="flex items-center gap-2">
+                                            <div className="w-10 h-10 bg-indigo-50 rounded-lg flex items-center justify-center text-indigo-600 font-black text-xs overflow-hidden border border-indigo-100/50 shrink-0">
+                                              {(bid.driverPhoto || bid.driverAvatar) ? <img src={bid.driverPhoto || bid.driverAvatar} alt="Driver" className="w-full h-full object-cover" /> : <span>{bid.driverName?.[0] || 'L'}</span>}
+                                            </div>
+                                            <div className="min-w-0">
+                                               <p className="text-[9px] uppercase font-bold tracking-widest text-slate-500 truncate">{bid.driverName}</p>
+                                               <p className="text-xl font-black text-indigo-600 leading-none">{bid.price} FCFA</p>
+                                            </div>
                                          </div>
-                                         <p className="text-[10px] text-indigo-400 font-bold uppercase italic">~{bid.timeEstimateMins} mins</p>
+                                         <div className="text-right shrink-0">
+                                            <p className="text-[10px] text-indigo-400 font-bold uppercase italic">~{bid.timeEstimateMins} mins</p>
+                                         </div>
                                       </div>
                                       <div className="flex gap-2 w-full">
                                          <button onClick={() => handleAcceptBid(activeDelivery.id, bid.driverId, bid.price)} className="flex-1 py-3 bg-indigo-600 text-white rounded-[12px] text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 shadow-sm active:scale-95 transition-all">ACCEPTER</button>
@@ -327,6 +334,26 @@ export default function ClientDashboard() {
                           </div>
                         ) : (
                           <>
+                            {activeDelivery.driverId && (
+                                <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 flex items-center justify-between mb-4 shadow-inner">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-12 h-12 bg-white rounded-xl text-indigo-600 flex items-center justify-center font-black overflow-hidden border border-slate-200 shrink-0">
+                                            {activeDelivery.driverPhoto ? <img src={activeDelivery.driverPhoto} alt="Driver" className="w-full h-full object-cover" /> : <span>{activeDelivery.driverName?.[0]}</span>}
+                                        </div>
+                                        <div>
+                                            <p className="font-black text-xs text-slate-900 tracking-tight">{activeDelivery.driverName}</p>
+                                            <div className="flex items-center gap-1.5 mt-0.5">
+                                                <div className="w-1 h-1 bg-emerald-500 rounded-full animate-pulse" />
+                                                <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Assigné</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button onClick={() => navigate(`/delivery/${activeDelivery.id}`)} className="w-10 h-10 bg-white text-indigo-600 rounded-xl flex items-center justify-center border border-slate-100 shadow-sm active:scale-90 transition-transform">
+                                        <Compass className="w-5 h-5" />
+                                    </button>
+                                </div>
+                            )}
+                            
                             {/* Address Summary */}
                             <div className="flex flex-col gap-3 mb-5 mt-2">
                                 <div className="flex items-start gap-3">

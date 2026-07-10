@@ -10,6 +10,7 @@ import NotificationToast from './components/NotificationToast';
 import BottomNav from './components/BottomNav';
 import LoadingScreen from './components/LoadingScreen';
 import AnnouncementBanner from './components/AnnouncementBanner';
+import { FlashTicker } from './components/FlashTicker';
 import TermsAgreementModal from './components/TermsAgreementModal';
 import { Toaster } from 'react-hot-toast';
 

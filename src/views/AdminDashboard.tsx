@@ -98,6 +98,366 @@ export default function AdminDashboard() {
     tarifKm: 150
   });
 
+  const [activeTab, setActiveTab] = useState<'stats' | 'users' | 'deliveries' | 'withdrawals' | 'promo' | 'announcements' | 'sectors' | 'pricing' | 'commissions' | 'flashinfo'>('stats');
+
+  const COLOR_BANK = [
+    { name: 'Orange Express', code: '#f97316' },
+    { name: 'Indigo Premium', code: '#4f46e5' },
+    { name: 'Slate Dark', code: '#1e293b' },
+    { name: 'Emerald Success', code: '#10b981' },
+    { name: 'Rose Danger', code: '#f43f5e' },
+    { name: 'Amber Warning', code: '#f59e0b' },
+    { name: 'Violet Royal', code: '#8b5cf6' },
+    { name: 'Sky Info', code: '#0ea5e9' },
+  ];
+
+  const EMOJI_BANK = ['📢', '🚀', '🎁', '⚠️', '✅', '🔥', '📦', '🛵', '🕒', '✨', '💎', '🎉'];
+
+  const [newFlashMessage, setNewFlashMessage] = useState('');
+
+  const [showNewAnnonceForm, setShowNewAnnonceForm] = useState(false);
+  const [newAnnonce, setNewAnnonce] = useState<{
+    title: string;
+    message: string;
+    type: 'info' | 'warning' | 'success';
+    targetRole: 'all' | 'client' | 'driver';
+    backgroundColor: string;
+  }>({
+    title: '',
+    message: '',
+    type: 'info',
+    targetRole: 'all',
+    backgroundColor: ''
+  });
+
+  const renderAnnouncements = () => (
+    <div className="space-y-8">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tighter">Annonces Globales</h2>
+          <p className="text-slate-500 font-bold text-sm mt-1 uppercase tracking-widest">Communiquez avec tous les utilisateurs</p>
+        </div>
+        <button 
+          onClick={() => setShowNewAnnonceForm(!showNewAnnonceForm)}
+          className="flex items-center gap-3 px-6 py-4 bg-orange-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-orange-600 transition-all shadow-xl shadow-orange-100 active:scale-95"
+        >
+          {showNewAnnonceForm ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+          Nouvelle Annonce
+        </button>
+      </div>
+
+      <AnimatePresence>
+         {showNewAnnonceForm && (
+            <motion.div 
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden"
+            >
+               <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Titre de l'annonce</label>
+                    <input 
+                      type="text" 
+                      placeholder="Ex: Mise a jour importante" 
+                      value={newAnnonce.title}
+                      onChange={e => setNewAnnonce({...newAnnonce, title: e.target.value})}
+                      className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-4 text-sm font-bold focus:border-orange-500 outline-none shadow-sm"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Type de notification</label>
+                    <select 
+                      value={newAnnonce.type}
+                      onChange={e => setNewAnnonce({...newAnnonce, type: e.target.value as any})}
+                      className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-4 text-sm font-bold focus:border-orange-500 outline-none shadow-sm"
+                    >
+                      <option value="info">Notification Info</option>
+                      <option value="warning">Notification Alerte</option>
+                      <option value="success">Notification Succes</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Destination</label>
+                    <select 
+                      value={newAnnonce.targetRole}
+                      onChange={e => setNewAnnonce({...newAnnonce, targetRole: e.target.value as any})}
+                      className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-4 text-sm font-bold focus:border-orange-500 outline-none shadow-sm"
+                    >
+                      <option value="all">Tout le monde</option>
+                      <option value="client">Clients uniquement</option>
+                      <option value="driver">Livreurs uniquement</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Couleur Arrière-plan</label>
+                    <div className="space-y-3">
+                      <div className="flex flex-wrap gap-2">
+                        {COLOR_BANK.map(c => (
+                          <button 
+                            key={c.code}
+                            onClick={() => setNewAnnonce({...newAnnonce, backgroundColor: c.code})}
+                            className={cn(
+                              "w-8 h-8 rounded-lg border-2 transition-all",
+                              newAnnonce.backgroundColor === c.code ? "border-slate-900 scale-110 shadow-lg" : "border-transparent"
+                            )}
+                            style={{ backgroundColor: c.code }}
+                            title={c.name}
+                          />
+                        ))}
+                      </div>
+                      <div className="flex gap-2">
+                        <input 
+                          type="text" 
+                          placeholder="#000000" 
+                          value={newAnnonce.backgroundColor}
+                          onChange={e => setNewAnnonce({...newAnnonce, backgroundColor: e.target.value})}
+                          className="flex-1 bg-slate-50 border border-slate-100 rounded-2xl px-5 py-4 text-sm font-bold focus:border-orange-500 outline-none"
+                        />
+                        <div className="w-14 h-14 rounded-2xl border border-slate-200" style={{ backgroundColor: newAnnonce.backgroundColor || '#000000' }} />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="md:col-span-2 space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Message detaille</label>
+                    <div className="flex flex-wrap gap-2 mb-2">
+                      {EMOJI_BANK.map(emoji => (
+                        <button 
+                          key={emoji}
+                          onClick={() => setNewAnnonce({...newAnnonce, message: newAnnonce.message + emoji})}
+                          className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center hover:bg-slate-100 border border-slate-200 transition-colors"
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+                    <textarea 
+                      className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-4 text-sm font-bold focus:border-orange-500 outline-none h-32 shadow-sm"
+                      placeholder="Decrivez l'annonce aux utilisateurs..."
+                      value={newAnnonce.message}
+                      onChange={e => setNewAnnonce({...newAnnonce, message: e.target.value})}
+                    />
+                  </div>
+                  <div className="md:col-span-2 pt-4 border-t border-slate-50 flex justify-end">
+                      <button 
+                        onClick={async () => {
+                          if (!newAnnonce.title || !newAnnonce.message) return;
+                          await api.announcements.create({
+                            ...newAnnonce,
+                            activeUntil: new Date(Date.now() + 86400000 * 7).toISOString(),
+                            createdAt: new Date().toISOString()
+                          });
+                          setNewAnnonce({ title: '', message: '', type: 'info', targetRole: 'all', backgroundColor: '' });
+                          setShowNewAnnonceForm(false);
+                          fetchData();
+                        }}
+                        className="px-12 py-5 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-orange-600 transition-all shadow-xl active:scale-95"
+                      >
+                        Publier l'annonce
+                      </button>
+                  </div>
+               </div>
+            </motion.div>
+         )}
+
+         <div className="space-y-4">
+            {announcements.map(a => (
+              <div key={a.id} className="p-6 bg-slate-50 rounded-3xl border border-slate-100 flex items-center justify-between gap-6 hover:bg-white transiton-all group">
+                <div className="flex items-center gap-6">
+                   <div className={cn(
+                     "w-12 h-12 rounded-2xl flex items-center justify-center",
+                     a.type === 'warning' ? "bg-orange-100 text-orange-600" :
+                     a.type === 'success' ? "bg-emerald-100 text-emerald-600" : "bg-blue-100 text-blue-600"
+                   )}>
+                     <Bell className="w-6 h-6" />
+                   </div>
+                   <div>
+                     <h4 className="font-black text-slate-900 uppercase text-sm tracking-tight">{a.title}</h4>
+                     <p className="text-xs font-bold text-slate-500 mt-0.5">{a.message}</p>
+                     <div className="flex items-center gap-3 mt-2">
+                       <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mt-0">Expire le : {new Date(a.activeUntil).toLocaleDateString()}</p>
+                       <span className="text-slate-200">•</span>
+                       <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded-lg text-[8px] font-black uppercase tracking-widest">
+                          {a.targetRole === 'all' ? 'Tout le monde' : a.targetRole === 'client' ? 'Clients' : 'Livreurs'}
+                       </span>
+                       {a.backgroundColor && (
+                          <div className="flex items-center gap-1.5">
+                             <span className="text-slate-200">•</span>
+                             <div className="w-3 h-3 rounded-full border border-slate-200" style={{ backgroundColor: a.backgroundColor }} />
+                             <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{a.backgroundColor}</span>
+                          </div>
+                       )}
+                     </div>
+                   </div>
+                </div>
+                <button 
+                  onClick={async () => {
+                    await api.announcements.delete(a.id);
+                    fetchData();
+                  }}
+                  className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-rose-500 border border-slate-100 opacity-0 group-hover:opacity-100 transition-all hover:bg-rose-50"
+                >
+                   <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+            {announcements.length === 0 && (
+              <div className="py-20 text-center bg-slate-50 rounded-3xl border border-dashed border-slate-200">
+                <p className="text-slate-400 font-black uppercase text-[10px] tracking-widest leading-none">Aucune annonce active en ce moment</p>
+              </div>
+            )}
+         </div>
+      </AnimatePresence>
+    </div>
+  );
+
+  const handleAddFlashMessage = async () => {
+    if (!newFlashMessage || !configForm) return;
+    const currentMessages = configForm.flashInfoMessages || [];
+    if (currentMessages.length >= 10) {
+      toast.error("Maximum 10 messages");
+      return;
+    }
+    const newList = [...currentMessages, newFlashMessage];
+    const updated = { ...configForm, flashInfoMessages: newList };
+    setConfigForm(updated);
+    setNewFlashMessage('');
+    await api.config.update('app_config', updated);
+    await refreshAppConfig();
+    toast.success("Message ajouté");
+  };
+
+  const handleDeleteFlashMessage = async (idx: number) => {
+    if (!configForm) return;
+    const newList = (configForm.flashInfoMessages || []).filter((_, i) => i !== idx);
+    const updated = { ...configForm, flashInfoMessages: newList };
+    setConfigForm(updated);
+    await api.config.update('app_config', updated);
+    await refreshAppConfig();
+    toast.success("Message supprimé");
+  };
+
+  const renderFlashInfo = () => {
+    const messages = configForm?.flashInfoMessages || [];
+    const active = configForm?.flashInfoActive || false;
+    const audience = configForm?.flashInfoAudience || 'all';
+    const color = configForm?.flashInfoColor || '#f97316';
+
+    return (
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tighter">Flash Info Défilant</h2>
+            <p className="text-slate-500 font-bold text-sm mt-1 uppercase tracking-widest">Gérez le ticker de news en temps réel</p>
+          </div>
+          <div className="flex items-center gap-4 bg-white p-3 rounded-2xl border border-slate-100 shadow-sm">
+             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Statut Ticker</span>
+             <label className="relative inline-flex items-center cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  checked={active}
+                  onChange={async (e) => {
+                    if (!configForm) return;
+                    const updated = { ...configForm, flashInfoActive: e.target.checked };
+                    setConfigForm(updated);
+                    await api.config.update('app_config', updated);
+                    await refreshAppConfig();
+                    toast.success(e.target.checked ? "Ticker activé" : "Ticker désactivé");
+                  }}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:bg-orange-500 after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+              </label>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-1 space-y-6">
+            <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-6">
+              <h3 className="font-black text-slate-900 uppercase text-xs tracking-widest border-b border-slate-50 pb-4">Style & Audience</h3>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Destination</label>
+                <select 
+                  value={audience}
+                  onChange={async (e) => {
+                    if (!configForm) return;
+                    const val = e.target.value as any;
+                    const updated = { ...configForm, flashInfoAudience: val };
+                    setConfigForm(updated);
+                    await api.config.update('app_config', updated);
+                    await refreshAppConfig();
+                  }}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-sm font-bold focus:border-orange-500 outline-none"
+                >
+                  <option value="all">Tout le monde</option>
+                  <option value="client">Clients uniquement</option>
+                  <option value="driver">Livreurs uniquement</option>
+                </select>
+              </div>
+              <div className="space-y-4">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Banque de Couleurs</label>
+                <div className="grid grid-cols-4 gap-2">
+                  {COLOR_BANK.map(c => (
+                    <button 
+                      key={c.code}
+                      onClick={async () => {
+                        if (!configForm) return;
+                        const updated = { ...configForm, flashInfoColor: c.code };
+                        setConfigForm(updated);
+                        await api.config.update('app_config', updated);
+                        await refreshAppConfig();
+                      }}
+                      className={cn(
+                        "aspect-square rounded-xl border-2 transition-all",
+                        color === c.code ? "border-slate-900 scale-105 shadow-md" : "border-transparent"
+                      )}
+                      style={{ backgroundColor: c.code }}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="lg:col-span-2 space-y-6">
+            <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+              <h3 className="font-black text-slate-900 uppercase text-xs tracking-widest mb-6 flex items-center gap-2">
+                 <Bell className="w-4 h-4 text-orange-500" /> Gestion des Messages ({messages.length}/10)
+              </h3>
+              <div className="flex flex-col gap-4">
+                <div className="space-y-4">
+                  <div className="flex flex-wrap gap-2">
+                    {EMOJI_BANK.map(emoji => (
+                      <button key={emoji} onClick={() => setNewFlashMessage(prev => prev + emoji)} className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center border border-slate-200 hover:bg-slate-100 transition-colors">{emoji}</button>
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <input 
+                      type="text" 
+                      placeholder="Message court..." 
+                      value={newFlashMessage}
+                      onChange={e => setNewFlashMessage(e.target.value)}
+                      className="flex-1 bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-sm font-bold focus:border-orange-500 outline-none"
+                    />
+                    <button onClick={handleAddFlashMessage} className="px-6 bg-orange-500 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-orange-600 transition-all shadow-lg active:scale-95">Ajouter</button>
+                  </div>
+                </div>
+                <div className="space-y-2 mt-4">
+                  {messages.map((msg: string, idx: number) => (
+                    <div key={idx} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100 group">
+                      <p className="text-sm font-bold text-slate-700">{msg}</p>
+                      <button onClick={() => handleDeleteFlashMessage(idx)} className="text-rose-500 hover:bg-rose-50 p-2 rounded-xl transition-colors"><Trash2 className="w-4 h-4" /></button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+    );
+  };
+
   const [confirmingDeleteRuleId, setConfirmingDeleteRuleId] = useState<string | null>(null);
   const [confirmingDeletePromoCode, setConfirmingDeletePromoCode] = useState<string | null>(null);
   const [confirmingDeleteUserId, setConfirmingDeleteUserId] = useState<string | null>(null);
@@ -271,9 +631,6 @@ export default function AdminDashboard() {
       totalDrivers: allDriversStats.length
     };
   };
-  const [showNewAnnonceForm, setShowNewAnnonceForm] = useState(false);
-  const [newAnnonce, setNewAnnonce] = useState({ title: '', message: '', type: 'info' as 'info' | 'warning' | 'success' });
-
   const generateCode = () => Math.random().toString(36).substring(2, 6).toUpperCase();
 
   const prevPendingCount = useRef(0);
@@ -349,6 +706,11 @@ export default function AdminDashboard() {
       setWithdrawals(withdrawalsList);
       setPromoCodes(promoList);
       setPricingRules(Array.isArray(rulesList) ? rulesList : []);
+
+      // Config Form Init
+      if (configData && !configForm) {
+        setConfigForm(configData);
+      }
     } catch (err) {
       console.error("Error polling local API:", err);
     } finally {
@@ -373,7 +735,7 @@ export default function AdminDashboard() {
   const handleAddDistanceRule = () => {
     if (!commission) return;
     const newRule: DistancePricingRule = {
-      id: Math.random().toString(36).substr(2, 9),
+      id: `rule-${Date.now()}`,
       minKm: 0,
       maxKm: 0,
       price: 0
@@ -510,7 +872,10 @@ export default function AdminDashboard() {
     ]},
     { group: 'COMMUNICATION', items: [
       { name: 'Support Chat', icon: MessageSquare },
-      ...(isSuperAdmin ? [{ name: 'Annonces Globales', icon: Bell }] : []),
+      ...(isSuperAdmin ? [
+        { name: 'Annonces Globales', icon: Bell },
+        { name: 'Flash Info', icon: Zap }
+      ] : []),
     ]},
     { group: 'LOGISTIQUE', items: [
       { name: 'En cours', icon: Navigation },
@@ -577,7 +942,7 @@ export default function AdminDashboard() {
   const [isSubmittingNewUser, setIsSubmittingNewUser] = useState(false);
   const [newUserData, setNewUserData] = useState<any>({
     role: 'client',
-    name: '', email: '', phone: '', password: '',
+    name: '', email: '', phone: '', password: '', photoURL: '',
     // driver specific defaults
     vehicleType: 'Moto',
     licensePlate: '',
@@ -606,6 +971,7 @@ export default function AdminDashboard() {
         email: newUserData.email,
         password: newUserData.password,
         phone: newUserData.phone || '',
+        photoURL: newUserData.photoURL || '',
         role: newUserData.role,
         accountStatus: 'active',
       };
@@ -630,7 +996,7 @@ export default function AdminDashboard() {
       setShowCreateUserModal(false);
       setNewUserData({
         role: 'client',
-        name: '', email: '', phone: '', password: '',
+        name: '', email: '', phone: '', password: '', photoURL: '',
         vehicleType: 'Moto', licensePlate: '', driverType: 'freelance', sectors: [],
         withdrawalPhone: '', rib: '', idCardFront: '', idCardBack: '',
         guarantorName: '', guarantorPhone: '', guarantorCniUrl: ''
@@ -712,6 +1078,10 @@ export default function AdminDashboard() {
 
   const renderContent = () => {
     switch (activeMenu) {
+      case 'Annonces Globales':
+        return renderAnnouncements();
+      case 'Flash Info':
+        return renderFlashInfo();
       case 'Validations Paiements':
         const pendingPayments = deliveries.filter(d => d.paymentStatus === 'pending' || d.paymentStatus === 'pending_approval');
         return (
@@ -828,7 +1198,7 @@ export default function AdminDashboard() {
             {deliveries.filter(d => d.sosAlert || d.isWeatherPaused).length > 0 && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {deliveries.filter(d => d.sosAlert).map(alert => (
-                  <div key={alert.id} className="bg-red-500 rounded-3xl p-6 text-white shadow-xl shadow-red-500/20 flex flex-col gap-4 animate-pulse">
+                  <div key={`sos-${alert.id}`} className="bg-red-500 rounded-3xl p-6 text-white shadow-xl shadow-red-500/20 flex flex-col gap-4 animate-pulse">
                      <div className="flex justify-between items-start">
                         <span className="text-[10px] font-black uppercase tracking-widest bg-white/20 px-3 py-1 rounded-lg">SOS URGENCE</span>
                         <span className="font-bold">Course {alert.id.slice(0,4)}</span>
@@ -854,7 +1224,7 @@ export default function AdminDashboard() {
                   </div>
                 ))}
                 {deliveries.filter(d => d.isWeatherPaused).map(alert => (
-                  <div key={alert.id} className="bg-blue-600 rounded-3xl p-6 text-white shadow-xl shadow-blue-500/20 flex flex-col gap-4">
+                  <div key={`weather-${alert.id}`} className="bg-blue-600 rounded-3xl p-6 text-white shadow-xl shadow-blue-500/20 flex flex-col gap-4">
                      <div className="flex justify-between items-start">
                         <span className="text-[10px] font-black uppercase tracking-widest bg-white/20 px-3 py-1 rounded-lg">PAUSE METEO</span>
                         <span className="font-bold">Course {alert.id.slice(0,4)}</span>
@@ -1211,8 +1581,12 @@ export default function AdminDashboard() {
                         {/* 1. User block */}
                         <td className="py-4 px-6">
                           <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-orange-600 border border-slate-200 shrink-0 relative">
-                              <UserCircle className="w-6 h-6" />
+                            <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-orange-600 border border-slate-200 shrink-0 relative overflow-hidden">
+                              {u.photoURL ? (
+                                <img src={u.photoURL} className="w-full h-full object-cover" />
+                              ) : (
+                                <UserCircle className="w-6 h-6" />
+                              )}
                               {u.accountStatus === 'suspended' && (
                                 <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full ring-2 ring-white animate-pulse" title="Compte suspendu" />
                               )}
@@ -2021,120 +2395,6 @@ export default function AdminDashboard() {
           </div>
         );
       }
-      case 'Annonces Globales':
-        return (
-          <div className="bg-white rounded-3xl p-6 lg:p-5 lg:p-6 shadow-sm border border-slate-100">
-             <div className="flex justify-between items-center mb-8">
-               <div>
-                  <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Centre d'Annonces</h3>
-                  <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-1">Diffuser des alertes a toute la plateforme</p>
-               </div>
-               <button 
-                 onClick={() => setShowNewAnnonceForm(!showNewAnnonceForm)}
-                 className="flex items-center gap-2 px-6 py-3 bg-orange-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-orange-600 transition-all shadow-xl shadow-orange-200"
-               >
-                 {showNewAnnonceForm ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
-                 {showNewAnnonceForm ? 'Fermer' : 'Nouvelle Annonce'}
-               </button>
-             </div>
-
-             {showNewAnnonceForm && (
-                <motion.div 
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="mb-10 p-5 lg:p-6 bg-slate-50 rounded-2xl border border-slate-200 shadow-inner"
-                >
-                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Titre de l'alerte</label>
-                        <input 
-                          type="text" 
-                          placeholder="Maintenance, Promo, etc." 
-                          value={newAnnonce.title}
-                          onChange={e => setNewAnnonce({...newAnnonce, title: e.target.value})}
-                          className="w-full bg-white border border-slate-200 rounded-2xl px-5 py-4 text-sm font-bold focus:border-orange-500 outline-none shadow-sm"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Niveau d'Urgence</label>
-                        <select 
-                          value={newAnnonce.type}
-                          onChange={e => setNewAnnonce({...newAnnonce, type: e.target.value as any})}
-                          className="w-full bg-white border border-slate-200 rounded-2xl px-5 py-4 text-sm font-bold focus:border-orange-500 outline-none shadow-sm"
-                        >
-                          <option value="info">Information</option>
-                          <option value="warning">Alerte Critique</option>
-                          <option value="success">Notification Succes</option>
-                        </select>
-                      </div>
-                      <div className="md:col-span-2 space-y-2">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Message detaille</label>
-                        <textarea 
-                          className="w-full bg-white border border-slate-200 rounded-2xl px-5 py-4 text-sm font-bold focus:border-orange-500 outline-none h-32 shadow-sm"
-                          placeholder="Decrivez l'annonce aux utilisateurs..."
-                          value={newAnnonce.message}
-                          onChange={e => setNewAnnonce({...newAnnonce, message: e.target.value})}
-                        />
-                      </div>
-                   </div>
-                   <div className="flex justify-end pt-4 border-t border-slate-200">
-                      <button 
-                        onClick={async () => {
-                          if (!newAnnonce.title || !newAnnonce.message) return;
-                          await api.announcements.create({
-                            ...newAnnonce,
-                            targetRole: 'all',
-                            activeUntil: new Date(Date.now() + 86400000 * 7).toISOString(),
-                            createdAt: new Date().toISOString()
-                          });
-                          setNewAnnonce({ title: '', message: '', type: 'info' });
-                          setShowNewAnnonceForm(false);
-                          fetchData();
-                        }}
-                        className="px-12 py-5 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-orange-600 transition-all shadow-xl active:scale-95"
-                      >
-                        Publier l'annonce
-                      </button>
-                   </div>
-                </motion.div>
-             )}
-
-             <div className="space-y-4">
-                {announcements.map(a => (
-                  <div key={a.id} className="p-6 bg-slate-50 rounded-3xl border border-slate-100 flex items-center justify-between gap-6 hover:bg-white transiton-all group">
-                    <div className="flex items-center gap-6">
-                       <div className={cn(
-                         "w-12 h-12 rounded-2xl flex items-center justify-center",
-                         a.type === 'warning' ? "bg-orange-100 text-orange-600" :
-                         a.type === 'success' ? "bg-emerald-100 text-emerald-600" : "bg-blue-100 text-blue-600"
-                       )}>
-                         <Bell className="w-6 h-6" />
-                       </div>
-                       <div>
-                         <h4 className="font-black text-slate-900 uppercase text-sm tracking-tight">{a.title}</h4>
-                         <p className="text-xs font-bold text-slate-500 mt-0.5">{a.message}</p>
-                         <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mt-2">Expire le : {new Date(a.activeUntil).toLocaleDateString()}</p>
-                       </div>
-                    </div>
-                    <button 
-                      onClick={async () => {
-                        await api.announcements.delete(a.id);
-                        fetchData();
-                      }}
-                      className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-rose-500 border border-slate-100 opacity-0 group-hover:opacity-100 transition-all hover:bg-rose-50"
-                    >
-                       <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
-                {announcements.length === 0 && (
-                  <div className="py-20 text-center bg-slate-50 rounded-3xl border border-dashed border-slate-200">
-                    <p className="text-slate-400 font-black uppercase text-[10px] tracking-widest leading-none">Aucune annonce active en ce moment</p>
-                  </div>
-                )}
-             </div>
-          </div>
-        );
       case 'Parametres App': {
         return (
           <form onSubmit={handleUpdateConfig} className="bg-white rounded-3xl p-6 lg:p-5 lg:p-6 shadow-sm border border-slate-100">
@@ -3942,6 +4202,34 @@ export default function AdminDashboard() {
               </div>
 
               <form onSubmit={handleCreateUser} className="space-y-4">
+                <div className="flex justify-center mb-6">
+                  <div 
+                    onClick={() => document.getElementById('adminUserPhoto')?.click()}
+                    className="w-24 h-24 bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-100 transition-all overflow-hidden relative group"
+                  >
+                    {newUserData.photoURL ? (
+                      <>
+                        <img src={newUserData.photoURL} className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <Plus className="w-6 h-6 text-white" />
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <UserCircle className="w-8 h-8 text-slate-300" />
+                        <span className="text-[8px] font-black text-slate-400 uppercase mt-1">Photo</span>
+                      </>
+                    )}
+                    <input id="adminUserPhoto" type="file" accept="image/*" className="hidden" onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onloadend = () => setNewUserData({...newUserData, photoURL: reader.result as string});
+                        reader.readAsDataURL(file);
+                      }
+                    }} />
+                  </div>
+                </div>
                 <div>
                   <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Nom complet *</label>
                   <input type="text" value={newUserData.name} onChange={e => setNewUserData({...newUserData, name: e.target.value})} required className="w-full bg-slate-50 border-none rounded-2xl px-4 py-3 text-sm font-bold focus:ring-4 focus:ring-indigo-100" />
@@ -4078,8 +4366,12 @@ export default function AdminDashboard() {
             >
               <div className="flex justify-between items-center mb-6 px-1">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-orange-50 rounded-2xl flex items-center justify-center text-orange-500 border-2 border-white shadow-lg shadow-orange-100/50">
-                    <UserCircle className="w-8 h-8" />
+                  <div className="w-12 h-12 bg-orange-50 rounded-2xl flex items-center justify-center text-orange-500 border-2 border-white shadow-lg shadow-orange-100/50 overflow-hidden">
+                    {selectedUser.photoURL ? (
+                      <img src={selectedUser.photoURL} className="w-full h-full object-cover" />
+                    ) : (
+                      <UserCircle className="w-8 h-8" />
+                    )}
                   </div>
                   <div>
                     <h3 className="text-lg font-black text-slate-900 tracking-tighter uppercase leading-tight">{selectedUser.name}</h3>

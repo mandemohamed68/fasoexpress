@@ -10,16 +10,16 @@ import { api } from '../services/apiService';
 import { AppConfig } from '../types';
 import Logo from './Logo';
 import SupportModal from './SupportModal';
+import { FlashTicker } from './FlashTicker';
 
 const logoImg = '/logofaso.png';
 
 export default function Navbar() {
-  const { user, profile, logout, language, setLanguage, t, isMasterAdmin, updateRole } = useAuth();
+  const { user, profile, logout, language, setLanguage, t, isMasterAdmin, updateRole, appConfig } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [supportOpen, setSupportOpen] = useState(false);
-  const [appConfig, setAppConfig] = useState<AppConfig | null>(null);
   const [logoUrl, setLogoUrl] = useState(logoImg);
   const [logoError, setLogoError] = useState(false);
   const [availCount, setAvailCount] = useState<number>(0);
@@ -73,20 +73,6 @@ export default function Navbar() {
       console.error("Error switching role:", e);
     }
   };
-
-  useEffect(() => {
-    const fetchConfig = async () => {
-      try {
-        const config = await api.config.get('app_config').catch(() => null);
-        if (config) setAppConfig(config);
-      } catch (err) {
-        console.warn("Local config fetch failed in navbar");
-      }
-    };
-    fetchConfig();
-    const interval = setInterval(fetchConfig, 30000); // Only poll every 30s
-    return () => clearInterval(interval);
-  }, []);
 
   const isAdminView = location.pathname.startsWith('/admin') && (isMasterAdmin || profile?.role === 'admin' || profile?.role === 'superadmin');
   const isCreateView = location.pathname === '/client/new';
@@ -377,6 +363,7 @@ export default function Navbar() {
         )}
       </AnimatePresence>
       <SupportModal isOpen={supportOpen} onClose={() => setSupportOpen(false)} />
+      <FlashTicker />
     </nav>
   );
 }
