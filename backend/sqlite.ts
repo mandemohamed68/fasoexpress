@@ -243,6 +243,7 @@ const colsToAdd = [
   { name: 'boostAmount', type: 'REAL DEFAULT 0' },
   { name: 'lastMessageAt', type: 'TEXT' },
   { name: 'cancelReason', type: 'TEXT' },
+  { name: 'cancellationReason', type: 'TEXT' },
   { name: 'rejectedBy', type: 'TEXT' },
   { name: 'rating', type: 'REAL' },
   { name: 'feedback', type: 'TEXT' },

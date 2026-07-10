@@ -78,6 +78,7 @@ CREATE TABLE IF NOT EXISTS `deliveries` (
   `urgentFee` double DEFAULT 0,
   `boostAmount` double DEFAULT 0,
   `cancelReason` text DEFAULT NULL,
+  `cancellationReason` text DEFAULT NULL,
   `lastMessageAt` datetime DEFAULT NULL,
   `rejectedBy` text DEFAULT NULL,
   `proofImage` LONGTEXT DEFAULT NULL,

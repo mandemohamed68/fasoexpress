@@ -162,7 +162,7 @@ export default function DriverDashboard() {
     try {
       await api.deliveries.update(jobId, {
         status: 'cancelled',
-        cancellationReason: cancelReason,
+        cancelReason: cancelReason,
         cancelledBy: profile?.userId,
         updatedAt: new Date().toISOString()
       });
@@ -433,7 +433,7 @@ export default function DriverDashboard() {
       const allMyJobs = jobs.filter((j: any) => j.driverId === currentProfile.userId);
       allMyJobs.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       
-      const activeList = allMyJobs.filter((j: any) => ['accepted', 'picked_up', 'ready_for_pickup'].includes(j.status));
+      const activeList = allMyJobs.filter((j: any) => ['accepted', 'picked_up', 'ready_for_pickup'].includes(j.status) || j.paymentStatus === 'pending');
       const deliveredList = allMyJobs.filter((j: any) => j.status === 'delivered');
       
       setActiveJobs(activeList);
