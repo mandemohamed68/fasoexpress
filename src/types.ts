@@ -149,6 +149,7 @@ export interface UserProfile {
   updatedAt?: string;
   avatar?: string;
   photoURL?: string;
+  carteGriseUrl?: string;
   displayName?: string;
   rib?: string;
   createdAt: string;

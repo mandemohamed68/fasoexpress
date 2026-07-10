@@ -9,6 +9,160 @@ import jwt from "jsonwebtoken";
 import { v4 as uuidv4 } from "uuid";
 import { GoogleGenAI } from "@google/genai";
 import nodemailer from "nodemailer";
+import { initializeApp, cert } from "firebase-admin/app";
+import { getMessaging } from "firebase-admin/messaging";
+import type { App } from "firebase-admin/app";
+import fs from "fs";
+
+// Firebase Admin dynamic configuration
+let firebaseAdminApp: App | null = null;
+function getFirebaseAdmin() {
+  if (firebaseAdminApp) return firebaseAdminApp;
+  
+  const serviceAccountVar = process.env.FIREBASE_SERVICE_ACCOUNT;
+  if (serviceAccountVar) {
+    try {
+      const serviceAccount = JSON.parse(serviceAccountVar);
+      firebaseAdminApp = initializeApp({
+        credential: cert(serviceAccount)
+      });
+      console.log("[FCM] Firebase Admin initialisé avec les variables d'environnement.");
+      return firebaseAdminApp;
+    } catch (e) {
+      console.error("[FCM] Échec d'analyse de FIREBASE_SERVICE_ACCOUNT:", e);
+    }
+  }
+  
+  const saPath = path.join(process.cwd(), "service-account.json");
+  if (fs.existsSync(saPath)) {
+    try {
+      const serviceAccount = JSON.parse(fs.readFileSync(saPath, "utf8"));
+      firebaseAdminApp = initializeApp({
+        credential: cert(serviceAccount)
+      });
+      console.log("[FCM] Firebase Admin initialisé avec le fichier service-account.json.");
+      return firebaseAdminApp;
+    } catch (e) {
+      console.error("[FCM] Échec d'initialisation de Firebase Admin avec service-account.json:", e);
+    }
+  }
+  
+  console.warn("[FCM] Firebase Admin NON initialisé. Les notifications push natives ne seront pas envoyées. Veuillez configurer la variable d'environnement FIREBASE_SERVICE_ACCOUNT ou placer un fichier service-account.json à la racine.");
+  return null;
+}
+
+async function sendPushNotification(userId: string, title: string, body: string, data: Record<string, string> = {}) {
+  try {
+    const adminApp = getFirebaseAdmin();
+    if (!adminApp) {
+      console.log(`[FCM] Notification en attente (Firebase non initialisé). Utilisateur: ${userId}, Titre: ${title}`);
+      return;
+    }
+    
+    const tokens = db.prepare("SELECT token FROM user_push_tokens WHERE userId = ?").all(userId) as { token: string }[];
+    if (tokens.length === 0) {
+      console.log(`[FCM] Aucun token de push enregistré pour l'utilisateur: ${userId}`);
+      return;
+    }
+    
+    const registrationTokens = tokens.map(t => t.token);
+    const message = {
+      notification: {
+        title,
+        body
+      },
+      data: {
+        ...data,
+        click_action: "FLUTTER_NOTIFICATION_CLICK"
+      },
+      android: {
+        priority: "high" as const,
+        notification: {
+          sound: "default",
+          channelId: "high_importance_channel",
+          priority: "max" as const,
+          defaultSound: true,
+          defaultVibrateTimings: true
+        }
+      },
+      apns: {
+        headers: {
+          "apns-priority": "10"
+        },
+        payload: {
+          aps: {
+            sound: "default",
+            badge: 1
+          }
+        }
+      },
+      tokens: registrationTokens
+    };
+    
+    const response = await getMessaging(adminApp).sendEachForMulticast(message);
+    console.log(`[FCM] Push envoyé avec succès à ${response.successCount} appareils pour l'utilisateur ${userId}. Erreurs: ${response.failureCount}`);
+    
+    if (response.failureCount > 0) {
+      response.responses.forEach((resp, idx) => {
+        if (!resp.success) {
+          const error = resp.error;
+          if (error && (error.code === "messaging/invalid-registration-token" || error.code === "messaging/registration-token-not-registered")) {
+            const badToken = registrationTokens[idx];
+            db.prepare("DELETE FROM user_push_tokens WHERE token = ?").run(badToken);
+            console.log(`[FCM] Token de push invalide supprimé: ${badToken}`);
+          }
+        }
+      });
+    }
+  } catch (err) {
+    console.error("[FCM] Erreur lors de l'envoi de la notification push:", err);
+  }
+}
+
+// Interceptor on db.prepare to automatically send Push Notifications when database notifications are created
+const originalPrepare = db.prepare;
+db.prepare = function (sql: string) {
+  const stmt = originalPrepare.call(db, sql);
+  const isNotificationInsert = /INSERT\s+INTO\s+notifications/i.test(sql);
+
+  if (isNotificationInsert && stmt) {
+    const originalRun = stmt.run;
+    stmt.run = function (...args: any[]) {
+      const result = originalRun.apply(stmt, args);
+
+      try {
+        const columnsMatch = sql.match(/\(([^)]+)\)/);
+        if (columnsMatch && columnsMatch[1]) {
+          const columns = columnsMatch[1].split(",").map((c: string) => c.trim().toLowerCase());
+          const userIdIdx = columns.indexOf("userid");
+          const titleIdx = columns.indexOf("title");
+          const messageIdx = columns.indexOf("message");
+          const typeIdx = columns.indexOf("type");
+          const linkIdx = columns.indexOf("link");
+
+          const userId = userIdIdx !== -1 ? args[userIdIdx] : null;
+          const title = titleIdx !== -1 ? args[titleIdx] : "";
+          const message = messageIdx !== -1 ? args[messageIdx] : "";
+          const type = typeIdx !== -1 ? args[typeIdx] : "";
+          const link = linkIdx !== -1 ? args[linkIdx] : "";
+
+          if (userId) {
+            sendPushNotification(userId, title, message, {
+              type: type || "info",
+              link: link || ""
+            });
+          }
+        }
+      } catch (e) {
+        console.error("[FCM Interceptor] Error intercepting notification insert:", e);
+      }
+
+      return result;
+    };
+  }
+
+  return stmt;
+};
 
 // Configuration robuste du chargement de dotenv pour les serveurs locaux ou distants
 dotenv.config();
@@ -461,14 +615,28 @@ const MASTER_ADMIN_EMAILS = ['mandemohamed68@gmail.com', 'mandemohamed6868@gmail
     const updates = req.body;
     let fields = Object.keys(updates).filter(k => k !== 'userId' && k !== 'id' && k !== 'createdAt' && k !== 'updatedAt');
     
+    const FALLBACK_COLUMNS = new Set([
+      'name', 'email', 'password', 'role', 'status', 'accountStatus', 'isVerified',
+      'city', 'neighborhood', 'verificationStatus', 'guarantorName', 'guarantorPhone',
+      'identityCardUrl', 'identityCardBackUrl', 'criminalRecordUrl', 'currentLocation',
+      'balance', 'earnings', 'withdrawalPhone', 'rib', 'idCardFront', 'idCardBack',
+      'guarantorCniUrl', 'termsAcceptedAt', 'driverType', 'resetCode', 'resetExpires',
+      'photoURL', 'address', 'carteGriseUrl', 'updatedAt', 'totalWithdrawn',
+      'withdrawalRequested', 'withdrawalAmount', 'withdrawalMethod', 'vehicleType',
+      'licensePlate'
+    ]);
+
     // Dynamic schema validation to filter out any fields that are not actual database columns
+    let validColumns = FALLBACK_COLUMNS;
     try {
       const dbColumns = db.prepare("PRAGMA table_info(users)").all() as any[];
-      const validColumns = new Set(dbColumns.map(c => c.name));
-      fields = fields.filter(f => validColumns.has(f));
+      if (dbColumns && dbColumns.length > 0) {
+        validColumns = new Set(dbColumns.map(c => c.name));
+      }
     } catch (schemaErr) {
       console.warn("Failed to retrieve users schema during validation:", schemaErr);
     }
+    fields = fields.filter(f => validColumns.has(f));
 
     if (fields.length === 0) return res.json({ status: "no changes" });
 
@@ -624,8 +792,35 @@ const MASTER_ADMIN_EMAILS = ['mandemohamed68@gmail.com', 'mandemohamed6868@gmail
       d.to = d.destination || {};
       try { if (typeof d.rejectedBy === 'string') d.rejectedBy = JSON.parse(d.rejectedBy); } catch(e){}
       try { if (typeof d.packageDetails === 'string') d.packageDetails = JSON.parse(d.packageDetails); } catch(e){}
+      
+      // Attach driver photo & phone dynamically
+      if (d.driverId) {
+        try {
+          const driver = db.prepare("SELECT photoURL, phone, name FROM users WHERE userId = ?").get(d.driverId) as any;
+          if (driver) {
+            d.driverPhoto = driver.photoURL;
+            d.driverPhone = driver.phone;
+            d.driverName = driver.name;
+          }
+        } catch (e) {}
+      }
+
       try {
-        const bids = db.prepare("SELECT * FROM bids WHERE deliveryId = ?").all(d.id);
+        const bids = db.prepare("SELECT * FROM bids WHERE deliveryId = ?").all(d.id) as any[];
+        if (bids) {
+          bids.forEach(b => {
+            b.timeEstimateMins = b.proposedTime;
+            if (b.driverId) {
+              try {
+                const bDriver = db.prepare("SELECT photoURL, phone FROM users WHERE userId = ?").get(b.driverId) as any;
+                if (bDriver) {
+                  b.driverPhoto = bDriver.photoURL;
+                  b.driverPhone = bDriver.phone;
+                }
+              } catch (err) {}
+            }
+          });
+        }
         d.bids = bids || [];
       } catch(e) {
         d.bids = [];
@@ -646,8 +841,34 @@ const MASTER_ADMIN_EMAILS = ['mandemohamed68@gmail.com', 'mandemohamed6868@gmail
       d.to = d.destination || {};
       try { if (typeof d.rejectedBy === 'string') d.rejectedBy = JSON.parse(d.rejectedBy); } catch(e){}
       try { if (typeof d.packageDetails === 'string') d.packageDetails = JSON.parse(d.packageDetails); } catch(e){}
+      // Attach driver photo & phone dynamically
+      if (d.driverId) {
+        try {
+          const driver = db.prepare("SELECT photoURL, phone, name FROM users WHERE userId = ?").get(d.driverId) as any;
+          if (driver) {
+            d.driverPhoto = driver.photoURL;
+            d.driverPhone = driver.phone;
+            d.driverName = driver.name;
+          }
+        } catch (e) {}
+      }
+
       try {
-        const bids = db.prepare("SELECT * FROM bids WHERE deliveryId = ?").all(d.id);
+        const bids = db.prepare("SELECT * FROM bids WHERE deliveryId = ?").all(d.id) as any[];
+        if (bids) {
+          bids.forEach(b => {
+            b.timeEstimateMins = b.proposedTime;
+            if (b.driverId) {
+              try {
+                const bDriver = db.prepare("SELECT photoURL, phone FROM users WHERE userId = ?").get(b.driverId) as any;
+                if (bDriver) {
+                  b.driverPhoto = bDriver.photoURL;
+                  b.driverPhone = bDriver.phone;
+                }
+              } catch (err) {}
+            }
+          });
+        }
         d.bids = bids || [];
       } catch(e) {
         d.bids = [];
@@ -816,6 +1037,22 @@ const MASTER_ADMIN_EMAILS = ['mandemohamed68@gmail.com', 'mandemohamed6868@gmail
       // Update lastMessageAt on delivery
       db.prepare("UPDATE deliveries SET lastMessageAt = CURRENT_TIMESTAMP WHERE id = ?").run(deliveryId);
       
+      // Send Native Push Notification
+      try {
+        const delivery = db.prepare("SELECT clientId, driverId FROM deliveries WHERE id = ?").get(deliveryId) as any;
+        if (delivery) {
+          const recipientId = req.user.userId === delivery.clientId ? delivery.driverId : delivery.clientId;
+          if (recipientId) {
+            sendPushNotification(recipientId, `Nouveau message de ${senderName}`, text, {
+              type: "message",
+              deliveryId
+            });
+          }
+        }
+      } catch (pushErr) {
+        console.warn("[FCM] Ignored push notification error inside message create:", pushErr);
+      }
+      
       res.json({ id });
     } catch (err) {
       res.status(500).json({ error: "Échec de l'envoi du message." });
@@ -836,6 +1073,36 @@ const MASTER_ADMIN_EMAILS = ['mandemohamed68@gmail.com', 'mandemohamed6868@gmail
     } catch (err: any) {
       console.error("[API] Failed to fetch notifications:", err);
       res.status(500).json({ error: "Échec de la récupération des notifications.", details: err.message });
+    }
+  });
+
+  app.post("/api/push-tokens", authenticate, (req: any, res) => {
+    const { token, deviceType } = req.body;
+    if (!token) {
+      return res.status(400).json({ error: "Token requis." });
+    }
+    try {
+      db.prepare("INSERT OR REPLACE INTO user_push_tokens (userId, token, deviceType) VALUES (?, ?, ?)")
+        .run(req.user.userId, token, deviceType || "unknown");
+      res.json({ status: "ok" });
+    } catch (err: any) {
+      console.error("[FCM] Failed to save push token:", err);
+      res.status(500).json({ error: "Échec de l'enregistrement du token de push." });
+    }
+  });
+
+  app.post("/api/push-tokens/delete", authenticate, (req: any, res) => {
+    const { token } = req.body;
+    if (!token) {
+      return res.status(400).json({ error: "Token requis." });
+    }
+    try {
+      db.prepare("DELETE FROM user_push_tokens WHERE userId = ? AND token = ?")
+        .run(req.user.userId, token);
+      res.json({ status: "ok" });
+    } catch (err: any) {
+      console.error("[FCM] Failed to delete push token:", err);
+      res.status(500).json({ error: "Échec de la suppression du token de push." });
     }
   });
 
@@ -1485,6 +1752,15 @@ const MASTER_ADMIN_EMAILS = ['mandemohamed68@gmail.com', 'mandemohamed6868@gmail
       bids.forEach(b => {
         // Map backend 'proposedTime' to frontend's expected 'timeEstimateMins' and vice versa
         b.timeEstimateMins = b.proposedTime;
+        if (b.driverId) {
+          try {
+            const driver = db.prepare("SELECT photoURL, phone FROM users WHERE userId = ?").get(b.driverId) as any;
+            if (driver) {
+              b.driverPhoto = driver.photoURL;
+              b.driverPhone = driver.phone;
+            }
+          } catch (e) {}
+        }
       });
       res.json(bids);
     } catch (err) {

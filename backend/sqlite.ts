@@ -211,6 +211,14 @@ try {
     action TEXT NOT NULL, -- 'accepted', 'rejected', 'assigned'
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
   );
+
+  CREATE TABLE IF NOT EXISTS user_push_tokens (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    userId TEXT NOT NULL,
+    token TEXT NOT NULL UNIQUE,
+    deviceType TEXT,
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
 `);
 } catch (err) {
   console.error("Critical error during database schema creation:", err);
@@ -447,6 +455,7 @@ addColumnIfNotExists('users', 'totalEarnings', "REAL DEFAULT 0");
 addColumnIfNotExists('users', 'dailyGoal', "REAL DEFAULT 0");
 addColumnIfNotExists('users', 'photoURL', "TEXT");
 addColumnIfNotExists('users', 'address', "TEXT");
+addColumnIfNotExists('users', 'carteGriseUrl', "TEXT");
 
 addColumnIfNotExists('bids', 'attempts', "INTEGER DEFAULT 1");
 

@@ -19,6 +19,7 @@ export default function Settings() {
   const [licensePlate, setLicensePlate] = useState('');
   const [driverType, setDriverType] = useState<'freelance' | 'company'>(profile?.driverType || 'freelance');
   const [photoURL, setPhotoURL] = useState('');
+  const [carteGriseUrl, setCarteGriseUrl] = useState('');
   const [password, setPassword] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
@@ -33,6 +34,7 @@ export default function Settings() {
       setVehicleType(profile.vehicleType || 'moto');
       setLicensePlate(profile.licensePlate || '');
       setPhotoURL(profile.photoURL || '');
+      setCarteGriseUrl(profile.carteGriseUrl || '');
       if (profile.driverType) setDriverType(profile.driverType);
     }
   }, [profile]);
@@ -73,6 +75,7 @@ export default function Settings() {
         licensePlate,
         driverType,
         photoURL,
+        carteGriseUrl,
         updatedAt: new Date().toISOString()
       };
       if (password) payload.password = password;
@@ -306,6 +309,46 @@ export default function Settings() {
                       placeholder="Ex: 11 HH 1111"
                       className="w-full bg-slate-50 border border-slate-100 text-slate-900 p-5 rounded-2xl focus:outline-none focus:border-orange-500 transition-all font-bold text-sm uppercase"
                     />
+                  </div>
+                  
+                  <div className="md:col-span-2 space-y-2 pt-4 border-t border-slate-100/50">
+                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 pl-2">Photo de la Carte Grise (Recto)</label>
+                    <div className="flex flex-col sm:flex-row gap-4 items-center">
+                      <div className="w-full sm:w-1/2 aspect-video bg-slate-50 border border-dashed border-slate-200 rounded-2xl overflow-hidden flex items-center justify-center relative min-h-[140px]">
+                        {carteGriseUrl ? (
+                          <>
+                            <img src={carteGriseUrl} alt="Carte Grise" className="w-full h-full object-cover" />
+                            <button
+                              type="button"
+                              onClick={() => setCarteGriseUrl('')}
+                              className="absolute top-2 right-2 px-2 py-1 bg-red-500 text-white rounded-lg text-[8px] font-black uppercase tracking-wider"
+                            >
+                              Supprimer
+                            </button>
+                          </>
+                        ) : (
+                          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Aucune photo sélectionnée</span>
+                        )}
+                      </div>
+                      <label className="px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl font-black text-[10px] uppercase tracking-widest cursor-pointer transition-all border border-slate-200">
+                        Choisir une photo
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={e => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onloadend = () => {
+                                setCarteGriseUrl(reader.result as string);
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                        />
+                      </label>
+                    </div>
                   </div>
                 </div>
               </div>

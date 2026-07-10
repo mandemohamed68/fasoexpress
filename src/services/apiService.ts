@@ -102,6 +102,10 @@ export const api = {
     markAsRead: (id: string) => request(`/app-notifications/${id}/read`, 'PATCH'),
     delete: (id: string) => request(`/app-notifications/${id}`, 'DELETE'),
   },
+  pushTokens: {
+    register: (token: string, deviceType: string) => request('/push-tokens', 'POST', { token, deviceType }),
+    delete: (token: string) => request('/push-tokens/delete', 'POST', { token }),
+  },
   drivers: {
     status: () => request('/drivers/status'),
     getMissionHistory: (id: string) => request(`/drivers/${id}/mission-history`),

@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { DeliveryRequest, CommissionSettings } from '../types';
-import { Compass, History as HistoryIcon, Wallet, User, Navigation, Package, DollarSign, Zap, CheckCircle, ShieldCheck, MapPin, X, ArrowRight, ArrowLeft, ChevronRight, Menu, List, Check, Info, Camera, Target, FileText, FileCheck, MessageSquare, Phone, HelpCircle } from 'lucide-react';
+import { Compass, History as HistoryIcon, Wallet, User, Navigation, Package, DollarSign, Zap, CheckCircle, ShieldCheck, MapPin, X, ArrowRight, ArrowLeft, ChevronRight, Menu, List, Check, Info, Camera, Target, FileText, FileCheck, MessageSquare, Phone, HelpCircle, Truck } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import { api } from '../services/apiService';
@@ -967,7 +967,23 @@ export default function DriverDashboard() {
                                 </motion.button>
                              )}
 
-                             {!profile?.photoURL && (
+                             {(!profile?.licensePlate || !profile?.carteGriseUrl) && (
+                                 <motion.button 
+                                   initial={{ x: -20, opacity: 0 }} 
+                                   animate={{ x: 0, opacity: 1 }}
+                                   transition={{ delay: 0.2 }}
+                                   onClick={() => navigate('/settings')}
+                                   className="bg-amber-500/95 backdrop-blur-md px-4 py-2.5 rounded-2xl flex items-center justify-between shadow-xl pointer-events-auto border border-white/20"
+                                 >
+                                    <Truck className="w-4 h-4 text-white" />
+                                    <div className="text-left ml-3">
+                                       <p className="text-[8px] font-black uppercase tracking-widest text-amber-100 leading-none">Dossier Logistique</p>
+                                       <p className="text-[9px] font-bold text-white mt-1">Plaque / Carte Grise</p>
+                                    </div>
+                                 </motion.button>
+                              )}
+
+                              {!profile?.photoURL && (
                                 <motion.button 
                                   initial={{ x: -20, opacity: 0 }} 
                                   animate={{ x: 0, opacity: 1 }}

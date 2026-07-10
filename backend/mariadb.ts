@@ -106,11 +106,22 @@ export default function initMariaDB() {
     connection.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS criminalRecordUrl text DEFAULT NULL AFTER guarantorCniUrl");
     connection.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS verificationStatus varchar(50) DEFAULT 'unverified'");
     connection.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS totalWithdrawn double DEFAULT 0 AFTER earnings");
+    try { connection.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS identityCardUrl LONGTEXT DEFAULT NULL"); } catch(e){}
     try { connection.query("ALTER TABLE users MODIFY COLUMN identityCardUrl LONGTEXT"); } catch(e){}
+    try { connection.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS identityCardBackUrl LONGTEXT DEFAULT NULL"); } catch(e){}
+    try { connection.query("ALTER TABLE users MODIFY COLUMN identityCardBackUrl LONGTEXT"); } catch(e){}
+    try { connection.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS criminalRecordUrl LONGTEXT DEFAULT NULL"); } catch(e){}
     try { connection.query("ALTER TABLE users MODIFY COLUMN criminalRecordUrl LONGTEXT"); } catch(e){}
+    try { connection.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS guarantorCniUrl LONGTEXT DEFAULT NULL"); } catch(e){}
     try { connection.query("ALTER TABLE users MODIFY COLUMN guarantorCniUrl LONGTEXT"); } catch(e){}
+    try { connection.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS idCardFront LONGTEXT DEFAULT NULL"); } catch(e){}
     try { connection.query("ALTER TABLE users MODIFY COLUMN idCardFront LONGTEXT"); } catch(e){}
+    try { connection.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS idCardBack LONGTEXT DEFAULT NULL"); } catch(e){}
     try { connection.query("ALTER TABLE users MODIFY COLUMN idCardBack LONGTEXT"); } catch(e){}
+    try { connection.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS photoURL LONGTEXT DEFAULT NULL"); } catch(e){}
+    try { connection.query("ALTER TABLE users MODIFY COLUMN photoURL LONGTEXT"); } catch(e){}
+    try { connection.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS carteGriseUrl LONGTEXT DEFAULT NULL"); } catch(e){}
+    try { connection.query("ALTER TABLE users MODIFY COLUMN carteGriseUrl LONGTEXT"); } catch(e){}
     connection.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS termsAcceptedAt datetime DEFAULT NULL");
     connection.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS driverType varchar(50) DEFAULT 'freelance'");
     connection.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS resetCode varchar(255) DEFAULT NULL");
@@ -271,6 +282,16 @@ export default function initMariaDB() {
         userId varchar(255) NOT NULL,
         deliveryId varchar(255),
         used_at datetime DEFAULT CURRENT_TIMESTAMP
+      ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
+    `);
+
+    connection.query(`
+      CREATE TABLE IF NOT EXISTS user_push_tokens (
+        id int AUTO_INCREMENT PRIMARY KEY,
+        userId varchar(255) NOT NULL,
+        token varchar(255) NOT NULL UNIQUE,
+        deviceType varchar(50),
+        createdAt datetime DEFAULT CURRENT_TIMESTAMP
       ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
     `);
     

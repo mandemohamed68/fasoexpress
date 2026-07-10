@@ -90,6 +90,7 @@ export default function LandingView() {
   const [guarantorPhone, setGuarantorPhone] = useState('');
   const [idCardFront, setIdCardFront] = useState('');
   const [idCardBack, setIdCardBack] = useState('');
+  const [carteGriseUrl, setCarteGriseUrl] = useState('');
   const [guarantorCniUrl, setGuarantorCniUrl] = useState('');
   const [city, setCity] = useState('');
   const [neighborhood, setNeighborhood] = useState('');
@@ -201,13 +202,14 @@ export default function LandingView() {
     }
   };
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, side: 'front' | 'back') => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, side: 'front' | 'back' | 'carte_grise') => {
     const file = e.target.files?.[0];
     if (file) {
       try {
         const base64 = await compressImage(file);
         if (side === 'front') setIdCardFront(base64);
-        else setIdCardBack(base64);
+        else if (side === 'back') setIdCardBack(base64);
+        else if (side === 'carte_grise') setCarteGriseUrl(base64);
       } catch (err: any) {
         setError(err.message || "Erreur lors du traitement de l'image");
       }
@@ -241,6 +243,7 @@ export default function LandingView() {
             rib,
             idCardFront,
             idCardBack,
+            carteGriseUrl,
             guarantorName,
             guarantorPhone,
             guarantorCniUrl,
@@ -739,6 +742,40 @@ export default function LandingView() {
                               <Camera className="w-6 h-6 text-slate-300 group-hover:text-orange-500 mb-2" />
                               <span className="text-[9px] font-black text-slate-400 uppercase">
                                 {driverType === 'company' ? 'NIF / IFU (Optionnel)' : 'CNIB Verso (Optionnel)'}
+                              </span>
+                            </>
+                          )}
+                       </label>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 pt-4 border-t border-slate-200">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1 italic">
+                      Photo Recto de la Carte Grise (Recommandé)
+                    </label>
+                    <div>
+                       <label className={cn(
+                         "border border-dashed rounded-xl p-5 flex flex-col items-center justify-center text-center cursor-pointer transition-all group w-full",
+                         carteGriseUrl ? "bg-orange-50 border-orange-500" : "border-slate-200 bg-white hover:border-orange-500"
+                       )}>
+                          <input 
+                            type="file" 
+                            accept="image/*" 
+                            onChange={e => handleFileChange(e, 'carte_grise')} 
+                            className="hidden" 
+                          />
+                          {carteGriseUrl ? (
+                            <div className="relative w-full aspect-video rounded-lg overflow-hidden max-h-[160px]">
+                              <img src={carteGriseUrl} alt="Carte Grise" className="w-full h-full object-cover" />
+                              <div className="absolute inset-0 bg-orange-500/40 flex items-center justify-center text-white">
+                                <UserCheck className="w-6 h-6" />
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              <Camera className="w-6 h-6 text-slate-300 group-hover:text-orange-500 mb-2" />
+                              <span className="text-[9px] font-black text-slate-400 uppercase">
+                                Photo Recto de la Carte Grise (Optionnel mais recommandé pour validation)
                               </span>
                             </>
                           )}

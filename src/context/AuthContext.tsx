@@ -167,11 +167,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = async () => {
+    try {
+      const { pushNotificationService } = await import('../services/pushNotificationService');
+      await pushNotificationService.unregister();
+    } catch (e) {
+      console.warn("Unregister push notifications failed on logout", e);
+    }
     localStorage.removeItem('auth_token');
     setUser(null);
     setProfile(null);
     window.location.href = '/';
   };
+
+  // Auto-register native push notifications when user session is active
+  useEffect(() => {
+    if (user?.userId) {
+      import('../services/pushNotificationService').then(({ pushNotificationService }) => {
+        pushNotificationService.register(user.userId);
+      }).catch(err => {
+        console.warn("Could not dynamically import pushNotificationService", err);
+      });
+    }
+  }, [user]);
 
   const loginWithPhone = async (phone: string) => {
     console.warn("Phone login is not fully implemented in current version", phone);
