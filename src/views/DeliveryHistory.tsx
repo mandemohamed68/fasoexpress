@@ -25,7 +25,8 @@ export default function DeliveryHistory() {
       const jobs = await api.deliveries.list();
       const filteredJobs = jobs.filter(d => 
         (profile.role === 'client' ? d.clientId === profile.userId : d.driverId === profile.userId) &&
-        ['delivered', 'cancelled'].includes(d.status)
+        ['delivered', 'cancelled'].includes(d.status) &&
+        d.pickupCode !== 'SUPPORT'
       );
       setDeliveries(filteredJobs);
 

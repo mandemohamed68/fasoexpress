@@ -25,6 +25,7 @@ import AdminDashboard from './views/AdminDashboard';
 import DeliveryTracking from './views/DeliveryTracking';
 import DeliveryHistory from './views/DeliveryHistory';
 import Settings from './views/Settings';
+import Messaging from './views/Messaging';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles?: string[] }> = ({ children, allowedRoles }) => {
   const { user, profile, isMasterAdmin } = useAuth();
@@ -227,6 +228,11 @@ function AppRoutes() {
                 <Route path="/settings" element={
                   <ProtectedRoute>
                     <PageWrapper><Settings /></PageWrapper>
+                  </ProtectedRoute>
+                } />
+                <Route path="/messaging" element={
+                  <ProtectedRoute>
+                    <PageWrapper><Messaging /></PageWrapper>
                   </ProtectedRoute>
                 } />
                   <Route path="/tracking/:deliveryId" element={<Navigate replace to="/client" />} />

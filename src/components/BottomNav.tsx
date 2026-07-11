@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Home, Package, User, Wallet, ShieldCheck, HelpCircle } from 'lucide-react';
+import { Home, Package, User, Wallet, ShieldCheck, HelpCircle, MessageSquare } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { api } from '../services/apiService';
 import SupportModal from './SupportModal';
@@ -40,6 +40,7 @@ export default function BottomNav() {
   const navItems = isDriver ? [
     { to: '/driver', icon: Home, label: 'ACCUEIL', match: '/driver', exact: true },
     { to: '/driver?tab=history', icon: Package, label: 'COURSES', match: '/driver?tab=history' },
+    { to: '/messaging', icon: MessageSquare, label: 'CHAT', match: '/messaging' },
     { to: '#support', icon: HelpCircle, label: 'SUPPORT', match: '#support', isAction: true },
     { to: '/driver?tab=profile', icon: User, label: 'PROFIL', match: '/driver?tab=profile' },
   ] : isAdmin ? [
@@ -49,6 +50,7 @@ export default function BottomNav() {
   ] : [
     { to: '/client', icon: Home, label: 'ACCUEIL', match: '/client', exact: true },
     { to: '/client/history', icon: Package, label: 'COURSES', match: '/client/history' },
+    { to: '/messaging', icon: MessageSquare, label: 'CHAT', match: '/messaging' },
     { to: '#support', icon: HelpCircle, label: 'SUPPORT', match: '#support', isAction: true },
     { to: '/settings', icon: User, label: 'PROFIL', match: '/settings' },
   ];

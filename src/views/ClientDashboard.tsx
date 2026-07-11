@@ -106,7 +106,7 @@ export default function ClientDashboard() {
   }, [profile]);
 
   const activeDeliveries = (deliveries || []).filter(d => ['pending', 'accepted', 'picked_up', 'ready_for_pickup'].includes(d.status));
-  const recentDeliveries = (deliveries || []).filter(d => !activeDeliveries.some(ad => ad.id === d.id)).slice(0, 3);
+  const recentDeliveries = (deliveries || []).filter(d => !activeDeliveries.some(ad => ad.id === d.id) && d.pickupCode !== 'SUPPORT').slice(0, 3);
 
   const copyCode = (code: string | undefined) => {
     if(code) {
