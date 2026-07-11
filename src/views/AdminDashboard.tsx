@@ -1066,6 +1066,87 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleOpenUserSupportChat = async (u: any) => {
+    toast(`Ouverture du support chat avec ${u.name}...`);
+    
+    // Find if there is an existing delivery/course for this user
+    const userDeliveries = deliveries.filter(d => 
+      u.role === 'client' ? (d.clientId === u.userId) : (d.driverId === u.userId)
+    );
+    
+    // Sort by latest createdAt to find the most recent one
+    userDeliveries.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+    let d = userDeliveries[0];
+
+    if (d) {
+      if (!d.lastMessageAt) {
+        try {
+          // Send an initial system message to start the support discussion
+          await api.deliveries.messages.send(d.id, {
+            text: `Support de discussion ouvert par l'administration.`,
+            senderId: profile?.userId || 'admin',
+            senderName: profile?.name || 'Administrateur',
+            senderRole: 'admin'
+          });
+          // Refresh data so we have the lastMessageAt updated in deliveries list
+          await fetchData();
+        } catch (err) {
+          console.warn("Failed to send system message:", err);
+        }
+      }
+      setSelectedChatDeliveryId(d.id);
+      handleMenuChange('Support Chat');
+      toast.success(`Discussion de support ouverte avec ${u.name} (Course #${d.id.slice(0, 8)})`);
+    } else {
+      try {
+        toast(`Création d'un canal de support pour ${u.name}...`);
+        
+        const newDeliveryData = {
+          clientName: u.role === 'client' ? u.name : 'Support Client',
+          from: { address: 'Faso Express HQ', lat: 12.3714, lng: -1.5197 },
+          to: { address: 'Centre de Support', lat: 12.3714, lng: -1.5197 },
+          cost: 0,
+          status: 'pending',
+          packageDetails: 'Canal de support administratif',
+          pickupCode: 'SUPPORT',
+          deliveryCode: 'SUPPORT',
+        };
+
+        const res = await api.deliveries.create(newDeliveryData);
+        const newId = res.id;
+
+        if (u.role === 'client') {
+          // Update the clientId to point to the client user
+          await api.deliveries.update(newId, { clientId: u.userId });
+        } else if (u.role === 'driver') {
+          // Update the driverId and driverName using standard patch
+          await api.deliveries.update(newId, {
+            driverId: u.userId,
+            driverName: u.name,
+            status: 'accepted'
+          });
+        }
+
+        // Send welcome support message
+        await api.deliveries.messages.send(newId, {
+          text: `Bonjour ${u.name}, comment pouvons-nous vous aider ? (Support Faso Express)`,
+          senderId: profile?.userId || 'admin',
+          senderName: profile?.name || 'Administrateur',
+          senderRole: 'admin'
+        });
+
+        // Refresh deliveries list
+        await fetchData();
+
+        setSelectedChatDeliveryId(newId);
+        handleMenuChange('Support Chat');
+        toast.success(`Canal de support créé pour ${u.name}`);
+      } catch (err: any) {
+        toast.error(`Échec lors du démarrage du chat: ${err.message || err}`);
+      }
+    }
+  };
+
   const getPaymentLogo = (method?: string | null) => {
     if (!method) return null;
     const id = method.replace('_ussd', '');
@@ -1689,7 +1770,7 @@ export default function AdminDashboard() {
                         <td className="py-4 px-6 text-right">
                           <div className="flex items-center justify-end gap-2">
                             <button 
-                              onClick={() => toast('Ouverture du support chat avec ' + u.name)} 
+                              onClick={() => handleOpenUserSupportChat(u)} 
                               className="p-2 text-slate-400 hover:text-orange-500 hover:bg-slate-100 transition-all rounded-xl cursor-pointer"
                               title="Discuter"
                             >
@@ -4453,6 +4534,15 @@ export default function AdminDashboard() {
                 </div>
 
                 <div className="pt-2 flex gap-3">
+                   <button 
+                     onClick={() => {
+                       handleOpenUserSupportChat(selectedUser);
+                       setSelectedUser(null);
+                     }}
+                     className="flex-1 py-4 bg-orange-500 text-white rounded-2xl text-[10px] uppercase font-black tracking-widest active:scale-95 transition-all shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2"
+                   >
+                     <MessageSquare className="w-4 h-4" /> Discuter
+                   </button>
                    <button
                      onClick={async () => {
                        try {
