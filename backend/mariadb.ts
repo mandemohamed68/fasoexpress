@@ -96,36 +96,36 @@ export default function initMariaDB() {
       try { connection.query(`ALTER TABLE \`${t}\` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`); } catch(e) {}
     }
 
-    connection.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS withdrawalPhone varchar(50) DEFAULT NULL AFTER phone");
-    connection.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS rib varchar(255) DEFAULT NULL AFTER withdrawalPhone");
-    connection.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS idCardFront text DEFAULT NULL AFTER rib");
-    connection.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS idCardBack text DEFAULT NULL AFTER idCardFront");
-    connection.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS guarantorName varchar(255) DEFAULT NULL AFTER idCardBack");
-    connection.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS guarantorPhone varchar(50) DEFAULT NULL AFTER guarantorName");
-    connection.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS guarantorCniUrl text DEFAULT NULL AFTER guarantorPhone");
-    connection.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS criminalRecordUrl text DEFAULT NULL AFTER guarantorCniUrl");
-    connection.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS verificationStatus varchar(50) DEFAULT 'unverified'");
-    connection.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS totalWithdrawn double DEFAULT 0 AFTER earnings");
-    try { connection.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS identityCardUrl LONGTEXT DEFAULT NULL"); } catch(e){}
+    try { connection.query("ALTER TABLE users ADD COLUMN withdrawalPhone varchar(50) DEFAULT NULL AFTER phone"); } catch(e: any) { if(!e.message.includes('Duplicate column name')) console.error("Failed to add column withdrawalPhone to users:", e.message); }
+    try { connection.query("ALTER TABLE users ADD COLUMN rib varchar(255) DEFAULT NULL AFTER withdrawalPhone"); } catch(e: any) { if(!e.message.includes('Duplicate column name')) console.error("Failed to add column rib to users:", e.message); }
+    try { connection.query("ALTER TABLE users ADD COLUMN idCardFront text DEFAULT NULL AFTER rib"); } catch(e: any) { if(!e.message.includes('Duplicate column name')) console.error("Failed to add column idCardFront to users:", e.message); }
+    try { connection.query("ALTER TABLE users ADD COLUMN idCardBack text DEFAULT NULL AFTER idCardFront"); } catch(e: any) { if(!e.message.includes('Duplicate column name')) console.error("Failed to add column idCardBack to users:", e.message); }
+    try { connection.query("ALTER TABLE users ADD COLUMN guarantorName varchar(255) DEFAULT NULL AFTER idCardBack"); } catch(e: any) { if(!e.message.includes('Duplicate column name')) console.error("Failed to add column guarantorName to users:", e.message); }
+    try { connection.query("ALTER TABLE users ADD COLUMN guarantorPhone varchar(50) DEFAULT NULL AFTER guarantorName"); } catch(e: any) { if(!e.message.includes('Duplicate column name')) console.error("Failed to add column guarantorPhone to users:", e.message); }
+    try { connection.query("ALTER TABLE users ADD COLUMN guarantorCniUrl text DEFAULT NULL AFTER guarantorPhone"); } catch(e: any) { if(!e.message.includes('Duplicate column name')) console.error("Failed to add column guarantorCniUrl to users:", e.message); }
+    try { connection.query("ALTER TABLE users ADD COLUMN criminalRecordUrl text DEFAULT NULL AFTER guarantorCniUrl"); } catch(e: any) { if(!e.message.includes('Duplicate column name')) console.error("Failed to add column criminalRecordUrl to users:", e.message); }
+    try { connection.query("ALTER TABLE users ADD COLUMN verificationStatus varchar(50) DEFAULT 'unverified'"); } catch(e: any) { if(!e.message.includes('Duplicate column name')) console.error("Failed to add column verificationStatus to users:", e.message); }
+    try { connection.query("ALTER TABLE users ADD COLUMN totalWithdrawn double DEFAULT 0 AFTER earnings"); } catch(e: any) { if(!e.message.includes('Duplicate column name')) console.error("Failed to add column totalWithdrawn to users:", e.message); }
+    try { try { connection.query("ALTER TABLE users ADD COLUMN identityCardUrl LONGTEXT DEFAULT NULL"); } catch(e: any) { if(!e.message.includes('Duplicate column name')) console.error("Failed to add column identityCardUrl to users:", e.message); } } catch(e){}
     try { connection.query("ALTER TABLE users MODIFY COLUMN identityCardUrl LONGTEXT"); } catch(e){}
-    try { connection.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS identityCardBackUrl LONGTEXT DEFAULT NULL"); } catch(e){}
+    try { try { connection.query("ALTER TABLE users ADD COLUMN identityCardBackUrl LONGTEXT DEFAULT NULL"); } catch(e: any) { if(!e.message.includes('Duplicate column name')) console.error("Failed to add column identityCardBackUrl to users:", e.message); } } catch(e){}
     try { connection.query("ALTER TABLE users MODIFY COLUMN identityCardBackUrl LONGTEXT"); } catch(e){}
-    try { connection.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS criminalRecordUrl LONGTEXT DEFAULT NULL"); } catch(e){}
+    try { try { connection.query("ALTER TABLE users ADD COLUMN criminalRecordUrl LONGTEXT DEFAULT NULL"); } catch(e: any) { if(!e.message.includes('Duplicate column name')) console.error("Failed to add column criminalRecordUrl to users:", e.message); } } catch(e){}
     try { connection.query("ALTER TABLE users MODIFY COLUMN criminalRecordUrl LONGTEXT"); } catch(e){}
-    try { connection.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS guarantorCniUrl LONGTEXT DEFAULT NULL"); } catch(e){}
+    try { try { connection.query("ALTER TABLE users ADD COLUMN guarantorCniUrl LONGTEXT DEFAULT NULL"); } catch(e: any) { if(!e.message.includes('Duplicate column name')) console.error("Failed to add column guarantorCniUrl to users:", e.message); } } catch(e){}
     try { connection.query("ALTER TABLE users MODIFY COLUMN guarantorCniUrl LONGTEXT"); } catch(e){}
-    try { connection.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS idCardFront LONGTEXT DEFAULT NULL"); } catch(e){}
+    try { try { connection.query("ALTER TABLE users ADD COLUMN idCardFront LONGTEXT DEFAULT NULL"); } catch(e: any) { if(!e.message.includes('Duplicate column name')) console.error("Failed to add column idCardFront to users:", e.message); } } catch(e){}
     try { connection.query("ALTER TABLE users MODIFY COLUMN idCardFront LONGTEXT"); } catch(e){}
-    try { connection.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS idCardBack LONGTEXT DEFAULT NULL"); } catch(e){}
+    try { try { connection.query("ALTER TABLE users ADD COLUMN idCardBack LONGTEXT DEFAULT NULL"); } catch(e: any) { if(!e.message.includes('Duplicate column name')) console.error("Failed to add column idCardBack to users:", e.message); } } catch(e){}
     try { connection.query("ALTER TABLE users MODIFY COLUMN idCardBack LONGTEXT"); } catch(e){}
-    try { connection.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS photoURL LONGTEXT DEFAULT NULL"); } catch(e){}
+    try { try { connection.query("ALTER TABLE users ADD COLUMN photoURL LONGTEXT DEFAULT NULL"); } catch(e: any) { if(!e.message.includes('Duplicate column name')) console.error("Failed to add column photoURL to users:", e.message); } } catch(e){}
     try { connection.query("ALTER TABLE users MODIFY COLUMN photoURL LONGTEXT"); } catch(e){}
-    try { connection.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS carteGriseUrl LONGTEXT DEFAULT NULL"); } catch(e){}
+    try { try { connection.query("ALTER TABLE users ADD COLUMN carteGriseUrl LONGTEXT DEFAULT NULL"); } catch(e: any) { if(!e.message.includes('Duplicate column name')) console.error("Failed to add column carteGriseUrl to users:", e.message); } } catch(e){}
     try { connection.query("ALTER TABLE users MODIFY COLUMN carteGriseUrl LONGTEXT"); } catch(e){}
-    connection.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS termsAcceptedAt datetime DEFAULT NULL");
-    connection.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS driverType varchar(50) DEFAULT 'freelance'");
-    connection.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS resetCode varchar(255) DEFAULT NULL");
-    connection.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS resetExpires varchar(255) DEFAULT NULL");
+    try { connection.query("ALTER TABLE users ADD COLUMN termsAcceptedAt datetime DEFAULT NULL"); } catch(e: any) { if(!e.message.includes('Duplicate column name')) console.error("Failed to add column termsAcceptedAt to users:", e.message); }
+    try { connection.query("ALTER TABLE users ADD COLUMN driverType varchar(50) DEFAULT 'freelance'"); } catch(e: any) { if(!e.message.includes('Duplicate column name')) console.error("Failed to add column driverType to users:", e.message); }
+    try { connection.query("ALTER TABLE users ADD COLUMN resetCode varchar(255) DEFAULT NULL"); } catch(e: any) { if(!e.message.includes('Duplicate column name')) console.error("Failed to add column resetCode to users:", e.message); }
+    try { connection.query("ALTER TABLE users ADD COLUMN resetExpires varchar(255) DEFAULT NULL"); } catch(e: any) { if(!e.message.includes('Duplicate column name')) console.error("Failed to add column resetExpires to users:", e.message); }
     
     // Ensure announcements table has all required columns
     connection.query(`
@@ -143,27 +143,27 @@ export default function initMariaDB() {
     `);
     
     // Update existing announcements table columns if they were created with old schema
-    try { connection.query("ALTER TABLE announcements ADD COLUMN IF NOT EXISTS type varchar(50) DEFAULT 'info'"); } catch(e){}
-    try { connection.query("ALTER TABLE announcements ADD COLUMN IF NOT EXISTS targetRole varchar(50) DEFAULT 'all'"); } catch(e){}
-    try { connection.query("ALTER TABLE announcements ADD COLUMN IF NOT EXISTS activeUntil datetime DEFAULT NULL"); } catch(e){}
-    try { connection.query("ALTER TABLE announcements ADD COLUMN IF NOT EXISTS is_active tinyint(1) DEFAULT 1"); } catch(e){}
-    try { connection.query("ALTER TABLE announcements ADD COLUMN IF NOT EXISTS image_url LONGTEXT DEFAULT NULL"); } catch(e){}
+    try { try { connection.query("ALTER TABLE announcements ADD COLUMN type varchar(50) DEFAULT 'info'"); } catch(e: any) { if(!e.message.includes('Duplicate column name')) console.error("Failed to add column type to announcements:", e.message); } } catch(e){}
+    try { try { connection.query("ALTER TABLE announcements ADD COLUMN targetRole varchar(50) DEFAULT 'all'"); } catch(e: any) { if(!e.message.includes('Duplicate column name')) console.error("Failed to add column targetRole to announcements:", e.message); } } catch(e){}
+    try { try { connection.query("ALTER TABLE announcements ADD COLUMN activeUntil datetime DEFAULT NULL"); } catch(e: any) { if(!e.message.includes('Duplicate column name')) console.error("Failed to add column activeUntil to announcements:", e.message); } } catch(e){}
+    try { try { connection.query("ALTER TABLE announcements ADD COLUMN is_active tinyint(1) DEFAULT 1"); } catch(e: any) { if(!e.message.includes('Duplicate column name')) console.error("Failed to add column is_active to announcements:", e.message); } } catch(e){}
+    try { try { connection.query("ALTER TABLE announcements ADD COLUMN image_url LONGTEXT DEFAULT NULL"); } catch(e: any) { if(!e.message.includes('Duplicate column name')) console.error("Failed to add column image_url to announcements:", e.message); } } catch(e){}
     
-    connection.query("ALTER TABLE withdrawals ADD COLUMN IF NOT EXISTS withdrawalInfo text DEFAULT NULL");
+    try { connection.query("ALTER TABLE withdrawals ADD COLUMN withdrawalInfo text DEFAULT NULL"); } catch(e: any) { if(!e.message.includes('Duplicate column name')) console.error("Failed to add column withdrawalInfo to withdrawals:", e.message); }
     
     // Add missing columns to deliveries table
-    try { connection.query("ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS lastMessageAt datetime DEFAULT NULL"); } catch(e){
+    try { try { connection.query("ALTER TABLE deliveries ADD COLUMN lastMessageAt datetime DEFAULT NULL"); } catch(e: any) { if(!e.message.includes('Duplicate column name')) console.error("Failed to add column lastMessageAt to deliveries:", e.message); } } catch(e){
       console.error("Failed to add lastMessageAt to deliveries:", e.message);
     }
-    try { connection.query("ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS cancelledBy varchar(255) DEFAULT NULL"); } catch(e){
+    try { try { connection.query("ALTER TABLE deliveries ADD COLUMN cancelledBy varchar(255) DEFAULT NULL"); } catch(e: any) { if(!e.message.includes('Duplicate column name')) console.error("Failed to add column cancelledBy to deliveries:", e.message); } } catch(e){
       console.error("Failed to add cancelledBy to deliveries:", e.message);
     }
-    try { connection.query("ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS rejectedBy TEXT DEFAULT NULL"); } catch(e){
+    try { try { connection.query("ALTER TABLE deliveries ADD COLUMN rejectedBy TEXT DEFAULT NULL"); } catch(e: any) { if(!e.message.includes('Duplicate column name')) console.error("Failed to add column rejectedBy to deliveries:", e.message); } } catch(e){
       console.error("Failed to add rejectedBy to deliveries:", e.message);
     }
-    try { connection.query("ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS rating double DEFAULT NULL"); } catch(e){}
-    try { connection.query("ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS feedback TEXT DEFAULT NULL"); } catch(e){}
-    try { connection.query("ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS proofImage LONGTEXT DEFAULT NULL"); } catch(e){}
+    try { try { connection.query("ALTER TABLE deliveries ADD COLUMN rating double DEFAULT NULL"); } catch(e: any) { if(!e.message.includes('Duplicate column name')) console.error("Failed to add column rating to deliveries:", e.message); } } catch(e){}
+    try { try { connection.query("ALTER TABLE deliveries ADD COLUMN feedback TEXT DEFAULT NULL"); } catch(e: any) { if(!e.message.includes('Duplicate column name')) console.error("Failed to add column feedback to deliveries:", e.message); } } catch(e){}
+    try { try { connection.query("ALTER TABLE deliveries ADD COLUMN proofImage LONGTEXT DEFAULT NULL"); } catch(e: any) { if(!e.message.includes('Duplicate column name')) console.error("Failed to add column proofImage to deliveries:", e.message); } } catch(e){}
     
     // Create sectors table if it doesn't exist
     connection.query(`
@@ -180,10 +180,10 @@ export default function initMariaDB() {
     `);
     
     // Update existing sectors table
-    try { connection.query("ALTER TABLE sectors ADD COLUMN IF NOT EXISTS isActive tinyint(1) DEFAULT 1"); } catch(e){}
-    try { connection.query("ALTER TABLE sectors ADD COLUMN IF NOT EXISTS is_active tinyint(1) DEFAULT 1"); } catch(e){}
-    try { connection.query("ALTER TABLE sectors ADD COLUMN IF NOT EXISTS image_url LONGTEXT DEFAULT NULL"); } catch(e){}
-    try { connection.query("ALTER TABLE sectors ADD COLUMN IF NOT EXISTS updatedAt datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"); } catch(e){}
+    try { try { connection.query("ALTER TABLE sectors ADD COLUMN isActive tinyint(1) DEFAULT 1"); } catch(e: any) { if(!e.message.includes('Duplicate column name')) console.error("Failed to add column isActive to sectors:", e.message); } } catch(e){}
+    try { try { connection.query("ALTER TABLE sectors ADD COLUMN is_active tinyint(1) DEFAULT 1"); } catch(e: any) { if(!e.message.includes('Duplicate column name')) console.error("Failed to add column is_active to sectors:", e.message); } } catch(e){}
+    try { try { connection.query("ALTER TABLE sectors ADD COLUMN image_url LONGTEXT DEFAULT NULL"); } catch(e: any) { if(!e.message.includes('Duplicate column name')) console.error("Failed to add column image_url to sectors:", e.message); } } catch(e){}
+    try { try { connection.query("ALTER TABLE sectors ADD COLUMN updatedAt datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"); } catch(e: any) { if(!e.message.includes('Duplicate column name')) console.error("Failed to add column updatedAt to sectors:", e.message); } } catch(e){}
 
     // Create bids table if it doesn't exist
     connection.query(`

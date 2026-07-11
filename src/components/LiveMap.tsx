@@ -35,10 +35,27 @@ const MapBoundsHandler = ({ drivers, deliveries }: LiveMapProps) => {
 
   useEffect(() => {
     // Invalidate size in case the container size changed while hidden
-    setTimeout(() => {
+    const timeout = setTimeout(() => {
       map.invalidateSize();
-    }, 250);
+    }, 500);
 
+    // Watch for container resizes
+    const resizeObserver = new ResizeObserver(() => {
+      map.invalidateSize();
+    });
+    
+    const container = map.getContainer();
+    if (container) {
+      resizeObserver.observe(container);
+    }
+
+    return () => {
+      clearTimeout(timeout);
+      if (container) resizeObserver.unobserve(container);
+    };
+  }, [map]);
+
+  useEffect(() => {
     const points: [number, number][] = [];
     
     drivers.forEach(d => {
