@@ -1500,10 +1500,11 @@ export default function AdminDashboard() {
       case 'Programmees':
       case 'Historique':
         const filteredDeliveries = deliveries.filter(d => {
-          if (activeMenu === 'En cours') return ['accepted', 'picked_up'].includes(d.status);
+          if (activeMenu === 'En cours') return d.status === 'picked_up';
           if (activeMenu === 'En attente') return d.status === 'pending';
+          if (activeMenu === 'Programmees') return ['accepted', 'ready_for_pickup'].includes(d.status);
           if (activeMenu === 'Historique') return ['delivered', 'cancelled'].includes(d.status);
-          return true;
+          return false;
         });
         return (
           <div className="bg-white rounded-3xl p-6 lg:p-5 lg:p-6 shadow-sm border border-slate-100">

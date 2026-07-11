@@ -24,7 +24,6 @@ const createCustomIcon = (color: string, svgString: string) => {
 const driverIcon = createCustomIcon('#f97316', getTruckSvg()); // Orange for drivers
 const deliveryIcon = createCustomIcon('#2563eb', getPackageSvg()); // Blue for deliveries
 
-
 interface LiveMapProps {
   drivers: UserProfile[];
   deliveries: DeliveryRequest[];
@@ -35,6 +34,11 @@ const MapBoundsHandler = ({ drivers, deliveries }: LiveMapProps) => {
   const map = useMap();
 
   useEffect(() => {
+    // Invalidate size in case the container size changed while hidden
+    setTimeout(() => {
+      map.invalidateSize();
+    }, 250);
+
     const points: [number, number][] = [];
     
     drivers.forEach(d => {
@@ -71,7 +75,8 @@ const LiveMap: React.FC<LiveMapProps> = ({ drivers, deliveries }) => {
         center={defaultCenter} 
         zoom={12} 
         scrollWheelZoom={true}
-        className="w-full h-full"
+        className="z-0"
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%' }}
       >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
