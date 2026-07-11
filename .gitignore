@@ -6,3 +6,15 @@ coverage/
 !.env.example
 local.db
 local.db-journal
+
+# Firebase Private Keys and Secrets
+*firebase-adminsdk*.json
+*-adminsdk-*.json
+*.private_key
+*.pem
+*.p8
+*.p12
+
+# Build outputs
+dist/
+build/

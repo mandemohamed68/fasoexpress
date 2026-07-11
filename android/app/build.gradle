@@ -1,10 +1,10 @@
 apply plugin: 'com.android.application'
 
 android {
-    namespace = "com.malivraison.app"
+    namespace = "com.faso.express"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.malivraison.app"
+        applicationId "com.faso.express"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
@@ -40,6 +40,10 @@ dependencies {
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
     implementation project(':capacitor-cordova-android-plugins')
+    
+    // Firebase SDK for MainActivity programmatic initialization
+    implementation platform('com.google.firebase:firebase-bom:33.1.2')
+    implementation 'com.google.firebase:firebase-common'
 }
 
 apply from: 'capacitor.build.gradle'

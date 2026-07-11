@@ -27,7 +27,7 @@ export default function NotificationBell({ lightMode = false }: NotificationBell
         setNotifications(sorted);
         setHasUnread(sorted.some((n: any) => !n.isRead));
       } catch (err) {
-        console.error("Fetch notifications failed locally", err instanceof Error ? err.message : err);
+        console.warn("Fetch notifications failed locally", err instanceof Error ? err.message : err);
       }
     };
 

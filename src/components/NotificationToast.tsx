@@ -31,7 +31,7 @@ export default function NotificationToast() {
           .slice(0, 3);
         setNotifications(unread);
       } catch (err) {
-        console.error("Fetch notifications failed locally", err instanceof Error ? err.message : err);
+        console.warn("Fetch notifications failed locally", err instanceof Error ? err.message : err);
       }
     };
 

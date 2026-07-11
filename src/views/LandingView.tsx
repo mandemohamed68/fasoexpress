@@ -501,7 +501,7 @@ export default function LandingView() {
                       required
                       type="email"
                       value={email}
-                      onChange={e => setEmail(e.target.value)}
+                      onChange={e => setEmail(e.target.value.replace(/\s+/g, ''))}
                       placeholder="Adresse email"
                       className="w-full bg-slate-50 border border-slate-100 rounded-xl pl-12 pr-4 py-3.5 text-sm font-bold text-slate-900 focus:border-orange-500 transition-all outline-none"
                     />
@@ -625,7 +625,7 @@ export default function LandingView() {
                     required
                     type="email"
                     value={email}
-                    onChange={e => setEmail(e.target.value)}
+                    onChange={e => setEmail(e.target.value.replace(/\s+/g, ''))}
                     placeholder="Ex: contact@email.com"
                     className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-sm font-bold text-slate-900 focus:border-orange-500 transition-all outline-none"
                   />
@@ -920,7 +920,7 @@ export default function LandingView() {
                   required
                   type="email"
                   value={email}
-                  onChange={e => setEmail(e.target.value)}
+                  onChange={e => setEmail(e.target.value.replace(/\s+/g, ''))}
                   placeholder="Adresse email"
                   className="w-full bg-slate-50 border border-slate-100 rounded-xl pl-12 pr-4 py-3.5 text-sm font-bold text-slate-900 focus:border-orange-500 transition-all outline-none"
                 />

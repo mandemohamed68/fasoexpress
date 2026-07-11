@@ -832,7 +832,7 @@ export default function DriverDashboard() {
                         return (
                           <Marker key={job.id} position={[job.from.lat, job.from.lng]} 
                             eventHandlers={{ click: () => setSelectedPendingJob(job) }}
-                            icon={new L.DivIcon({ className: 'custom-pulse', html: `<div class="relative w-8 h-8"><div class="absolute inset-0 ${pulseBg} rounded-full animate-ping"></div><div class="relative w-8 h-8 ${bgColor} rounded-full border-2 border-white shadow-lg flex items-center justify-center text-white">${isUrgent ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m13 2-2 10h9L7 22l2-10H1L13 2z"/></svg>' : '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle></svg>'}</div></div>`, iconAnchor: [16,16] })}
+                            icon={new L.DivIcon({ className: 'custom-pulse', html: `<div class="relative w-8 h-8"><div class="absolute inset-0 ${pulseBg} rounded-full animate-ping"></div><div class="relative w-8 h-8 ${bgColor} rounded-full border-2 border-white shadow-lg flex items-center justify-center text-white">${isUrgent ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m13 2-2 10h9L7 22l2-10H1L13 2z"/></svg>' : ''}</div></div>`, iconAnchor: [16,16] })}
                           />
                         );
                      })}

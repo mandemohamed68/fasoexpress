@@ -36,7 +36,7 @@ export default function AnnouncementBanner({ userRole }: { userRole?: string }) 
         filtered.sort((a: AppAnnouncement, b: AppAnnouncement) => b.createdAt.localeCompare(a.createdAt));
         setAnnouncements(filtered);
       } catch (err) {
-        console.error("Local announcements fetch failed", err);
+        console.warn("Local announcements fetch failed", err);
       }
     };
 

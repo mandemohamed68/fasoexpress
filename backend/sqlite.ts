@@ -423,6 +423,13 @@ function addColumnIfNotExists(tableName: string, columnName: string, columnDef: 
 
 addColumnIfNotExists('users', 'accountStatus', "TEXT DEFAULT 'active'");
 addColumnIfNotExists('users', 'verificationStatus', "TEXT DEFAULT 'pending'");
+
+// Add missing columns to deliveries table
+addColumnIfNotExists('deliveries', 'lastMessageAt', "TEXT");
+addColumnIfNotExists('deliveries', 'cancelledBy', "TEXT");
+addColumnIfNotExists('deliveries', 'cancelReason', "TEXT");
+addColumnIfNotExists('deliveries', 'rating', "REAL");
+addColumnIfNotExists('deliveries', 'feedback', "TEXT");
 addColumnIfNotExists('users', 'isVerified', "INTEGER DEFAULT 0");
 addColumnIfNotExists('users', 'phone', "TEXT");
 addColumnIfNotExists('users', 'vehicleType', "TEXT");

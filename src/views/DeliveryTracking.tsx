@@ -80,6 +80,14 @@ export default function DeliveryTracking() {
   
   const [delivery, setDelivery] = useState<DeliveryRequest | null>(null);
   const [driver, setDriver] = useState<UserProfile | null>(null);
+  const displayDriver = driver || (delivery?.driverId ? {
+    userId: delivery.driverId,
+    name: delivery.driverName || 'Livreur',
+    phone: delivery.driverPhone || '',
+    photoURL: delivery.driverPhoto,
+    avatar: undefined,
+    role: 'driver'
+  } as any : null);
   const [bids, setBids] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [routeCoords, setRouteCoords] = useState<[number, number][]>([]);
@@ -673,15 +681,15 @@ export default function DeliveryTracking() {
                 )}
 
                 {/* Driver Interaction Panel */}
-                {driver ? (
+                {displayDriver ? (
                    <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 flex items-center justify-between">
                       <div className="flex items-center gap-3">
                          <div className="w-14 h-14 bg-indigo-50 rounded-2xl text-indigo-600 flex items-center justify-center font-black overflow-hidden border border-indigo-100/50 relative">
-                            {(driver.photoURL || driver.avatar) ? <img src={driver.photoURL || driver.avatar} alt="Driver" className="w-full h-full object-cover" /> : <span className="text-xl">{driver.name[0]}</span>}
+                            {(displayDriver.photoURL || displayDriver.avatar) ? <img src={displayDriver.photoURL || displayDriver.avatar} alt="Driver" className="w-full h-full object-cover" /> : <span className="text-xl">{displayDriver.name[0]}</span>}
                          </div>
                          <div>
-                            <p className="font-black text-sm text-slate-900 tracking-tight">{driver.name}</p>
-                             <p className="text-[10px] font-bold text-slate-400 mt-0.5">{driver.phone || 'Pas de numéro'}</p>
+                            <p className="font-black text-sm text-slate-900 tracking-tight">{displayDriver.name}</p>
+                             <p className="text-[10px] font-bold text-slate-400 mt-0.5">{displayDriver.phone || 'Pas de numéro'}</p>
                             <div className="flex items-center gap-1.5 mt-0.5">
                                <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">En ligne</p>
@@ -689,7 +697,7 @@ export default function DeliveryTracking() {
                          </div>
                       </div>
                       <div className="flex gap-2">
-                         <button onClick={() => window.open(`tel:${driver.phone}`)} className="w-12 h-12 bg-slate-50 text-slate-600 rounded-2xl flex items-center justify-center hover:bg-emerald-50 hover:text-emerald-500 transition-all active:scale-90 border border-slate-100/50">
+                         <button onClick={() => window.open(`tel:${displayDriver.phone}`)} className="w-12 h-12 bg-slate-50 text-slate-600 rounded-2xl flex items-center justify-center hover:bg-emerald-50 hover:text-emerald-500 transition-all active:scale-90 border border-slate-100/50">
                              <Phone className="w-5 h-5" />
                          </button>
                          <button onClick={() => setChatOpen(true)} className="relative w-12 h-12 bg-slate-50 text-slate-600 rounded-2xl flex items-center justify-center hover:bg-indigo-50 hover:text-indigo-600 transition-all active:scale-90 border border-slate-100/50">
@@ -713,8 +721,19 @@ export default function DeliveryTracking() {
                              <div key={bid.id} className="p-5 rounded-[24px] border border-indigo-100 bg-indigo-50/30 flex flex-col gap-5 relative z-10">
                                 <div className="flex justify-between items-start px-1">
                                    <div>
-                                     <p className="font-black text-sm text-slate-900">{bid.driverName}</p>
-                                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Livreur certifié</p>
+                                     <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center font-black overflow-hidden shadow-sm border border-indigo-200/50">
+                                           {(bid.driverPhoto || bid.driverAvatar) ? (
+                                              <img src={bid.driverPhoto || bid.driverAvatar} alt="Livreur" className="w-full h-full object-cover" />
+                                           ) : (
+                                              <span className="text-xs text-indigo-600">{bid.driverName?.[0] || 'L'}</span>
+                                           )}
+                                        </div>
+                                        <div>
+                                          <p className="font-black text-sm text-slate-900">{bid.driverName}</p>
+                                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Livreur certifié</p>
+                                        </div>
+                                     </div>
                                    </div>
                                    <div className="text-right">
                                       <p className="font-black text-2xl text-indigo-600 leading-none">{bid.price} <span className="text-sm">FCFA</span></p>
