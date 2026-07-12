@@ -108,18 +108,86 @@ function initMariaDB() {
       } catch (e) {
       }
     }
-    connection.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS withdrawalPhone varchar(50) DEFAULT NULL AFTER phone");
-    connection.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS rib varchar(255) DEFAULT NULL AFTER withdrawalPhone");
-    connection.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS idCardFront text DEFAULT NULL AFTER rib");
-    connection.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS idCardBack text DEFAULT NULL AFTER idCardFront");
-    connection.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS guarantorName varchar(255) DEFAULT NULL AFTER idCardBack");
-    connection.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS guarantorPhone varchar(50) DEFAULT NULL AFTER guarantorName");
-    connection.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS guarantorCniUrl text DEFAULT NULL AFTER guarantorPhone");
-    connection.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS criminalRecordUrl text DEFAULT NULL AFTER guarantorCniUrl");
-    connection.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS verificationStatus varchar(50) DEFAULT 'unverified'");
-    connection.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS totalWithdrawn double DEFAULT 0 AFTER earnings");
+    try {
+      connection.query("ALTER TABLE users ADD COLUMN withdrawalPhone varchar(50) DEFAULT NULL AFTER phone");
+    } catch (e) {
+      if (!e.message.includes("Duplicate column name")) console.error("Failed to add column withdrawalPhone to users:", e.message);
+    }
+    try {
+      connection.query("ALTER TABLE users ADD COLUMN rib varchar(255) DEFAULT NULL AFTER withdrawalPhone");
+    } catch (e) {
+      if (!e.message.includes("Duplicate column name")) console.error("Failed to add column rib to users:", e.message);
+    }
+    try {
+      connection.query("ALTER TABLE users ADD COLUMN idCardFront text DEFAULT NULL AFTER rib");
+    } catch (e) {
+      if (!e.message.includes("Duplicate column name")) console.error("Failed to add column idCardFront to users:", e.message);
+    }
+    try {
+      connection.query("ALTER TABLE users ADD COLUMN idCardBack text DEFAULT NULL AFTER idCardFront");
+    } catch (e) {
+      if (!e.message.includes("Duplicate column name")) console.error("Failed to add column idCardBack to users:", e.message);
+    }
+    try {
+      connection.query("ALTER TABLE users ADD COLUMN guarantorName varchar(255) DEFAULT NULL AFTER idCardBack");
+    } catch (e) {
+      if (!e.message.includes("Duplicate column name")) console.error("Failed to add column guarantorName to users:", e.message);
+    }
+    try {
+      connection.query("ALTER TABLE users ADD COLUMN guarantorPhone varchar(50) DEFAULT NULL AFTER guarantorName");
+    } catch (e) {
+      if (!e.message.includes("Duplicate column name")) console.error("Failed to add column guarantorPhone to users:", e.message);
+    }
+    try {
+      connection.query("ALTER TABLE users ADD COLUMN guarantorCniUrl text DEFAULT NULL AFTER guarantorPhone");
+    } catch (e) {
+      if (!e.message.includes("Duplicate column name")) console.error("Failed to add column guarantorCniUrl to users:", e.message);
+    }
+    try {
+      connection.query("ALTER TABLE users ADD COLUMN criminalRecordUrl text DEFAULT NULL AFTER guarantorCniUrl");
+    } catch (e) {
+      if (!e.message.includes("Duplicate column name")) console.error("Failed to add column criminalRecordUrl to users:", e.message);
+    }
+    try {
+      connection.query("ALTER TABLE users ADD COLUMN verificationStatus varchar(50) DEFAULT 'unverified'");
+    } catch (e) {
+      if (!e.message.includes("Duplicate column name")) console.error("Failed to add column verificationStatus to users:", e.message);
+    }
+    try {
+      connection.query("ALTER TABLE users ADD COLUMN totalWithdrawn double DEFAULT 0 AFTER earnings");
+    } catch (e) {
+      if (!e.message.includes("Duplicate column name")) console.error("Failed to add column totalWithdrawn to users:", e.message);
+    }
+    try {
+      try {
+        connection.query("ALTER TABLE users ADD COLUMN identityCardUrl LONGTEXT DEFAULT NULL");
+      } catch (e) {
+        if (!e.message.includes("Duplicate column name")) console.error("Failed to add column identityCardUrl to users:", e.message);
+      }
+    } catch (e) {
+    }
     try {
       connection.query("ALTER TABLE users MODIFY COLUMN identityCardUrl LONGTEXT");
+    } catch (e) {
+    }
+    try {
+      try {
+        connection.query("ALTER TABLE users ADD COLUMN identityCardBackUrl LONGTEXT DEFAULT NULL");
+      } catch (e) {
+        if (!e.message.includes("Duplicate column name")) console.error("Failed to add column identityCardBackUrl to users:", e.message);
+      }
+    } catch (e) {
+    }
+    try {
+      connection.query("ALTER TABLE users MODIFY COLUMN identityCardBackUrl LONGTEXT");
+    } catch (e) {
+    }
+    try {
+      try {
+        connection.query("ALTER TABLE users ADD COLUMN criminalRecordUrl LONGTEXT DEFAULT NULL");
+      } catch (e) {
+        if (!e.message.includes("Duplicate column name")) console.error("Failed to add column criminalRecordUrl to users:", e.message);
+      }
     } catch (e) {
     }
     try {
@@ -127,7 +195,23 @@ function initMariaDB() {
     } catch (e) {
     }
     try {
+      try {
+        connection.query("ALTER TABLE users ADD COLUMN guarantorCniUrl LONGTEXT DEFAULT NULL");
+      } catch (e) {
+        if (!e.message.includes("Duplicate column name")) console.error("Failed to add column guarantorCniUrl to users:", e.message);
+      }
+    } catch (e) {
+    }
+    try {
       connection.query("ALTER TABLE users MODIFY COLUMN guarantorCniUrl LONGTEXT");
+    } catch (e) {
+    }
+    try {
+      try {
+        connection.query("ALTER TABLE users ADD COLUMN idCardFront LONGTEXT DEFAULT NULL");
+      } catch (e) {
+        if (!e.message.includes("Duplicate column name")) console.error("Failed to add column idCardFront to users:", e.message);
+      }
     } catch (e) {
     }
     try {
@@ -135,11 +219,61 @@ function initMariaDB() {
     } catch (e) {
     }
     try {
+      try {
+        connection.query("ALTER TABLE users ADD COLUMN idCardBack LONGTEXT DEFAULT NULL");
+      } catch (e) {
+        if (!e.message.includes("Duplicate column name")) console.error("Failed to add column idCardBack to users:", e.message);
+      }
+    } catch (e) {
+    }
+    try {
       connection.query("ALTER TABLE users MODIFY COLUMN idCardBack LONGTEXT");
     } catch (e) {
     }
-    connection.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS termsAcceptedAt datetime DEFAULT NULL");
-    connection.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS driverType varchar(50) DEFAULT 'freelance'");
+    try {
+      try {
+        connection.query("ALTER TABLE users ADD COLUMN photoURL LONGTEXT DEFAULT NULL");
+      } catch (e) {
+        if (!e.message.includes("Duplicate column name")) console.error("Failed to add column photoURL to users:", e.message);
+      }
+    } catch (e) {
+    }
+    try {
+      connection.query("ALTER TABLE users MODIFY COLUMN photoURL LONGTEXT");
+    } catch (e) {
+    }
+    try {
+      try {
+        connection.query("ALTER TABLE users ADD COLUMN carteGriseUrl LONGTEXT DEFAULT NULL");
+      } catch (e) {
+        if (!e.message.includes("Duplicate column name")) console.error("Failed to add column carteGriseUrl to users:", e.message);
+      }
+    } catch (e) {
+    }
+    try {
+      connection.query("ALTER TABLE users MODIFY COLUMN carteGriseUrl LONGTEXT");
+    } catch (e) {
+    }
+    try {
+      connection.query("ALTER TABLE users ADD COLUMN termsAcceptedAt datetime DEFAULT NULL");
+    } catch (e) {
+      if (!e.message.includes("Duplicate column name")) console.error("Failed to add column termsAcceptedAt to users:", e.message);
+    }
+    try {
+      connection.query("ALTER TABLE users ADD COLUMN driverType varchar(50) DEFAULT 'freelance'");
+    } catch (e) {
+      if (!e.message.includes("Duplicate column name")) console.error("Failed to add column driverType to users:", e.message);
+    }
+    try {
+      connection.query("ALTER TABLE users ADD COLUMN resetCode varchar(255) DEFAULT NULL");
+    } catch (e) {
+      if (!e.message.includes("Duplicate column name")) console.error("Failed to add column resetCode to users:", e.message);
+    }
+    try {
+      connection.query("ALTER TABLE users ADD COLUMN resetExpires varchar(255) DEFAULT NULL");
+    } catch (e) {
+      if (!e.message.includes("Duplicate column name")) console.error("Failed to add column resetExpires to users:", e.message);
+    }
     connection.query(`
       CREATE TABLE IF NOT EXISTS announcements (
         id varchar(255) PRIMARY KEY,
@@ -154,30 +288,100 @@ function initMariaDB() {
       ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
     `);
     try {
-      connection.query("ALTER TABLE announcements ADD COLUMN IF NOT EXISTS type varchar(50) DEFAULT 'info'");
+      try {
+        connection.query("ALTER TABLE announcements ADD COLUMN type varchar(50) DEFAULT 'info'");
+      } catch (e) {
+        if (!e.message.includes("Duplicate column name")) console.error("Failed to add column type to announcements:", e.message);
+      }
     } catch (e) {
     }
     try {
-      connection.query("ALTER TABLE announcements ADD COLUMN IF NOT EXISTS targetRole varchar(50) DEFAULT 'all'");
+      try {
+        connection.query("ALTER TABLE announcements ADD COLUMN targetRole varchar(50) DEFAULT 'all'");
+      } catch (e) {
+        if (!e.message.includes("Duplicate column name")) console.error("Failed to add column targetRole to announcements:", e.message);
+      }
     } catch (e) {
     }
     try {
-      connection.query("ALTER TABLE announcements ADD COLUMN IF NOT EXISTS activeUntil datetime DEFAULT NULL");
+      try {
+        connection.query("ALTER TABLE announcements ADD COLUMN activeUntil datetime DEFAULT NULL");
+      } catch (e) {
+        if (!e.message.includes("Duplicate column name")) console.error("Failed to add column activeUntil to announcements:", e.message);
+      }
     } catch (e) {
     }
     try {
-      connection.query("ALTER TABLE announcements ADD COLUMN IF NOT EXISTS is_active tinyint(1) DEFAULT 1");
+      try {
+        connection.query("ALTER TABLE announcements ADD COLUMN is_active tinyint(1) DEFAULT 1");
+      } catch (e) {
+        if (!e.message.includes("Duplicate column name")) console.error("Failed to add column is_active to announcements:", e.message);
+      }
     } catch (e) {
     }
     try {
-      connection.query("ALTER TABLE announcements ADD COLUMN IF NOT EXISTS image_url LONGTEXT DEFAULT NULL");
+      try {
+        connection.query("ALTER TABLE announcements ADD COLUMN image_url LONGTEXT DEFAULT NULL");
+      } catch (e) {
+        if (!e.message.includes("Duplicate column name")) console.error("Failed to add column image_url to announcements:", e.message);
+      }
     } catch (e) {
     }
-    connection.query("ALTER TABLE withdrawals ADD COLUMN IF NOT EXISTS withdrawalInfo text DEFAULT NULL");
     try {
-      connection.query("ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS lastMessageAt datetime DEFAULT NULL");
+      connection.query("ALTER TABLE withdrawals ADD COLUMN withdrawalInfo text DEFAULT NULL");
+    } catch (e) {
+      if (!e.message.includes("Duplicate column name")) console.error("Failed to add column withdrawalInfo to withdrawals:", e.message);
+    }
+    try {
+      try {
+        connection.query("ALTER TABLE deliveries ADD COLUMN lastMessageAt datetime DEFAULT NULL");
+      } catch (e) {
+        if (!e.message.includes("Duplicate column name")) console.error("Failed to add column lastMessageAt to deliveries:", e.message);
+      }
     } catch (e) {
       console.error("Failed to add lastMessageAt to deliveries:", e.message);
+    }
+    try {
+      try {
+        connection.query("ALTER TABLE deliveries ADD COLUMN cancelledBy varchar(255) DEFAULT NULL");
+      } catch (e) {
+        if (!e.message.includes("Duplicate column name")) console.error("Failed to add column cancelledBy to deliveries:", e.message);
+      }
+    } catch (e) {
+      console.error("Failed to add cancelledBy to deliveries:", e.message);
+    }
+    try {
+      try {
+        connection.query("ALTER TABLE deliveries ADD COLUMN rejectedBy TEXT DEFAULT NULL");
+      } catch (e) {
+        if (!e.message.includes("Duplicate column name")) console.error("Failed to add column rejectedBy to deliveries:", e.message);
+      }
+    } catch (e) {
+      console.error("Failed to add rejectedBy to deliveries:", e.message);
+    }
+    try {
+      try {
+        connection.query("ALTER TABLE deliveries ADD COLUMN rating double DEFAULT NULL");
+      } catch (e) {
+        if (!e.message.includes("Duplicate column name")) console.error("Failed to add column rating to deliveries:", e.message);
+      }
+    } catch (e) {
+    }
+    try {
+      try {
+        connection.query("ALTER TABLE deliveries ADD COLUMN feedback TEXT DEFAULT NULL");
+      } catch (e) {
+        if (!e.message.includes("Duplicate column name")) console.error("Failed to add column feedback to deliveries:", e.message);
+      }
+    } catch (e) {
+    }
+    try {
+      try {
+        connection.query("ALTER TABLE deliveries ADD COLUMN proofImage LONGTEXT DEFAULT NULL");
+      } catch (e) {
+        if (!e.message.includes("Duplicate column name")) console.error("Failed to add column proofImage to deliveries:", e.message);
+      }
+    } catch (e) {
     }
     connection.query(`
       CREATE TABLE IF NOT EXISTS sectors (
@@ -192,19 +396,35 @@ function initMariaDB() {
       ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
     `);
     try {
-      connection.query("ALTER TABLE sectors ADD COLUMN IF NOT EXISTS isActive tinyint(1) DEFAULT 1");
+      try {
+        connection.query("ALTER TABLE sectors ADD COLUMN isActive tinyint(1) DEFAULT 1");
+      } catch (e) {
+        if (!e.message.includes("Duplicate column name")) console.error("Failed to add column isActive to sectors:", e.message);
+      }
     } catch (e) {
     }
     try {
-      connection.query("ALTER TABLE sectors ADD COLUMN IF NOT EXISTS is_active tinyint(1) DEFAULT 1");
+      try {
+        connection.query("ALTER TABLE sectors ADD COLUMN is_active tinyint(1) DEFAULT 1");
+      } catch (e) {
+        if (!e.message.includes("Duplicate column name")) console.error("Failed to add column is_active to sectors:", e.message);
+      }
     } catch (e) {
     }
     try {
-      connection.query("ALTER TABLE sectors ADD COLUMN IF NOT EXISTS image_url LONGTEXT DEFAULT NULL");
+      try {
+        connection.query("ALTER TABLE sectors ADD COLUMN image_url LONGTEXT DEFAULT NULL");
+      } catch (e) {
+        if (!e.message.includes("Duplicate column name")) console.error("Failed to add column image_url to sectors:", e.message);
+      }
     } catch (e) {
     }
     try {
-      connection.query("ALTER TABLE sectors ADD COLUMN IF NOT EXISTS updatedAt datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
+      try {
+        connection.query("ALTER TABLE sectors ADD COLUMN updatedAt datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
+      } catch (e) {
+        if (!e.message.includes("Duplicate column name")) console.error("Failed to add column updatedAt to sectors:", e.message);
+      }
     } catch (e) {
     }
     connection.query(`
@@ -253,6 +473,15 @@ function initMariaDB() {
       ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
     `);
     connection.query(`
+      CREATE TABLE IF NOT EXISTS driver_mission_history (
+        id varchar(255) PRIMARY KEY,
+        driverId varchar(255) NOT NULL,
+        deliveryId varchar(255) NOT NULL,
+        action varchar(50) NOT NULL,
+        createdAt datetime DEFAULT CURRENT_TIMESTAMP
+      ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
+    `);
+    connection.query(`
       CREATE TABLE IF NOT EXISTS messages (
         id varchar(255) PRIMARY KEY,
         deliveryId varchar(255) NOT NULL,
@@ -284,6 +513,15 @@ function initMariaDB() {
         userId varchar(255) NOT NULL,
         deliveryId varchar(255),
         used_at datetime DEFAULT CURRENT_TIMESTAMP
+      ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
+    `);
+    connection.query(`
+      CREATE TABLE IF NOT EXISTS user_push_tokens (
+        id int AUTO_INCREMENT PRIMARY KEY,
+        userId varchar(255) NOT NULL,
+        token varchar(255) NOT NULL UNIQUE,
+        deviceType varchar(50),
+        createdAt datetime DEFAULT CURRENT_TIMESTAMP
       ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
     `);
     console.log("MariaDB: V\xE9rification/Ajout des colonnes de profil et syst\xE8me r\xE9ussie.");
@@ -328,6 +566,18 @@ function initMariaDB() {
           const result = connection.query(formattedSql);
           return result;
         } catch (e) {
+          const errMsg = e.message || "";
+          if (errMsg.includes("nativeNC") || errMsg.includes("socket") || errMsg.includes("connection") || errMsg.includes("read ECONNRESET") || errMsg.includes("write EPIPE")) {
+            console.warn("MariaDB connection lost, attempting reconnect... (Error: " + errMsg + ")");
+            try {
+              connect();
+              console.log("MariaDB reconnected successfully. Retrying query...");
+              return connection.query(formattedSql);
+            } catch (reconnectErr) {
+              console.error("MariaDB reconnect failed:", reconnectErr);
+              throw e;
+            }
+          }
           console.error("MariaDB query error:", e.message, "\\nSQL:", formattedSql);
           throw e;
         }
@@ -444,7 +694,7 @@ function initSQLiteDB() {
     id TEXT PRIMARY KEY,
     userId TEXT UNIQUE,
     name TEXT NOT NULL,
-    email TEXT UNIQUE NOT NULL,
+    email TEXT NOT NULL,
     password TEXT, -- For local auth
     role TEXT CHECK(role IN ('client', 'driver', 'admin', 'superadmin')) NOT NULL,
     status TEXT DEFAULT 'online',
@@ -460,7 +710,8 @@ function initSQLiteDB() {
     currentLocation TEXT, -- JSON string
     balance REAL DEFAULT 0,
     earnings REAL DEFAULT 0,
-    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(email, role)
   );
 
   CREATE TABLE IF NOT EXISTS deliveries (
@@ -481,6 +732,7 @@ function initSQLiteDB() {
     pickupCode TEXT,
     deliveryCode TEXT,
     rejectedBy TEXT, -- JSON array
+    proofImage TEXT,
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
     updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(clientId) REFERENCES users(userId),
@@ -572,6 +824,22 @@ function initSQLiteDB() {
     FOREIGN KEY(deliveryId) REFERENCES deliveries(id),
     FOREIGN KEY(driverId) REFERENCES users(userId)
   );
+
+  CREATE TABLE IF NOT EXISTS driver_mission_history (
+    id TEXT PRIMARY KEY,
+    driverId TEXT NOT NULL,
+    deliveryId TEXT NOT NULL,
+    action TEXT NOT NULL, -- 'accepted', 'rejected', 'assigned'
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS user_push_tokens (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    userId TEXT NOT NULL,
+    token TEXT NOT NULL UNIQUE,
+    deviceType TEXT,
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
 `);
   } catch (err) {
     console.error("Critical error during database schema creation:", err);
@@ -592,7 +860,12 @@ function initSQLiteDB() {
     { name: "urgentFee", type: "REAL DEFAULT 0" },
     { name: "boostAmount", type: "REAL DEFAULT 0" },
     { name: "lastMessageAt", type: "TEXT" },
-    { name: "cancelReason", type: "TEXT" }
+    { name: "cancelReason", type: "TEXT" },
+    { name: "cancellationReason", type: "TEXT" },
+    { name: "rejectedBy", type: "TEXT" },
+    { name: "rating", type: "REAL" },
+    { name: "feedback", type: "TEXT" },
+    { name: "proofImage", type: "TEXT" }
   ];
   const withdrawCols = [
     { name: "withdrawalInfo", type: "TEXT" }
@@ -604,7 +877,9 @@ function initSQLiteDB() {
     { name: "identityCardUrl", type: "TEXT" },
     { name: "identityCardBackUrl", type: "TEXT" },
     { name: "criminalRecordUrl", type: "TEXT" },
-    { name: "verificationStatus", type: "TEXT" }
+    { name: "verificationStatus", type: "TEXT" },
+    { name: "resetCode", type: "TEXT" },
+    { name: "resetExpires", type: "TEXT" }
   ];
   colsToAdd.forEach((col) => {
     try {
@@ -671,6 +946,54 @@ function initSQLiteDB() {
   } catch (migrationError) {
     console.error("Migration to support superadmin failed:", migrationError);
   }
+  try {
+    const tableInfo = db2.prepare("SELECT sql FROM sqlite_schema WHERE type='table' AND name='users'").get();
+    if (tableInfo && tableInfo.sql && (tableInfo.sql.includes("email TEXT UNIQUE") || tableInfo.sql.includes("email TEXT NOT NULL UNIQUE") || tableInfo.sql.includes("UNIQUE(email)") || tableInfo.sql.includes("UNIQUE (email)"))) {
+      console.log("Migration: Upgrading 'users' table email constraint to support composite unique(email, role)...");
+      db2.exec("PRAGMA foreign_keys=OFF;");
+      db2.exec("PRAGMA legacy_alter_table=ON;");
+      db2.transaction(() => {
+        db2.exec("ALTER TABLE users RENAME TO _users_old_email;");
+        db2.exec(`
+        CREATE TABLE users (
+          id TEXT PRIMARY KEY,
+          userId TEXT UNIQUE,
+          name TEXT NOT NULL,
+          email TEXT NOT NULL,
+          password TEXT,
+          role TEXT CHECK(role IN ('client', 'driver', 'admin', 'superadmin')) NOT NULL,
+          status TEXT DEFAULT 'online',
+          accountStatus TEXT DEFAULT 'active',
+          isVerified INTEGER DEFAULT 0,
+          city TEXT,
+          neighborhood TEXT,
+          verificationStatus TEXT DEFAULT 'pending',
+          guarantorName TEXT,
+          guarantorPhone TEXT,
+          identityCardUrl TEXT,
+          criminalRecordUrl TEXT,
+          currentLocation TEXT,
+          balance REAL DEFAULT 0,
+          earnings REAL DEFAULT 0,
+          createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(email, role)
+        );
+      `);
+        const pragmaOld = db2.prepare("PRAGMA table_info(_users_old_email)").all();
+        const pragmaNew = db2.prepare("PRAGMA table_info(users)").all();
+        const oldColNames = new Set(pragmaOld.map((c) => c.name));
+        const newColNames = pragmaNew.map((c) => c.name);
+        const commonCols = newColNames.filter((c) => oldColNames.has(c)).join(", ");
+        db2.exec(`INSERT INTO users (${commonCols}) SELECT ${commonCols} FROM _users_old_email;`);
+        db2.exec("DROP TABLE _users_old_email;");
+      })();
+      db2.exec("PRAGMA legacy_alter_table=OFF;");
+      db2.exec("PRAGMA foreign_keys=ON;");
+      console.log("Migration: 'users' table email constraint upgraded successfully.");
+    }
+  } catch (migrationError) {
+    console.error("Migration to allow same email for multiple roles failed:", migrationError);
+  }
   function addColumnIfNotExists(tableName, columnName, columnDef) {
     try {
       db2.exec(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${columnDef}`);
@@ -683,6 +1006,11 @@ function initSQLiteDB() {
   }
   addColumnIfNotExists("users", "accountStatus", "TEXT DEFAULT 'active'");
   addColumnIfNotExists("users", "verificationStatus", "TEXT DEFAULT 'pending'");
+  addColumnIfNotExists("deliveries", "lastMessageAt", "TEXT");
+  addColumnIfNotExists("deliveries", "cancelledBy", "TEXT");
+  addColumnIfNotExists("deliveries", "cancelReason", "TEXT");
+  addColumnIfNotExists("deliveries", "rating", "REAL");
+  addColumnIfNotExists("deliveries", "feedback", "TEXT");
   addColumnIfNotExists("users", "isVerified", "INTEGER DEFAULT 0");
   addColumnIfNotExists("users", "phone", "TEXT");
   addColumnIfNotExists("users", "vehicleType", "TEXT");
@@ -716,6 +1044,7 @@ function initSQLiteDB() {
   addColumnIfNotExists("users", "dailyGoal", "REAL DEFAULT 0");
   addColumnIfNotExists("users", "photoURL", "TEXT");
   addColumnIfNotExists("users", "address", "TEXT");
+  addColumnIfNotExists("users", "carteGriseUrl", "TEXT");
   addColumnIfNotExists("bids", "attempts", "INTEGER DEFAULT 1");
   try {
     db2.exec(`
@@ -792,6 +1121,155 @@ var import_bcryptjs = __toESM(require("bcryptjs"), 1);
 var import_jsonwebtoken = __toESM(require("jsonwebtoken"), 1);
 var import_uuid = require("uuid");
 var import_genai = require("@google/genai");
+var import_nodemailer = __toESM(require("nodemailer"), 1);
+var import_app = require("firebase-admin/app");
+var import_messaging = require("firebase-admin/messaging");
+var import_fs2 = __toESM(require("fs"), 1);
+var firebaseAdminApp = null;
+function getFirebaseAdmin() {
+  if (firebaseAdminApp) return firebaseAdminApp;
+  const serviceAccountVar = process.env.FIREBASE_SERVICE_ACCOUNT;
+  if (serviceAccountVar) {
+    try {
+      let cleanedVar = serviceAccountVar.trim();
+      if (cleanedVar.startsWith("'") && cleanedVar.endsWith("'") || cleanedVar.startsWith('"') && cleanedVar.endsWith('"')) {
+        cleanedVar = cleanedVar.substring(1, cleanedVar.length - 1).trim();
+      }
+      cleanedVar = cleanedVar.replace(/\\n/g, "\n");
+      if (cleanedVar.includes('\\"')) {
+        cleanedVar = cleanedVar.replace(/\\"/g, '"');
+      }
+      let serviceAccount;
+      try {
+        serviceAccount = JSON.parse(cleanedVar);
+      } catch (err) {
+        serviceAccount = new Function("return " + cleanedVar)();
+      }
+      firebaseAdminApp = (0, import_app.initializeApp)({
+        credential: (0, import_app.cert)(serviceAccount)
+      });
+      console.log("[FCM] Firebase Admin initialis\xE9 avec les variables d'environnement.");
+      return firebaseAdminApp;
+    } catch (e) {
+      console.error("[FCM] \xC9chec d'analyse de FIREBASE_SERVICE_ACCOUNT:", e);
+    }
+  }
+  const saPath = import_path3.default.join(process.cwd(), "service-account.json");
+  if (import_fs2.default.existsSync(saPath)) {
+    try {
+      const serviceAccount = JSON.parse(import_fs2.default.readFileSync(saPath, "utf8"));
+      firebaseAdminApp = (0, import_app.initializeApp)({
+        credential: (0, import_app.cert)(serviceAccount)
+      });
+      console.log("[FCM] Firebase Admin initialis\xE9 avec le fichier service-account.json.");
+      return firebaseAdminApp;
+    } catch (e) {
+      console.error("[FCM] \xC9chec d'initialisation de Firebase Admin avec service-account.json:", e);
+    }
+  }
+  console.warn("[FCM] Firebase Admin NON initialis\xE9. Les notifications push natives ne seront pas envoy\xE9es. Veuillez configurer la variable d'environnement FIREBASE_SERVICE_ACCOUNT ou placer un fichier service-account.json \xE0 la racine.");
+  return null;
+}
+async function sendPushNotification(userId, title, body, data = {}) {
+  try {
+    const adminApp = getFirebaseAdmin();
+    if (!adminApp) {
+      console.log(`[FCM] Notification en attente (Firebase non initialis\xE9). Utilisateur: ${userId}, Titre: ${title}`);
+      return;
+    }
+    const tokens = db_default.prepare("SELECT token FROM user_push_tokens WHERE userId = ?").all(userId);
+    if (tokens.length === 0) {
+      console.log(`[FCM] Aucun token de push enregistr\xE9 pour l'utilisateur: ${userId}`);
+      return;
+    }
+    const registrationTokens = tokens.map((t) => t.token);
+    const message = {
+      notification: {
+        title,
+        body
+      },
+      data: {
+        ...data,
+        click_action: "FLUTTER_NOTIFICATION_CLICK"
+      },
+      android: {
+        priority: "high",
+        notification: {
+          sound: "default",
+          channelId: "high_importance_channel",
+          priority: "max",
+          defaultSound: true,
+          defaultVibrateTimings: true
+        }
+      },
+      apns: {
+        headers: {
+          "apns-priority": "10"
+        },
+        payload: {
+          aps: {
+            sound: "default",
+            badge: 1
+          }
+        }
+      },
+      tokens: registrationTokens
+    };
+    const response = await (0, import_messaging.getMessaging)(adminApp).sendEachForMulticast(message);
+    console.log(`[FCM] Push envoy\xE9 avec succ\xE8s \xE0 ${response.successCount} appareils pour l'utilisateur ${userId}. Erreurs: ${response.failureCount}`);
+    if (response.failureCount > 0) {
+      response.responses.forEach((resp, idx) => {
+        if (!resp.success) {
+          const error = resp.error;
+          if (error && (error.code === "messaging/invalid-registration-token" || error.code === "messaging/registration-token-not-registered")) {
+            const badToken = registrationTokens[idx];
+            db_default.prepare("DELETE FROM user_push_tokens WHERE token = ?").run(badToken);
+            console.log(`[FCM] Token de push invalide supprim\xE9: ${badToken}`);
+          }
+        }
+      });
+    }
+  } catch (err) {
+    console.error("[FCM] Erreur lors de l'envoi de la notification push:", err);
+  }
+}
+var originalPrepare = db_default.prepare;
+db_default.prepare = function(sql) {
+  const stmt = originalPrepare.call(db_default, sql);
+  const isNotificationInsert = /INSERT\s+INTO\s+notifications/i.test(sql);
+  if (isNotificationInsert && stmt) {
+    const originalRun = stmt.run;
+    stmt.run = function(...args) {
+      const result = originalRun.apply(stmt, args);
+      try {
+        const columnsMatch = sql.match(/\(([^)]+)\)/);
+        if (columnsMatch && columnsMatch[1]) {
+          const columns = columnsMatch[1].split(",").map((c) => c.trim().toLowerCase());
+          const userIdIdx = columns.indexOf("userid");
+          const titleIdx = columns.indexOf("title");
+          const messageIdx = columns.indexOf("message");
+          const typeIdx = columns.indexOf("type");
+          const linkIdx = columns.indexOf("link");
+          const userId = userIdIdx !== -1 ? args[userIdIdx] : null;
+          const title = titleIdx !== -1 ? args[titleIdx] : "";
+          const message = messageIdx !== -1 ? args[messageIdx] : "";
+          const type = typeIdx !== -1 ? args[typeIdx] : "";
+          const link = linkIdx !== -1 ? args[linkIdx] : "";
+          if (userId) {
+            sendPushNotification(userId, title, message, {
+              type: type || "info",
+              link: link || ""
+            });
+          }
+        }
+      } catch (e) {
+        console.error("[FCM Interceptor] Error intercepting notification insert:", e);
+      }
+      return result;
+    };
+  }
+  return stmt;
+};
 import_dotenv2.default.config();
 import_dotenv2.default.config({ path: import_path3.default.join(process.cwd(), ".env") });
 try {
@@ -814,6 +1292,43 @@ async function startServer() {
     const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
+  }
+  function getClosestAvailableDriver(deliveryId, fromLoc, rejectedByList = []) {
+    try {
+      const drivers = db_default.prepare(`
+        SELECT userId, name, currentLocation 
+        FROM users 
+        WHERE role = 'driver' 
+          AND status = 'online' 
+          AND accountStatus = 'active' 
+          AND verificationStatus = 'verified'
+      `).all();
+      let closestDriver = null;
+      let minDistance = Infinity;
+      for (const driver of drivers) {
+        if (rejectedByList.includes(driver.userId)) continue;
+        let driverLoc = null;
+        try {
+          if (driver.currentLocation) driverLoc = JSON.parse(driver.currentLocation);
+        } catch (e) {
+        }
+        if (driverLoc && driverLoc.lat && driverLoc.lng) {
+          const dist = calculateDistance(fromLoc.lat, fromLoc.lng, driverLoc.lat, driverLoc.lng);
+          if (dist < minDistance) {
+            minDistance = dist;
+            closestDriver = driver;
+          }
+        } else {
+          if (!closestDriver) {
+            closestDriver = driver;
+          }
+        }
+      }
+      return closestDriver;
+    } catch (err) {
+      console.error("Error in getClosestAvailableDriver:", err);
+      return null;
+    }
   }
   const MASTER_ADMIN_EMAILS = ["mandemohamed68@gmail.com", "mandemohamed6868@gmail.com"];
   const authenticate = (req, res, next) => {
@@ -847,7 +1362,7 @@ async function startServer() {
       if (user.accountStatus === "suspended") {
         const isMaster = MASTER_ADMIN_EMAILS.includes(user.email);
         if (!isMaster) {
-          return res.status(400).json({ error: "Votre compte a \xE9t\xE9 suspendu par l'administrateur. Veuillez contacter le support." });
+          return res.status(403).json({ error: "ACCOUNT_SUSPENDED", details: "Votre compte a \xE9t\xE9 suspendu par l'administrateur. Veuillez prendre attache avec le support." });
         }
       }
       req.user = {
@@ -891,11 +1406,34 @@ async function startServer() {
     if (password.length < 6) {
       return res.status(400).json({ error: "Le mot de passe doit contenir au moins 6 caract\xE8res." });
     }
+    const targetRole = role || "client";
     try {
+      const existingUser = db_default.prepare("SELECT * FROM users WHERE email = ? AND role = ?").get(email, targetRole);
+      if (existingUser) {
+        return res.status(400).json({ error: "Cette adresse email est d\xE9j\xE0 utilis\xE9e pour ce r\xF4le." });
+      }
       const hashedPassword = await import_bcryptjs.default.hash(password, 10);
       const userId = (0, import_uuid.v4)();
       const stmt = db_default.prepare("INSERT INTO users (id, userId, name, email, password, role) VALUES (?, ?, ?, ?, ?, ?)");
-      stmt.run(userId, userId, name, email, hashedPassword, role || "client");
+      stmt.run(userId, userId, name, email, hashedPassword, targetRole);
+      if (targetRole === "driver") {
+        let approvalMode = "manual";
+        try {
+          const row = db_default.prepare("SELECT value FROM config WHERE `key` = 'app_config'").get();
+          if (row && row.value) {
+            const appConfig = JSON.parse(row.value);
+            if (appConfig.driverApprovalMode) {
+              approvalMode = appConfig.driverApprovalMode;
+            }
+          }
+        } catch (err) {
+        }
+        if (approvalMode === "automatic" || approvalMode === "disabled") {
+          db_default.prepare("UPDATE users SET verificationStatus = 'verified', accountStatus = 'active', isVerified = 1 WHERE userId = ?").run(userId);
+        } else {
+          db_default.prepare("UPDATE users SET verificationStatus = 'pending', accountStatus = 'pending_approval', isVerified = 0 WHERE userId = ?").run(userId);
+        }
+      }
       const allowedFields = [
         "city",
         "neighborhood",
@@ -943,30 +1481,153 @@ async function startServer() {
         } catch (e) {
         }
       }
-      const token = import_jsonwebtoken.default.sign({ userId, email, role }, JWT_SECRET);
+      const token = import_jsonwebtoken.default.sign({ userId, email, role: targetRole }, JWT_SECRET);
       res.json({ token, user: fullUser });
     } catch (error) {
       if (error.message.includes("UNIQUE")) {
-        return res.status(400).json({ error: "Cette adresse email est d\xE9j\xE0 utilis\xE9e." });
+        return res.status(400).json({ error: "Cette adresse email est d\xE9j\xE0 utilis\xE9e pour ce r\xF4le." });
       }
       res.status(500).json({ error: "Erreur lors de l'inscription. Veuillez r\xE9essayer." });
     }
   });
   app.post("/api/auth/login", async (req, res) => {
-    const { email, password } = req.body;
+    const { email, password, role } = req.body;
     try {
-      const user = db_default.prepare("SELECT * FROM users WHERE email = ?").get(email);
+      let user = null;
+      if (role) {
+        user = db_default.prepare("SELECT * FROM users WHERE email = ? AND role = ?").get(email, role);
+      }
+      if (!user) {
+        user = db_default.prepare("SELECT * FROM users WHERE email = ?").get(email);
+      }
       if (!user || !await import_bcryptjs.default.compare(password, user.password)) {
         return res.status(401).json({ error: "Email ou mot de passe incorrect." });
       }
       if (user.accountStatus === "suspended") {
-        return res.status(400).json({ error: "Votre compte a \xE9t\xE9 suspendu par l'administrateur. Veuillez contacter le support." });
+        return res.status(403).json({ error: "ACCOUNT_SUSPENDED", details: "Votre compte a \xE9t\xE9 suspendu par l'administrateur. Veuillez prendre attache avec le support." });
       }
       delete user.password;
       const token = import_jsonwebtoken.default.sign({ userId: user.userId || user.id, email: user.email, role: user.role }, JWT_SECRET);
       res.json({ token, user });
     } catch (error) {
       res.status(500).json({ error: "Erreur de connexion serveur." });
+    }
+  });
+  app.post("/api/auth/forgot-password", async (req, res) => {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ error: "L'adresse email est requise." });
+    }
+    try {
+      const user = db_default.prepare("SELECT * FROM users WHERE email = ?").get(email);
+      if (!user) {
+        return res.json({ status: "ok", message: "Si cette adresse existe, un code de r\xE9initialisation lui a \xE9t\xE9 envoy\xE9." });
+      }
+      const configRow = db_default.prepare("SELECT value FROM config WHERE `key` = 'app_config'").get();
+      const appConfig = configRow ? JSON.parse(configRow.value) : {};
+      const isForgotActive = appConfig.isForgotPasswordActive !== false;
+      if (!isForgotActive) {
+        return res.status(400).json({ error: "La r\xE9initialisation de mot de passe par email est d\xE9sactiv\xE9e. Veuillez contacter un administrateur." });
+      }
+      const resetCode = Math.floor(1e5 + Math.random() * 9e5).toString();
+      const expiresAt = (Date.now() + 15 * 60 * 1e3).toString();
+      db_default.prepare("UPDATE users SET resetCode = ?, resetExpires = ? WHERE email = ?").run(resetCode, expiresAt, email);
+      const host = appConfig.smtpHost || process.env.SMTP_HOST;
+      const port = parseInt(appConfig.smtpPort || process.env.SMTP_PORT || "587");
+      const userMail = appConfig.smtpUser || process.env.SMTP_USER;
+      const passMail = appConfig.smtpPass || process.env.SMTP_PASS;
+      const secure = appConfig.smtpSecure !== void 0 ? appConfig.smtpSecure : process.env.SMTP_SECURE === "true" || port === 465;
+      const fromMail = appConfig.smtpFrom || process.env.SMTP_FROM || userMail || '"Faso Express" <noreply@fasoexpress.com>';
+      if (host && userMail && passMail) {
+        const transporter = import_nodemailer.default.createTransport({
+          host,
+          port,
+          secure,
+          auth: {
+            user: userMail,
+            pass: passMail
+          },
+          tls: {
+            rejectUnauthorized: false
+          }
+        });
+        const mailOptions = {
+          from: fromMail,
+          to: email,
+          subject: "R\xE9initialisation de votre mot de passe - Faso Express",
+          text: `Bonjour ${user.name},
+
+Vous avez demand\xE9 la r\xE9initialisation de votre mot de passe pour votre compte Faso Express.
+
+Votre code de r\xE9initialisation est : ${resetCode}
+Ce code est valable pendant 15 minutes.
+
+Si vous n'\xEAtes pas \xE0 l'origine de cette demande, vous pouvez ignorer cet e-mail.
+
+Cordialement,
+L'\xE9quipe Faso Express`,
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #f1f5f9; border-radius: 12px;">
+              <h2 style="color: #f97316; text-align: center; font-weight: 900; text-transform: uppercase; margin-bottom: 20px;">FASO EXPRESS</h2>
+              <p>Bonjour <strong>${user.name}</strong>,</p>
+              <p>Vous avez demand\xE9 la r\xE9initialisation de votre mot de passe pour votre compte Faso Express.</p>
+              <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 20px; text-align: center; margin: 20px 0; border-radius: 8px;">
+                <p style="font-size: 14px; color: #64748b; margin-top: 0; margin-bottom: 5px; text-transform: uppercase; font-weight: bold; letter-spacing: 0.1em;">Code de r\xE9initialisation</p>
+                <h1 style="font-size: 36px; color: #0f172a; margin: 0; font-weight: 900; letter-spacing: 0.2em;">${resetCode}</h1>
+                <p style="font-size: 12px; color: #94a3b8; margin-top: 5px; margin-bottom: 0;">Valable pendant 15 minutes</p>
+              </div>
+              <p style="color: #64748b; font-size: 13px;">Si vous n'\xEAtes pas \xE0 l'origine de cette demande, veuillez ignorer cet e-mail en toute s\xE9curit\xE9.</p>
+              <hr style="border: none; border-top: 1px solid #f1f5f9; margin: 20px 0;" />
+              <p style="color: #94a3b8; font-size: 11px; text-align: center; margin-bottom: 0;">\xC9dit\xE9 par NME TECHNOLOGIE GROUP</p>
+            </div>
+          `
+        };
+        await transporter.sendMail(mailOptions);
+        console.log(`[SMTP] Reset email successfully sent to ${email} with code ${resetCode}`);
+      } else {
+        console.log(`
+==========================================`);
+        console.log(`[DEV MODE] SMTP non configur\xE9 pour Forgot Password`);
+        console.log(`Email : ${email}`);
+        console.log(`Code de r\xE9initialisation : ${resetCode}`);
+        console.log(`==========================================
+`);
+        return res.json({
+          status: "ok",
+          sandbox: true,
+          code: resetCode,
+          message: "L'envoi d'e-mail n'est pas enti\xE8rement configur\xE9. Le code de r\xE9initialisation s'affiche ici pour vos tests : " + resetCode
+        });
+      }
+      res.json({ status: "ok", message: "Le code de r\xE9initialisation a \xE9t\xE9 envoy\xE9 par e-mail." });
+    } catch (err) {
+      console.error("Forgot password error:", err);
+      res.status(500).json({ error: "Erreur lors du traitement de la demande de r\xE9initialisation." });
+    }
+  });
+  app.post("/api/auth/reset-password", async (req, res) => {
+    const { email, code, newPassword } = req.body;
+    if (!email || !code || !newPassword) {
+      return res.status(400).json({ error: "Tous les champs sont requis (email, code, nouveau mot de passe)." });
+    }
+    try {
+      const user = db_default.prepare("SELECT * FROM users WHERE email = ?").get(email);
+      if (!user) {
+        return res.status(404).json({ error: "Aucun utilisateur trouv\xE9 avec cette adresse email." });
+      }
+      if (!user.resetCode || user.resetCode !== code.trim()) {
+        return res.status(400).json({ error: "Le code de r\xE9initialisation est incorrect." });
+      }
+      const expires = parseFloat(user.resetExpires || "0");
+      if (Date.now() > expires) {
+        return res.status(400).json({ error: "Le code de r\xE9initialisation a expir\xE9 (limite de 15 minutes d\xE9pass\xE9e)." });
+      }
+      const hashedPassword = await import_bcryptjs.default.hash(newPassword, 10);
+      db_default.prepare("UPDATE users SET password = ?, resetCode = NULL, resetExpires = NULL WHERE email = ?").run(hashedPassword, email);
+      res.json({ status: "ok", message: "Votre mot de passe a \xE9t\xE9 modifi\xE9 avec succ\xE8s. Vous pouvez maintenant vous connecter." });
+    } catch (err) {
+      console.error("Reset password error:", err);
+      res.status(500).json({ error: "Erreur lors de la r\xE9initialisation du mot de passe." });
     }
   });
   app.get("/api/profile", authenticate, (req, res) => {
@@ -994,16 +1655,95 @@ async function startServer() {
       res.status(500).json({ error: "\xC9chec de la r\xE9cup\xE9ration de l'utilisateur." });
     }
   });
+  app.get("/api/drivers/:id/mission-history", authenticate, (req, res) => {
+    try {
+      const driverId = req.params.id;
+      const rows = db_default.prepare("SELECT * FROM driver_mission_history WHERE driverId = ? ORDER BY createdAt DESC").all(driverId);
+      const enhancedRows = rows.map((r) => {
+        let delivery = null;
+        try {
+          delivery = db_default.prepare("SELECT id, origin, destination, cost, status, clientName FROM deliveries WHERE id = ?").get(r.deliveryId);
+          if (delivery) {
+            if (typeof delivery.origin === "string") {
+              try {
+                delivery.origin = JSON.parse(delivery.origin);
+              } catch (e) {
+              }
+            }
+            if (typeof delivery.destination === "string") {
+              try {
+                delivery.destination = JSON.parse(delivery.destination);
+              } catch (e) {
+              }
+            }
+            delivery.from = delivery.origin || {};
+            delivery.to = delivery.destination || {};
+          }
+        } catch (e) {
+        }
+        return {
+          ...r,
+          delivery
+        };
+      });
+      res.json(enhancedRows);
+    } catch (err) {
+      console.error("Failed to fetch driver mission history:", err);
+      res.status(500).json({ error: "Impossible de r\xE9cup\xE9rer l'historique des missions du livreur." });
+    }
+  });
   app.patch("/api/profile", authenticate, async (req, res) => {
     const updates = req.body;
     let fields = Object.keys(updates).filter((k) => k !== "userId" && k !== "id" && k !== "createdAt" && k !== "updatedAt");
+    const FALLBACK_COLUMNS = /* @__PURE__ */ new Set([
+      "name",
+      "email",
+      "password",
+      "role",
+      "status",
+      "accountStatus",
+      "isVerified",
+      "city",
+      "neighborhood",
+      "verificationStatus",
+      "guarantorName",
+      "guarantorPhone",
+      "identityCardUrl",
+      "identityCardBackUrl",
+      "criminalRecordUrl",
+      "currentLocation",
+      "balance",
+      "earnings",
+      "withdrawalPhone",
+      "rib",
+      "idCardFront",
+      "idCardBack",
+      "guarantorCniUrl",
+      "termsAcceptedAt",
+      "driverType",
+      "resetCode",
+      "resetExpires",
+      "photoURL",
+      "address",
+      "carteGriseUrl",
+      "updatedAt",
+      "totalWithdrawn",
+      "withdrawalRequested",
+      "withdrawalAmount",
+      "withdrawalMethod",
+      "vehicleType",
+      "licensePlate"
+    ]);
+    let validColumns = FALLBACK_COLUMNS;
     try {
       const dbColumns = db_default.prepare("PRAGMA table_info(users)").all();
-      const validColumns = new Set(dbColumns.map((c) => c.name));
-      fields = fields.filter((f) => validColumns.has(f));
+      if (dbColumns && dbColumns.length > 0) {
+        validColumns = new Set(dbColumns.map((c) => c.name));
+      }
     } catch (schemaErr) {
       console.warn("Failed to retrieve users schema during validation:", schemaErr);
     }
+    fields = fields.filter((f) => validColumns.has(f));
     if (fields.length === 0) return res.json({ status: "no changes" });
     const setClause = fields.map((f) => `${f} = ?`).join(", ");
     const values = await Promise.all(fields.map(async (f) => {
@@ -1142,8 +1882,34 @@ async function startServer() {
         if (typeof d.packageDetails === "string") d.packageDetails = JSON.parse(d.packageDetails);
       } catch (e) {
       }
+      if (d.driverId) {
+        try {
+          const driver = db_default.prepare("SELECT photoURL, phone, name FROM users WHERE userId = ?").get(d.driverId);
+          if (driver) {
+            d.driverPhoto = driver.photoURL;
+            d.driverPhone = driver.phone;
+            d.driverName = driver.name;
+          }
+        } catch (e) {
+        }
+      }
       try {
         const bids = db_default.prepare("SELECT * FROM bids WHERE deliveryId = ?").all(d.id);
+        if (bids) {
+          bids.forEach((b) => {
+            b.timeEstimateMins = b.proposedTime;
+            if (b.driverId) {
+              try {
+                const bDriver = db_default.prepare("SELECT photoURL, phone FROM users WHERE userId = ?").get(b.driverId);
+                if (bDriver) {
+                  b.driverPhoto = bDriver.photoURL;
+                  b.driverPhone = bDriver.phone;
+                }
+              } catch (err) {
+              }
+            }
+          });
+        }
         d.bids = bids || [];
       } catch (e) {
         d.bids = [];
@@ -1175,8 +1941,34 @@ async function startServer() {
         if (typeof d.packageDetails === "string") d.packageDetails = JSON.parse(d.packageDetails);
       } catch (e) {
       }
+      if (d.driverId) {
+        try {
+          const driver = db_default.prepare("SELECT photoURL, phone, name FROM users WHERE userId = ?").get(d.driverId);
+          if (driver) {
+            d.driverPhoto = driver.photoURL;
+            d.driverPhone = driver.phone;
+            d.driverName = driver.name;
+          }
+        } catch (e) {
+        }
+      }
       try {
         const bids = db_default.prepare("SELECT * FROM bids WHERE deliveryId = ?").all(d.id);
+        if (bids) {
+          bids.forEach((b) => {
+            b.timeEstimateMins = b.proposedTime;
+            if (b.driverId) {
+              try {
+                const bDriver = db_default.prepare("SELECT photoURL, phone FROM users WHERE userId = ?").get(b.driverId);
+                if (bDriver) {
+                  b.driverPhoto = bDriver.photoURL;
+                  b.driverPhone = bDriver.phone;
+                }
+              } catch (err) {
+              }
+            }
+          });
+        }
         d.bids = bids || [];
       } catch (e) {
         d.bids = [];
@@ -1190,7 +1982,16 @@ async function startServer() {
   app.patch("/api/deliveries/:id", authenticate, (req, res) => {
     const { id } = req.params;
     const updates = req.body;
-    const fields = Object.keys(updates).filter((k) => k !== "id" && k !== "clientId" && k !== "updatedAt" && k !== "createdAt");
+    if (updates.cancellationReason) {
+      updates.cancelReason = updates.cancellationReason;
+      delete updates.cancellationReason;
+    }
+    const fields = Object.keys(updates).filter((k) => {
+      if (req.user.role === "admin" || req.user.role === "superadmin") {
+        return k !== "id" && k !== "updatedAt" && k !== "createdAt" && k !== "cancelledBy";
+      }
+      return k !== "id" && k !== "clientId" && k !== "updatedAt" && k !== "createdAt" && k !== "cancelledBy";
+    });
     if (fields.length === 0) return res.json({ status: "no changes" });
     const setClause = fields.map((f) => `${f} = ?`).join(", ");
     const values = fields.map((f) => {
@@ -1208,6 +2009,67 @@ async function startServer() {
       if (updates.status === "accepted" && updates.driverId) {
         db_default.prepare("UPDATE bids SET status = 'accepted', updatedAt = CURRENT_TIMESTAMP WHERE deliveryId = ? AND driverId = ?").run(id, updates.driverId);
         db_default.prepare("UPDATE bids SET status = 'rejected', updatedAt = CURRENT_TIMESTAMP WHERE deliveryId = ? AND driverId != ?").run(id, updates.driverId);
+        try {
+          db_default.prepare(`
+            INSERT INTO driver_mission_history (id, driverId, deliveryId, action, createdAt)
+            VALUES (?, ?, ?, 'accepted', CURRENT_TIMESTAMP)
+          `).run((0, import_uuid.v4)(), updates.driverId, id);
+        } catch (err) {
+          console.error("Failed to log acceptance to driver_mission_history:", err);
+        }
+      }
+      if (updates.rejectedBy) {
+        try {
+          const oldDelivery = db_default.prepare("SELECT rejectedBy, origin FROM deliveries WHERE id = ?").get(id);
+          let oldRejected = [];
+          if (oldDelivery && oldDelivery.rejectedBy) {
+            oldRejected = typeof oldDelivery.rejectedBy === "string" ? JSON.parse(oldDelivery.rejectedBy) : oldDelivery.rejectedBy;
+          }
+          const newRejected = Array.isArray(updates.rejectedBy) ? updates.rejectedBy : JSON.parse(updates.rejectedBy);
+          const newlyRejectedDriverId = newRejected.find((driverId) => !oldRejected.includes(driverId)) || null;
+          if (newlyRejectedDriverId) {
+            db_default.prepare(`
+              INSERT INTO driver_mission_history (id, driverId, deliveryId, action, createdAt)
+              VALUES (?, ?, ?, 'rejected', CURRENT_TIMESTAMP)
+            `).run((0, import_uuid.v4)(), newlyRejectedDriverId, id);
+            let reassignmentMode = "manual";
+            try {
+              const configRow = db_default.prepare("SELECT value FROM config WHERE `key` = 'app_config'").get();
+              if (configRow && configRow.value) {
+                const appConfig = JSON.parse(configRow.value);
+                if (appConfig.reassignmentMode) reassignmentMode = appConfig.reassignmentMode;
+              }
+            } catch (err) {
+            }
+            if (reassignmentMode === "automatic" && oldDelivery) {
+              let originLoc = null;
+              try {
+                originLoc = typeof oldDelivery.origin === "string" ? JSON.parse(oldDelivery.origin) : oldDelivery.origin;
+              } catch (e) {
+              }
+              if (originLoc && originLoc.lat && originLoc.lng) {
+                const nextDriver = getClosestAvailableDriver(id, originLoc, newRejected);
+                if (nextDriver) {
+                  db_default.prepare(`
+                    UPDATE deliveries 
+                    SET driverId = ?, driverName = ?, status = 'accepted', updatedAt = CURRENT_TIMESTAMP 
+                    WHERE id = ?
+                  `).run(nextDriver.userId, nextDriver.name, id);
+                  db_default.prepare(`
+                    INSERT INTO notifications (id, userId, title, message, type)
+                    VALUES (?, ?, ?, ?, 'success')
+                  `).run((0, import_uuid.v4)(), nextDriver.userId, "Mission affect\xE9e automatiquement", `La course #${id.slice(-6).toUpperCase()} vous a \xE9t\xE9 r\xE9affect\xE9e automatiquement.`, "success");
+                  db_default.prepare(`
+                    INSERT INTO driver_mission_history (id, driverId, deliveryId, action, createdAt)
+                    VALUES (?, ?, ?, 'assigned', CURRENT_TIMESTAMP)
+                  `).run((0, import_uuid.v4)(), nextDriver.userId, id);
+                }
+              }
+            }
+          }
+        } catch (err) {
+          console.error("Error processing driver rejection or auto-reassignment:", err);
+        }
       }
       if (updates.status === "delivered") {
         try {
@@ -1254,6 +2116,20 @@ async function startServer() {
       const stmt = db_default.prepare("INSERT INTO messages (id, deliveryId, text, senderId, senderName, senderRole) VALUES (?, ?, ?, ?, ?, ?)");
       stmt.run(id, deliveryId, text, req.user.userId, senderName, senderRole);
       db_default.prepare("UPDATE deliveries SET lastMessageAt = CURRENT_TIMESTAMP WHERE id = ?").run(deliveryId);
+      try {
+        const delivery = db_default.prepare("SELECT clientId, driverId FROM deliveries WHERE id = ?").get(deliveryId);
+        if (delivery) {
+          const recipientId = req.user.userId === delivery.clientId ? delivery.driverId : delivery.clientId;
+          if (recipientId) {
+            sendPushNotification(recipientId, `Nouveau message de ${senderName}`, text, {
+              type: "message",
+              deliveryId
+            });
+          }
+        }
+      } catch (pushErr) {
+        console.warn("[FCM] Ignored push notification error inside message create:", pushErr);
+      }
       res.json({ id });
     } catch (err) {
       res.status(500).json({ error: "\xC9chec de l'envoi du message." });
@@ -1271,6 +2147,32 @@ async function startServer() {
     } catch (err) {
       console.error("[API] Failed to fetch notifications:", err);
       res.status(500).json({ error: "\xC9chec de la r\xE9cup\xE9ration des notifications.", details: err.message });
+    }
+  });
+  app.post("/api/push-tokens", authenticate, (req, res) => {
+    const { token, deviceType } = req.body;
+    if (!token) {
+      return res.status(400).json({ error: "Token requis." });
+    }
+    try {
+      db_default.prepare("INSERT OR REPLACE INTO user_push_tokens (userId, token, deviceType) VALUES (?, ?, ?)").run(req.user.userId, token, deviceType || "unknown");
+      res.json({ status: "ok" });
+    } catch (err) {
+      console.error("[FCM] Failed to save push token:", err);
+      res.status(500).json({ error: "\xC9chec de l'enregistrement du token de push." });
+    }
+  });
+  app.post("/api/push-tokens/delete", authenticate, (req, res) => {
+    const { token } = req.body;
+    if (!token) {
+      return res.status(400).json({ error: "Token requis." });
+    }
+    try {
+      db_default.prepare("DELETE FROM user_push_tokens WHERE userId = ? AND token = ?").run(req.user.userId, token);
+      res.json({ status: "ok" });
+    } catch (err) {
+      console.error("[FCM] Failed to delete push token:", err);
+      res.status(500).json({ error: "\xC9chec de la suppression du token de push." });
     }
   });
   app.get("/api/drivers/status", (req, res) => {
@@ -1615,8 +2517,16 @@ async function startServer() {
       return val;
     });
     try {
+      const oldUser = db_default.prepare("SELECT accountStatus FROM users WHERE userId = ?").get(userId);
       const stmt = db_default.prepare(`UPDATE users SET ${setClause} WHERE userId = ?`);
       stmt.run(...values, userId);
+      if (oldUser && updates.accountStatus && oldUser.accountStatus !== updates.accountStatus) {
+        if (updates.accountStatus === "suspended") {
+          db_default.prepare("INSERT INTO notifications (id, userId, title, message, type) VALUES (?, ?, ?, ?, ?)").run((0, import_uuid.v4)(), userId, "Compte Suspendu", "Votre compte a \xE9t\xE9 suspendu par l'administration. Veuillez prendre attache avec le support.", "error");
+        } else if (updates.accountStatus === "active") {
+          db_default.prepare("INSERT INTO notifications (id, userId, title, message, type) VALUES (?, ?, ?, ?, ?)").run((0, import_uuid.v4)(), userId, "Compte R\xE9activ\xE9", "Excellente nouvelle ! Votre compte a \xE9t\xE9 r\xE9activ\xE9 avec succ\xE8s. Vous pouvez vous reconnecter.", "success");
+        }
+      }
       res.json({ status: "ok" });
     } catch (err) {
       res.status(500).json({ error: "Update failed" });
@@ -1807,6 +2717,16 @@ async function startServer() {
       const bids = db_default.prepare("SELECT * FROM bids WHERE deliveryId = ?").all(req.params.id);
       bids.forEach((b) => {
         b.timeEstimateMins = b.proposedTime;
+        if (b.driverId) {
+          try {
+            const driver = db_default.prepare("SELECT photoURL, phone FROM users WHERE userId = ?").get(b.driverId);
+            if (driver) {
+              b.driverPhoto = driver.photoURL;
+              b.driverPhone = driver.phone;
+            }
+          } catch (e) {
+          }
+        }
       });
       res.json(bids);
     } catch (err) {
@@ -2108,27 +3028,34 @@ async function startServer() {
       res.status(500).json({ error: "Tracking update failed" });
     }
   });
+  function calculateDriverEarnings(driverId) {
+    const driver = db_default.prepare("SELECT * FROM users WHERE userId = ?").get(driverId);
+    if (!driver) return 0;
+    const configRows = db_default.prepare("SELECT * FROM config").all();
+    const commissionsRow = configRows.find((c) => c.key === "commissions");
+    const commissionSettings = commissionsRow ? JSON.parse(commissionsRow.value) : { driverSharePercent: 85 };
+    const driverShare = commissionSettings.driverSharePercent || 85;
+    const allDeliveries = db_default.prepare("SELECT * FROM deliveries WHERE driverId = ? AND status = 'delivered'").all(driverId);
+    const onlineDeliveries = allDeliveries.filter((d) => d.paymentMethod && d.paymentMethod !== "cash" && d.pickupCode !== "SUPPORT");
+    const totalEarnings = onlineDeliveries.reduce((acc, curr) => acc + (curr.clientProposedPrice || curr.cost || 0), 0) * driverShare / 100;
+    return Math.floor(totalEarnings - (driver.totalWithdrawn || 0));
+  }
   app.post("/api/withdrawals", authenticate, (req, res) => {
     if (req.user.role !== "driver") return res.status(400).json({ error: "Drivers only" });
     const { amount, method, phone, withdrawalInfo } = req.body;
-    if (!amount || amount <= 0) return res.status(400).json({ error: "Invalid amount" });
+    const amountNum = Number(amount);
+    if (isNaN(amountNum) || amountNum <= 0) return res.status(400).json({ error: "Invalid amount" });
     try {
       const driver = db_default.prepare("SELECT * FROM users WHERE userId = ?").get(req.user.userId);
       if (!driver) return res.status(404).json({ error: "Driver not found" });
-      const configRows = db_default.prepare("SELECT * FROM config").all();
-      const commissionsRow = configRows.find((c) => c.key === "commissions");
-      const commissionSettings = commissionsRow ? JSON.parse(commissionsRow.value) : { driverSharePercent: 85 };
-      const driverShare = commissionSettings.driverSharePercent || 85;
-      const onlineDeliveries = db_default.prepare(`SELECT * FROM deliveries WHERE driverId = ? AND status = 'delivered' AND paymentMethod != 'cash'`).all(driver.userId);
-      const totalEarnings = onlineDeliveries.reduce((acc, curr) => acc + (curr.clientProposedPrice || curr.cost || 0), 0) * driverShare / 100;
       const pendingWithdrawalsSum = db_default.prepare(`SELECT SUM(amount) as sum FROM withdrawals WHERE driverId = ? AND status = 'en_attente'`).get(driver.userId)?.sum || 0;
-      const earnings = totalEarnings - (driver.totalWithdrawn || 0) - pendingWithdrawalsSum;
-      if (amount > earnings) return res.status(400).json({ error: "Amount exceeds available balance" });
+      const earnings = calculateDriverEarnings(driver.userId) - pendingWithdrawalsSum;
+      if (amountNum > earnings) return res.status(400).json({ error: "Amount exceeds available balance" });
       const id = (0, import_uuid.v4)();
       db_default.prepare(`
         INSERT INTO withdrawals (id, driverId, driverName, amount, status, method, phone, withdrawalInfo)
         VALUES (?, ?, ?, ?, 'en_attente', ?, ?, ?)
-      `).run(id, req.user.userId, req.user.name, amount, method, phone, withdrawalInfo || phone);
+      `).run(id, req.user.userId, req.user.name, amountNum, method, phone, withdrawalInfo || phone);
       db_default.prepare("INSERT INTO notifications (id, userId, title, message, type) VALUES (?, ?, ?, ?, ?)").run((0, import_uuid.v4)(), "admin", "Nouvelle demande de retrait", `${req.user.name} demande un retrait de ${amount} FCFA`, "info");
       res.json({ status: "ok", id });
     } catch (err) {
@@ -2169,13 +3096,7 @@ async function startServer() {
       if (withdrawal.status === "valide") return res.status(400).json({ error: "D\xE9j\xE0 valid\xE9." });
       const driver = db_default.prepare("SELECT * FROM users WHERE userId = ?").get(withdrawal.driverId);
       if (!driver) return res.status(404).json({ error: "Livreur non trouv\xE9." });
-      const configRows = db_default.prepare("SELECT * FROM config").all();
-      const commissionsRow = configRows.find((c) => c.key === "commissions");
-      const commissionSettings = commissionsRow ? JSON.parse(commissionsRow.value) : { driverSharePercent: 85 };
-      const driverShare = commissionSettings.driverSharePercent || 85;
-      const onlineDeliveries = db_default.prepare(`SELECT * FROM deliveries WHERE driverId = ? AND status = 'delivered' AND paymentMethod != 'cash'`).all(driver.userId);
-      const totalEarnings = onlineDeliveries.reduce((acc, curr) => acc + (curr.clientProposedPrice || curr.cost || 0), 0) * driverShare / 100;
-      const earnings = totalEarnings - (driver.totalWithdrawn || 0);
+      const earnings = calculateDriverEarnings(driver.userId);
       const newBalance = earnings - withdrawal.amount;
       if (newBalance < 0) return res.status(400).json({ error: "Solde insuffisant." });
       db_default.transaction(() => {

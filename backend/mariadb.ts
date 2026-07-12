@@ -347,6 +347,18 @@ export default function initMariaDB() {
            const result = connection.query(formattedSql);
            return result;
          } catch(e: any) {
+           const errMsg = e.message || "";
+           if (errMsg.includes("nativeNC") || errMsg.includes("socket") || errMsg.includes("connection") || errMsg.includes("read ECONNRESET") || errMsg.includes("write EPIPE")) {
+             console.warn("MariaDB connection lost, attempting reconnect... (Error: " + errMsg + ")");
+             try {
+               connect();
+               console.log("MariaDB reconnected successfully. Retrying query...");
+               return connection.query(formattedSql);
+             } catch (reconnectErr) {
+               console.error("MariaDB reconnect failed:", reconnectErr);
+               throw e;
+             }
+           }
            console.error("MariaDB query error:", e.message, "\\nSQL:", formattedSql);
            throw e;
          }

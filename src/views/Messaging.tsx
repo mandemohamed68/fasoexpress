@@ -74,8 +74,8 @@ export default function Messaging() {
                   const newChat = await api.deliveries.create({
                     from: { address: "SUPPORT" },
                     to: { address: "SUPPORT" },
-                    pickupAddress: "SUPPORT",
-                    deliveryAddress: "SUPPORT",
+                    pickupCode: "SUPPORT",
+                    deliveryCode: "SUPPORT",
                     clientName: profile.name,
                     clientPhone: profile.phone,
                     packageType: "SUPPORT",

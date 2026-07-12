@@ -34,7 +34,14 @@ function getFirebaseAdmin() {
         cleanedVar = cleanedVar.replace(/\\"/g, '"');
       }
 
-      const serviceAccount = JSON.parse(cleanedVar);
+      let serviceAccount;
+      try {
+        serviceAccount = JSON.parse(cleanedVar);
+      } catch (err) {
+        // Fallback for malformed JSON (like single quotes instead of double quotes)
+        // Since this is an env variable set by the admin, eval is acceptable as a fallback to parse JS-object-like strings
+        serviceAccount = new Function("return " + cleanedVar)();
+      }
       firebaseAdminApp = initializeApp({
         credential: cert(serviceAccount)
       });

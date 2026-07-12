@@ -10,7 +10,7 @@ export class GeolocationService {
            throw new Error("Permissions refusées");
         }
       }
-    } catch(e) {}
+    } catch(e) { console.error('GPS permission error:', e); }
   }
 
   static async getCurrentPosition() {

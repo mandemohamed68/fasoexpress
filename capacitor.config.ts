@@ -5,9 +5,13 @@ const config: CapacitorConfig = {
   appName: 'FASO EXPRESS',
   webDir: 'dist',
   server: {
-    androidScheme: 'http',
-    iosScheme: 'capacitor',
+    androidScheme: 'https',
     cleartext: true
+  },
+  plugins: {
+    PushNotifications: {
+      presentationOptions: ["badge", "sound", "alert"]
+    }
   }
 };
 

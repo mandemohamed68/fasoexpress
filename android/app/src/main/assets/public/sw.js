@@ -78,21 +78,24 @@ define(['./workbox-970124e6'], (function (workbox) { 'use strict';
    */
   workbox.precacheAndRoute([{
     "url": "index.html",
-    "revision": "54136a6d39500a0a62096a11a0891750"
+    "revision": "5adcb383102e2d5c471e49c6d29be858"
   }, {
     "url": "assets/workbox-window.prod.es5-Bd17z0YL.js",
     "revision": null
   }, {
-    "url": "assets/web-DBCmtPu0.js",
+    "url": "assets/web-CztnDDkf.js",
     "revision": null
   }, {
-    "url": "assets/index-Dz47c5C1.js",
+    "url": "assets/pushNotificationService-DC2BorwD.js",
     "revision": null
   }, {
-    "url": "assets/index-BjZXkwNH.css",
+    "url": "assets/index-BfDz6sqk.js",
     "revision": null
   }, {
-    "url": "assets/GeolocationService-C01uBRyk.js",
+    "url": "assets/index-B1vRMOpx.css",
+    "revision": null
+  }, {
+    "url": "assets/GeolocationService-B78eKJDM.js",
     "revision": null
   }, {
     "url": "favicon.png",
@@ -105,7 +108,7 @@ define(['./workbox-970124e6'], (function (workbox) { 'use strict';
     "revision": "ac0ac9fb13924688ed1c5d89ab9ee52e"
   }, {
     "url": "splash.png",
-    "revision": "457a0cf3fe4408197ebd5d3087a5d1b1"
+    "revision": "dccc8b6ce44b15da8bb5ce7651b1fa54"
   }], {});
   workbox.cleanupOutdatedCaches();
   workbox.registerRoute(new workbox.NavigationRoute(workbox.createHandlerBoundToURL("index.html")));

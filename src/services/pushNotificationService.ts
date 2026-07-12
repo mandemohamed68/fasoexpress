@@ -13,7 +13,7 @@ export const pushNotificationService = {
       // 1. Check/request permission
       let permStatus = await PushNotifications.checkPermissions();
 
-      if (permStatus.receive === 'prompt') {
+      if (permStatus.receive !== 'granted') {
         permStatus = await PushNotifications.requestPermissions();
       }
 
