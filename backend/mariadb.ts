@@ -49,44 +49,51 @@ export default function initMariaDB() {
   let connection: any = null;
   let lastError: any = null;
 
-  for (let i = 0; i < candidates.length; i++) {
-    const candidate = candidates[i];
-    try {
-      const conn = new SyncMysql({
-        host,
-        user,
-        password: candidate,
-        database,
-        port,
-        multipleStatements: true,
-        charset: 'utf8mb4'
-      });
-      // Test de la connexion avec une requête simple
-      conn.query("SELECT 1");
-      connection = conn;
-      
-      // Ensure session collation matches the database collation to avoid mix of collations errors
+  function connect() {
+    connection = null;
+    lastError = null;
+    for (let i = 0; i < candidates.length; i++) {
+      const candidate = candidates[i];
       try {
-        conn.query("SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci");
-      } catch (e) {}
+        const conn = new SyncMysql({
+          host,
+          user,
+          password: candidate,
+          database,
+          port,
+          multipleStatements: true,
+          charset: 'utf8mb4'
+        });
+        // Test de la connexion avec une requête simple
+        conn.query("SELECT 1");
+        connection = conn;
+        
+        // Ensure session collation matches the database collation to avoid mix of collations errors
+        try {
+          conn.query("SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci");
+        } catch (e) {}
 
-      // Ensure database itself is utf8mb4
-      try {
-        conn.query(`ALTER DATABASE \`${database}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`);
-      } catch (e) {}
+        // Ensure database itself is utf8mb4
+        try {
+          conn.query(`ALTER DATABASE \`${database}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`);
+        } catch (e) {}
 
-      console.log(`MariaDB: Connexion réussie à la tentative ${i + 1}/${candidates.length} (Longueur MDP utilisée: ${candidate.length}) !`);
-      break;
-    } catch (err: any) {
-      console.warn(`MariaDB: Tentative ${i + 1}/${candidates.length} échouée avec mot de passe de longueur ${candidate.length}: ${err.message}`);
-      lastError = err;
+        console.log(`MariaDB: Connexion réussie à la tentative ${i + 1}/${candidates.length} (Longueur MDP utilisée: ${candidate.length}) !`);
+        break;
+      } catch (err: any) {
+        console.warn(`MariaDB: Tentative ${i + 1}/${candidates.length} échouée avec mot de passe de longueur ${candidate.length}: ${err.message}`);
+        lastError = err;
+      }
+    }
+
+    if (!connection) {
+      console.error("MariaDB: Toutes les tentatives de connexion ont échoué.");
+      throw lastError || new Error("Impossible de se connecter à MariaDB avec les configurations de mot de passe fournies.");
     }
   }
 
-  if (!connection) {
-    console.error("MariaDB: Toutes les tentatives de connexion ont échoué.");
-    throw lastError || new Error("Impossible de se connecter à MariaDB avec les configurations de mot de passe fournies.");
-  }
+  // Initial connection
+  connect();
 
   // MIGRATION: Auto-add withdrawalPhone column if missing
   try {

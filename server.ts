@@ -22,33 +22,66 @@ function getFirebaseAdmin() {
   const serviceAccountVar = process.env.FIREBASE_SERVICE_ACCOUNT;
   if (serviceAccountVar) {
     try {
-      let cleanedVar = serviceAccountVar.trim();
-      if ((cleanedVar.startsWith("'") && cleanedVar.endsWith("'")) || (cleanedVar.startsWith('"') && cleanedVar.endsWith('"'))) {
-        cleanedVar = cleanedVar.substring(1, cleanedVar.length - 1).trim();
-      }
-      // Replace literal backslash-n with actual newlines in case it was passed as a single line string
-      cleanedVar = cleanedVar.replace(/\\n/g, '\n');
+      let cleaned = serviceAccountVar.trim();
       
-      // Sometimes env vars might have escaped quotes
-      if (cleanedVar.includes('\\"')) {
-        cleanedVar = cleanedVar.replace(/\\"/g, '"');
+      // Extract the JSON object starting from the first '{' and ending at the last '}'
+      // to handle any wrapping characters, parenthesized statements from PM2/Docker, etc.
+      const firstBrace = cleaned.indexOf('{');
+      const lastBrace = cleaned.lastIndexOf('}');
+      if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+        cleaned = cleaned.substring(firstBrace, lastBrace + 1);
+      }
+      
+      // Debug log (masked to avoid exposing secrets)
+      const masked = cleaned.replace(/(["']?private_key["']?\s*:\s*)(["'])(?:(?!\2).|\\.)*\2/g, '$1$2***MASKED***$2');
+      console.log(`[FCM Config] Extracted length: ${cleaned.length}`);
+      console.log(`[FCM Config] Preview: ${masked.slice(0, 150)}...${masked.slice(-100)}`);
+
+      let serviceAccount: any = null;
+      
+      // Attempt 1: Parse directly as JSON. In valid JSON, private_key has escaped newlines like "\\n"
+      try {
+        serviceAccount = JSON.parse(cleaned);
+        console.log("[FCM Config] Standard JSON.parse succeeded.");
+      } catch (jsonErr: any) {
+        console.log(`[FCM Config] JSON.parse failed (${jsonErr.message}). Trying Function evaluation...`);
+        
+        // Attempt 2: Maybe it's a JavaScript object with single quotes, unescaped keys, etc.
+        try {
+          serviceAccount = new Function(`return (${cleaned});`)();
+          console.log("[FCM Config] Function evaluation succeeded.");
+        } catch (fnErr: any) {
+          console.log(`[FCM Config] Function evaluation failed (${fnErr.message}). Trying literal newline escaping fallback...`);
+          
+          // Attempt 3: If it has literal unescaped newlines inside quotes, let's escape them
+          try {
+            const escapedCleaned = cleaned.replace(/(["']private_key["']\s*:\s*)(["'])([\s\S]*?)\2/g, (match, key, quote, val) => {
+              const escapedVal = val.replace(/\r?\n/g, '\\n');
+              return `${key}${quote}${escapedVal}${quote}`;
+            });
+            serviceAccount = new Function(`return (${escapedCleaned});`)();
+            console.log("[FCM Config] Fallback newline-escaped parsing succeeded.");
+          } catch (lastErr: any) {
+            console.error("[FCM Config] All parsing attempts failed.", lastErr);
+            throw lastErr;
+          }
+        }
       }
 
-      let serviceAccount;
-      try {
-        serviceAccount = JSON.parse(cleanedVar);
-      } catch (err) {
-        // Fallback for malformed JSON (like single quotes instead of double quotes)
-        // Since this is an env variable set by the admin, eval is acceptable as a fallback to parse JS-object-like strings
-        serviceAccount = new Function("return " + cleanedVar)();
+      if (serviceAccount) {
+        // Ensure private_key has actual newlines (replace literal "\\n" with "\n")
+        if (serviceAccount.private_key && typeof serviceAccount.private_key === 'string') {
+          serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+        }
+        
+        firebaseAdminApp = initializeApp({
+          credential: cert(serviceAccount)
+        });
+        console.log("[FCM] Firebase Admin initialisé avec les variables d'environnement.");
+        return firebaseAdminApp;
       }
-      firebaseAdminApp = initializeApp({
-        credential: cert(serviceAccount)
-      });
-      console.log("[FCM] Firebase Admin initialisé avec les variables d'environnement.");
-      return firebaseAdminApp;
-    } catch (e) {
-      console.error("[FCM] Échec d'analyse de FIREBASE_SERVICE_ACCOUNT:", e);
+    } catch (e: any) {
+      console.error("[FCM] Échec d'analyse de FIREBASE_SERVICE_ACCOUNT:", e.message || e);
     }
   }
   
@@ -56,6 +89,9 @@ function getFirebaseAdmin() {
   if (fs.existsSync(saPath)) {
     try {
       const serviceAccount = JSON.parse(fs.readFileSync(saPath, "utf8"));
+      if (serviceAccount.private_key && typeof serviceAccount.private_key === 'string') {
+        serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+      }
       firebaseAdminApp = initializeApp({
         credential: cert(serviceAccount)
       });

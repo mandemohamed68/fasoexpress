@@ -79,7 +79,6 @@ export default function Messaging() {
                     clientName: profile.name,
                     clientPhone: profile.phone,
                     packageType: "SUPPORT",
-                    pickupCode: "SUPPORT",
                     status: 'pending'
                   });
                   await fetchChats();
