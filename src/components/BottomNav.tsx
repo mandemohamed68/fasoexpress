@@ -10,7 +10,37 @@ export default function BottomNav() {
   const { profile, isMasterAdmin } = useAuth();
   const location = useLocation();
   const [availCount, setAvailCount] = useState<number>(0);
+  const [unreadCount, setUnreadCount] = useState<number>(0);
   const [supportOpen, setSupportOpen] = useState(false);
+
+  useEffect(() => {
+    if (!profile) return;
+
+    const fetchUnreadChats = async () => {
+      try {
+        const jobs = await api.deliveries.list();
+        const supportChats = jobs.filter((d: any) => 
+          d.pickupCode === 'SUPPORT' && 
+          (d.clientId === profile.userId || d.driverId === profile.userId)
+        );
+        let unread = 0;
+        for (const chat of supportChats) {
+          const lastRead = localStorage.getItem('last_read_' + chat.id);
+          const hasUnread = chat.lastMessageAt && (!lastRead || new Date(chat.lastMessageAt) > new Date(lastRead));
+          if (hasUnread) {
+            unread++;
+          }
+        }
+        setUnreadCount(unread);
+      } catch (e) {
+        // quiet fail
+      }
+    };
+
+    fetchUnreadChats();
+    const interval = setInterval(fetchUnreadChats, 10000); // refresh every 10s
+    return () => clearInterval(interval);
+  }, [profile]);
 
   useEffect(() => {
     if (!profile || profile.role !== 'driver') return;
@@ -100,6 +130,9 @@ export default function BottomNav() {
                   <span className="absolute -top-1.5 -right-2 bg-orange-600 text-white font-black text-[8px] h-4 min-w-[16px] px-1 flex items-center justify-center rounded-full select-none animate-pulse shadow-md border border-white">
                     {availCount}
                   </span>
+                )}
+                {item.label === 'CHAT' && unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-rose-600 text-white font-black text-[8px] h-3 w-3 flex items-center justify-center rounded-full select-none shadow-md border border-white animate-pulse" />
                 )}
               </div>
               <span className={cn("text-[9px] font-black tracking-[0.1em]", isActive ? "text-[#5542F6]" : "text-slate-400")}>

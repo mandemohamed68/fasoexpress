@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { User, Phone, MapPin, Truck, Save, ArrowLeft, ShieldCheck, CheckCircle, Camera } from 'lucide-react';
-import { cn } from '../lib/utils';
+import { cn, compressImage } from '../lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 
@@ -45,18 +45,15 @@ export default function Settings() {
     </div>
   );
 
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 2 * 1024 * 1024) {
-        toast("La photo ne doit pas dépasser 2 Mo.");
-        return;
+      try {
+        const base64 = await compressImage(file);
+        setPhotoURL(base64);
+      } catch (err: any) {
+        toast.error(err.message || "Erreur de compression");
       }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPhotoURL(reader.result as string);
-      };
-      reader.readAsDataURL(file);
     }
   };
 
@@ -90,7 +87,7 @@ export default function Settings() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 p-6 lg:p-12 pb-24 selection:bg-orange-500 selection:text-white overflow-y-auto">
+    <div className="min-h-screen bg-slate-50 p-6 lg:p-12 pb-32 selection:bg-orange-500 selection:text-white overflow-y-auto">
       <div className="max-w-4xl mx-auto">
         <button 
           onClick={() => navigate(-1)} 
@@ -118,27 +115,44 @@ export default function Settings() {
               <div className="flex-1 px-6">
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-relaxed">Précisez votre statut pour la gestion des revenus</p>
               </div>
-              <div className="flex bg-slate-50 p-1.5 rounded-[24px] w-full md:w-auto">
+              <div className="flex bg-slate-50 p-1.5 rounded-[24px] w-full md:w-auto relative group">
                 <button 
                   type="button"
-                  onClick={() => setDriverType('freelance')}
+                  onClick={() => {
+                    if (profile.driverType) {
+                      toast.error("Le statut ne peut plus être modifié. Contactez l'administration.");
+                      return;
+                    }
+                    setDriverType('freelance');
+                  }}
                   className={cn(
                     "px-8 py-4 rounded-[18px] text-[10px] font-black uppercase tracking-widest transition-all",
-                    driverType === 'freelance' ? "bg-orange-500 text-white shadow-lg shadow-orange-500/20" : "text-slate-400 hover:text-slate-600"
+                    driverType === 'freelance' ? "bg-orange-500 text-white shadow-lg shadow-orange-500/20" : "text-slate-400 hover:text-slate-600",
+                    profile.driverType && driverType !== 'freelance' && "opacity-40 grayscale cursor-not-allowed"
                   )}
                 >
                   Je suis Indépendant
                 </button>
                 <button 
                   type="button"
-                  onClick={() => setDriverType('company')}
+                  onClick={() => {
+                    if (profile.driverType) {
+                      toast.error("Le statut ne peut plus être modifié. Contactez l'administration.");
+                      return;
+                    }
+                    setDriverType('company');
+                  }}
                   className={cn(
                     "px-8 py-4 rounded-[18px] text-[10px] font-black uppercase tracking-widest transition-all",
-                    driverType === 'company' ? "bg-orange-500 text-white shadow-lg shadow-orange-500/20" : "text-slate-400 hover:text-slate-600"
+                    driverType === 'company' ? "bg-orange-500 text-white shadow-lg shadow-orange-500/20" : "text-slate-400 hover:text-slate-600",
+                    profile.driverType && driverType !== 'company' && "opacity-40 grayscale cursor-not-allowed"
                   )}
                 >
                   Je travaille pour une société
                 </button>
+                {profile.driverType && (
+                  <div className="absolute inset-0 bg-transparent cursor-not-allowed z-10" title="Modification restreinte" onClick={() => toast.error("Le statut ne peut plus être modifié. Contactez l'administration.")} />
+                )}
               </div>
             </motion.div>
           )}
@@ -336,14 +350,15 @@ export default function Settings() {
                           type="file"
                           accept="image/*"
                           className="hidden"
-                          onChange={e => {
+                          onChange={async e => {
                             const file = e.target.files?.[0];
                             if (file) {
-                              const reader = new FileReader();
-                              reader.onloadend = () => {
-                                setCarteGriseUrl(reader.result as string);
-                              };
-                              reader.readAsDataURL(file);
+                              try {
+                                const base64 = await compressImage(file);
+                                setCarteGriseUrl(base64);
+                              } catch (err: any) {
+                                toast.error(err.message || "Erreur image");
+                              }
                             }
                           }}
                         />

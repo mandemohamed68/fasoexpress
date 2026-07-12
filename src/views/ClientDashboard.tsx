@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { DeliveryRequest } from '../types';
 import { api } from '../services/apiService';
 import { Link, useNavigate } from 'react-router-dom';
-import { Package, Clock, CheckCircle, Navigation, User, Home, Plus, ChevronRight, X, Copy, Share, Compass, HelpCircle } from 'lucide-react';
+import { Package, Clock, CheckCircle, Navigation, User, Home, Plus, ChevronRight, X, Copy, Share, Compass, HelpCircle, MessageCircle, MessageSquare } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import NotificationBell from '../components/NotificationBell';
 import { cn } from '../lib/utils';
@@ -105,7 +105,10 @@ export default function ClientDashboard() {
     };
   }, [profile]);
 
-  const activeDeliveries = (deliveries || []).filter(d => ['pending', 'accepted', 'picked_up', 'ready_for_pickup'].includes(d.status));
+  const activeDeliveries = (deliveries || []).filter(d => 
+    ['pending', 'accepted', 'picked_up', 'ready_for_pickup'].includes(d.status) &&
+    d.pickupCode !== 'SUPPORT'
+  );
   const recentDeliveries = (deliveries || []).filter(d => !activeDeliveries.some(ad => ad.id === d.id) && d.pickupCode !== 'SUPPORT').slice(0, 3);
 
   const copyCode = (code: string | undefined) => {
@@ -729,6 +732,33 @@ export default function ClientDashboard() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Floating Support Chat Button */}
+      <div className="fixed bottom-24 right-6 z-40">
+        <button
+          onClick={() => navigate('/messaging')}
+          className="w-14 h-14 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full flex items-center justify-center shadow-2xl hover:scale-110 active:scale-95 transition-all duration-300 relative group border-2 border-white/20 cursor-pointer"
+        >
+          <MessageCircle className="w-6 h-6" />
+          
+          {/* Unread badge logic */}
+          {(() => {
+            const supportChats = (deliveries || []).filter((d: any) => d.pickupCode === 'SUPPORT');
+            const hasUnread = supportChats.some((chat: any) => {
+              const lastRead = localStorage.getItem('last_read_' + chat.id);
+              return chat.lastMessageAt && (!lastRead || new Date(chat.lastMessageAt) > new Date(lastRead));
+            });
+            return hasUnread;
+          })() && (
+            <span className="absolute -top-1 -right-1 w-4.5 h-4.5 bg-rose-500 rounded-full border-2 border-white animate-pulse" />
+          )}
+          
+          {/* Tooltip */}
+          <span className="absolute right-16 bg-slate-900 text-white text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap shadow-md pointer-events-none">
+            SUPPORT CHAT
+          </span>
+        </button>
+      </div>
     </div>
   );
 }

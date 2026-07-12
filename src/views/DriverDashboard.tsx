@@ -2,12 +2,12 @@ import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { DeliveryRequest, CommissionSettings } from '../types';
-import { Compass, History as HistoryIcon, Wallet, User, Navigation, Package, DollarSign, Zap, CheckCircle, ShieldCheck, MapPin, X, ArrowRight, ArrowLeft, ChevronRight, Menu, List, Check, Info, Camera, Target, FileText, FileCheck, MessageSquare, Phone, HelpCircle, Truck } from 'lucide-react';
+import { Compass, History as HistoryIcon, Wallet, User, Navigation, Package, DollarSign, Zap, CheckCircle, ShieldCheck, MapPin, X, ArrowRight, ArrowLeft, ChevronRight, Menu, List, Check, Info, Camera, Target, FileText, FileCheck, MessageSquare, Phone, HelpCircle, Truck, MessageCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import { api } from '../services/apiService';
 import L from 'leaflet';
-import { cn, calculateDistance } from '../lib/utils';
+import { cn, calculateDistance, compressImage } from '../lib/utils';
 import { playNotificationSound } from '../lib/audio';
 import LoadingScreen from '../components/LoadingScreen';
 import AnnouncementBanner from '../components/AnnouncementBanner';
@@ -28,61 +28,6 @@ const mockChartData = [
   { name: 'Sam', amount: 45000 },
   { name: 'Dim', amount: 12000 },
 ];
-
-const compressImage = async (file: File): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    if (file.type === 'application/pdf') {
-       if (file.size > 1000000) {
-          reject(new Error("Le fichier PDF est trop volumineux (maximum 1 Mo). Veuillez réduire sa taille ou envoyer une photo."));
-          return;
-       }
-       const reader = new FileReader();
-       reader.onloadend = () => resolve(reader.result as string);
-       reader.onerror = reject;
-       reader.readAsDataURL(file);
-       return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        let width = img.width;
-        let height = img.height;
-        
-        const MAX_DIM = 800; // Smaller dimension for lighter payload
-        if (width > height) {
-          if (width > MAX_DIM) {
-            height *= MAX_DIM / width;
-            width = MAX_DIM;
-          }
-        } else {
-          if (height > MAX_DIM) {
-            width *= MAX_DIM / height;
-            height = MAX_DIM;
-          }
-        }
-        
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-           ctx.drawImage(img, 0, 0, width, height);
-           const dataUrl = canvas.toDataURL('image/jpeg', 0.5); // 50% quality JPEG
-           resolve(dataUrl);
-        } else {
-           resolve(e.target?.result as string);
-        }
-      };
-      img.onerror = () => reject(new Error("Erreur de lecture de l'image"));
-      img.src = e.target?.result as string;
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-};
-
 
 function ChangeView({ center }: { center: [number, number] }) {
   const map = useMap();
@@ -142,12 +87,16 @@ export default function DriverDashboard() {
   const [commissionSettings, setCommissionSettings] = useState<CommissionSettings | null>(null);
   const [toastMessage, setToastMessage] = useState('');
   const [unreadChats, setUnreadChats] = useState<Set<string>>(new Set());
+  const [supportChats, setSupportChats] = useState<any[]>([]);
   const prevDeliveriesRef = useRef<Record<string, string>>({});
   const isOnline = profile ? (profile.status === 'online' || profile.status === 'busy') : false;
 
   const filteredPendingJobs = useMemo(() => {
     if (!profile) return [];
-    return pendingJobs.filter(job => !job.rejectedBy?.includes(profile.userId));
+    return pendingJobs.filter(job => 
+      !job.rejectedBy?.includes(profile.userId) && 
+      job.pickupCode !== 'SUPPORT'
+    );
   }, [pendingJobs, profile]);
 
   const [showMissionDetails, setShowMissionDetails] = useState(false);
@@ -431,7 +380,16 @@ export default function DriverDashboard() {
       await refreshProfile().catch(() => {});
       const jobs = await api.deliveries.list();
       
-      const allMyJobs = jobs.filter((j: any) => j.driverId === currentProfile.userId);
+      const supportList = jobs.filter((d: any) => 
+        d.pickupCode === 'SUPPORT' && 
+        (d.clientId === currentProfile.userId || d.driverId === currentProfile.userId)
+      );
+      setSupportChats(supportList);
+      
+      const allMyJobs = jobs.filter((j: any) => 
+        j.driverId === currentProfile.userId && 
+        j.pickupCode !== 'SUPPORT'
+      );
       allMyJobs.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       
       const activeList = allMyJobs.filter((j: any) => ['accepted', 'picked_up', 'ready_for_pickup'].includes(j.status));
@@ -564,7 +522,7 @@ export default function DriverDashboard() {
   
   const earnings = useMemo(() => {
     // Tous les gains (les courses complétées online, c'est ce que la plateforme doit au livreur)
-    const onlineJobs = deliveredJobs.filter(d => d.paymentMethod !== 'cash');
+    const onlineJobs = deliveredJobs.filter(d => d.paymentMethod !== 'cash' && d.pickupCode !== 'SUPPORT');
     const totalEarnings = onlineJobs.reduce((sum, d) => sum + (d.clientProposedPrice || d.cost || 0), 0) * (commissionSettings?.driverSharePercent || 85) / 100;
     
     // Soustraire l'historique des retraits (validés par la base de données) ET les retraits en cours (pending) non encore validés
@@ -577,6 +535,7 @@ export default function DriverDashboard() {
     const today = new Date().toISOString().split('T')[0];
     const dailyTotal = deliveredJobs
         .filter(job => {
+          if (job.pickupCode === 'SUPPORT') return false;
           const updatedAtStr = job.updatedAt && (typeof (job.updatedAt as any).toDate === 'function' ? (job.updatedAt as any).toDate().toISOString() : job.updatedAt);
           const createdAtStr = job.createdAt && (typeof (job.createdAt as any).toDate === 'function' ? (job.createdAt as any).toDate().toISOString() : job.createdAt);
           return (updatedAtStr?.startsWith(today)) || (createdAtStr?.startsWith(today));
@@ -960,12 +919,12 @@ export default function DriverDashboard() {
                                   initial={{ x: -20, opacity: 0 }} 
                                   animate={{ x: 0, opacity: 1 }} 
                                   onClick={() => { setCurrentTab('profile'); navigate('/driver?tab=profile'); }}
-                                  className="bg-indigo-600/95 backdrop-blur-md px-4 py-2.5 rounded-2xl flex items-center justify-between shadow-xl pointer-events-auto border border-white/20"
+                                  className={cn("backdrop-blur-md px-4 py-2.5 rounded-2xl flex items-center justify-between shadow-xl pointer-events-auto border border-white/20", profile?.verificationStatus === 'pending' ? 'bg-amber-600/95' : profile?.verificationStatus === 'rejected' ? 'bg-rose-600/95' : 'bg-indigo-600/95')}
                                 >
                                    <ShieldCheck className="w-4 h-4 text-white" />
                                    <div className="text-left ml-3">
-                                      <p className="text-[8px] font-black uppercase tracking-widest text-orange-100 leading-none">Dossier Incomplet</p>
-                                      <p className="text-[9px] font-bold text-white mt-1">Finalisez KYC</p>
+                                      <p className="text-[8px] font-black uppercase tracking-widest text-orange-100 leading-none">{profile?.verificationStatus === 'pending' ? 'Dossier Soumis' : profile?.verificationStatus === 'rejected' ? 'Dossier Rejeté' : 'Dossier Incomplet'}</p>
+                                      <p className="text-[9px] font-bold text-white mt-1">{profile?.verificationStatus === 'pending' ? 'Validation en cours' : profile?.verificationStatus === 'rejected' ? 'Veuillez corriger' : 'Finalisez KYC'}</p>
                                    </div>
                                 </motion.button>
                              )}
@@ -1665,7 +1624,15 @@ export default function DriverDashboard() {
                         >
                           Modifier le Profil
                         </button>
-                        <span className="px-2 py-1 bg-indigo-50 text-indigo-600 rounded-md text-[8px] font-black uppercase">Vérifié</span>
+                        {profile?.verificationStatus === 'verified' ? (
+                          <span className="px-2 py-1 bg-emerald-100 text-emerald-600 rounded-md text-[8px] font-black uppercase">Vérifié</span>
+                        ) : profile?.verificationStatus === 'pending' ? (
+                          <span className="px-2 py-1 bg-orange-100 text-orange-600 rounded-md text-[8px] font-black uppercase">En attente</span>
+                        ) : profile?.verificationStatus === 'rejected' ? (
+                          <span className="px-2 py-1 bg-rose-100 text-rose-600 rounded-md text-[8px] font-black uppercase">Dossier Rejeté</span>
+                        ) : (
+                          <span className="px-2 py-1 bg-slate-100 text-slate-400 rounded-md text-[8px] font-black uppercase">Non configuré</span>
+                        )}
                       </div>
                     </div>
                  </div>
@@ -1766,6 +1733,7 @@ export default function DriverDashboard() {
                         <span className="font-bold text-slate-700 block text-left">Documents & Vérification</span>
                         {profile?.verificationStatus === 'pending' && <span className="bg-orange-100 text-orange-600 px-2 py-0.5 rounded text-[8px] font-black uppercase inline-block">En attente</span>}
                         {profile?.verificationStatus === 'verified' && <span className="bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded text-[8px] font-black uppercase inline-block">Vérifié</span>}
+                        {profile?.verificationStatus === 'rejected' && <span className="bg-rose-100 text-rose-600 px-2 py-0.5 rounded text-[8px] font-black uppercase inline-block font-bold">Rejeté / À corriger</span>}
                         {!profile?.verificationStatus && <span className="bg-slate-100 text-slate-400 px-2 py-0.5 rounded text-[8px] font-black uppercase inline-block">Non configuré</span>}
                       </div>
                     </div>
@@ -1796,14 +1764,14 @@ export default function DriverDashboard() {
                        <div className="space-y-2">
                           <input 
                              type="text" 
-                             placeholder="Nom complet du garant" 
+                             placeholder="Nom complet du garant" disabled={profile?.verificationStatus === 'pending' || profile?.verificationStatus === 'verified'} 
                              value={verificationForm.guarantorName} 
                              onChange={e => setVerificationForm({...verificationForm, guarantorName: e.target.value})}
                              className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-sm font-bold focus:border-indigo-500 outline-none"
                           />
                           <input 
                              type="tel" 
-                             placeholder="Téléphone du garant" 
+                             placeholder="Téléphone du garant" disabled={profile?.verificationStatus === 'pending' || profile?.verificationStatus === 'verified'} 
                              value={verificationForm.guarantorPhone} 
                              onChange={e => setVerificationForm({...verificationForm, guarantorPhone: e.target.value})}
                              className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-sm font-bold focus:border-indigo-500 outline-none"
@@ -1815,7 +1783,7 @@ export default function DriverDashboard() {
                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">RIB / IBAN de Compensation (Opt.)</label>
                        <input 
                           type="text" 
-                          placeholder="Ex: CM21..." 
+                          placeholder="Ex: CM21..." disabled={profile?.verificationStatus === 'pending' || profile?.verificationStatus === 'verified'} 
                           value={verificationForm.rib} 
                           onChange={e => setVerificationForm({...verificationForm, rib: e.target.value})}
                           className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-sm font-bold focus:border-indigo-500 outline-none"
@@ -1831,7 +1799,7 @@ export default function DriverDashboard() {
                              ) : (
                                 <Camera className="w-6 h-6 text-slate-300" />
                              )}
-                             <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={async e => {
+                             <input type="file" accept="image/*" disabled={profile?.verificationStatus === 'pending' || profile?.verificationStatus === 'verified'} className="absolute inset-0 opacity-0 disabled:pointer-events-none cursor-pointer" onChange={async e => {
                                 const file = e.target.files?.[0];
                                 if (file) {
                                    try {
@@ -1854,7 +1822,7 @@ export default function DriverDashboard() {
                              ) : (
                                 <Camera className="w-6 h-6 text-slate-300" />
                              )}
-                             <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={async e => {
+                             <input type="file" accept="image/*" disabled={profile?.verificationStatus === 'pending' || profile?.verificationStatus === 'verified'} className="absolute inset-0 opacity-0 disabled:pointer-events-none cursor-pointer" onChange={async e => {
                                 const file = e.target.files?.[0];
                                 if (file) {
                                    try {
@@ -1886,7 +1854,7 @@ export default function DriverDashboard() {
                             <span className="text-[8px] font-black uppercase tracking-widest mt-1">PDF ou IMAGE</span>
                           </div>
                        )}
-                       <input type="file" accept="image/*,application/pdf" className="absolute inset-0 opacity-0 cursor-pointer" onChange={async e => {
+                       <input type="file" accept="image/*,application/pdf" disabled={profile?.verificationStatus === 'pending' || profile?.verificationStatus === 'verified'} className="absolute inset-0 opacity-0 disabled:pointer-events-none cursor-pointer" onChange={async e => {
                           const file = e.target.files?.[0];
                           if (file) {
                              try {
@@ -1909,13 +1877,19 @@ export default function DriverDashboard() {
                     </p>
                  </div>
 
-                 <button 
-                  onClick={handleVerificationSubmit}
-                  disabled={isProcessingAction}
-                  className="w-full py-5 bg-indigo-600 text-white rounded-2xl text-[12px] font-black uppercase tracking-[0.2em] shadow-xl shadow-indigo-200 disabled:opacity-50 active:scale-95 transition-all"
-                 >
-                    {isProcessingAction ? 'Envoi en cours...' : 'Soumettre mon dossier'}
-                 </button>
+                 {!(profile?.verificationStatus === 'pending' || profile?.verificationStatus === 'verified') && (
+                    <button 
+                     onClick={handleVerificationSubmit}
+                     disabled={isProcessingAction}
+                     className="w-full py-5 text-white bg-indigo-600 shadow-indigo-200 rounded-2xl text-[12px] font-black uppercase tracking-[0.2em] shadow-xl active:scale-95 transition-all disabled:opacity-50 cursor-pointer"
+                    >
+                       {isProcessingAction 
+                         ? 'Envoi en cours...' 
+                         : profile?.verificationStatus === 'rejected' 
+                           ? 'Corriger & Soumettre mon dossier' 
+                           : 'Soumettre mon dossier'}
+                    </button>
+                 )}
               </motion.div>
             </motion.div>
           )}
@@ -2363,6 +2337,32 @@ export default function DriverDashboard() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Floating Support Chat Button */}
+      <div className="fixed bottom-24 right-6 z-40">
+        <button
+          onClick={() => navigate('/messaging')}
+          className="w-14 h-14 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full flex items-center justify-center shadow-2xl hover:scale-110 active:scale-95 transition-all duration-300 relative group border-2 border-white/20 cursor-pointer"
+        >
+          <MessageCircle className="w-6 h-6" />
+          
+          {/* Unread badge logic */}
+          {(() => {
+            const hasUnread = (supportChats || []).some((chat: any) => {
+              const lastRead = localStorage.getItem('last_read_' + chat.id);
+              return chat.lastMessageAt && (!lastRead || new Date(chat.lastMessageAt) > new Date(lastRead));
+            });
+            return hasUnread;
+          })() && (
+            <span className="absolute -top-1 -right-1 w-4.5 h-4.5 bg-rose-500 rounded-full border-2 border-white animate-pulse" />
+          )}
+          
+          {/* Tooltip */}
+          <span className="absolute right-16 bg-slate-900 text-white text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap shadow-md pointer-events-none">
+            SUPPORT CHAT
+          </span>
+        </button>
+      </div>
     </div>
   );
 }

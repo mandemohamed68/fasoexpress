@@ -2174,6 +2174,24 @@ const MASTER_ADMIN_EMAILS = ['mandemohamed68@gmail.com', 'mandemohamed6868@gmail
   });
 
   // --- WITHDRAWALS ---
+  // Helper to calculate driver's net earnings from online/mobile money deliveries (excluding cash and support deliveries)
+  function calculateDriverEarnings(driverId: string) {
+    const driver = db.prepare("SELECT * FROM users WHERE userId = ?").get(driverId) as any;
+    if (!driver) return 0;
+
+    const configRows = db.prepare("SELECT * FROM config").all() as any[];
+    const commissionsRow = configRows.find(c => c.key === 'commissions');
+    const commissionSettings = commissionsRow ? JSON.parse(commissionsRow.value) : { driverSharePercent: 85 };
+    const driverShare = commissionSettings.driverSharePercent || 85;
+
+    // Fetch all delivered deliveries for driver to filter robustly in JS (handles SQL NULL values and Support)
+    const allDeliveries = db.prepare("SELECT * FROM deliveries WHERE driverId = ? AND status = 'delivered'").all(driverId) as any[];
+    const onlineDeliveries = allDeliveries.filter(d => d.paymentMethod && d.paymentMethod !== 'cash' && d.pickupCode !== 'SUPPORT');
+    const totalEarnings = onlineDeliveries.reduce((acc: number, curr: any) => acc + (curr.clientProposedPrice || curr.cost || 0), 0) * driverShare / 100;
+    
+    return Math.floor(totalEarnings - (driver.totalWithdrawn || 0));
+  }
+
   app.post("/api/withdrawals", authenticate, (req: any, res) => {
     if (req.user.role !== 'driver') return res.status(400).json({ error: "Drivers only" });
     const { amount, method, phone, withdrawalInfo } = req.body;
@@ -2183,18 +2201,8 @@ const MASTER_ADMIN_EMAILS = ['mandemohamed68@gmail.com', 'mandemohamed6868@gmail
       const driver = db.prepare("SELECT * FROM users WHERE userId = ?").get(req.user.userId) as any;
       if (!driver) return res.status(404).json({ error: "Driver not found" });
 
-      // Calculate earnings from online deliveries
-      const configRows = db.prepare("SELECT * FROM config").all() as any[];
-      const commissionsRow = configRows.find(c => c.key === 'commissions');
-      const commissionSettings = commissionsRow ? JSON.parse(commissionsRow.value) : { driverSharePercent: 85 };
-      const driverShare = commissionSettings.driverSharePercent || 85;
-
-      const onlineDeliveries = db.prepare(`SELECT * FROM deliveries WHERE driverId = ? AND status = 'delivered' AND paymentMethod != 'cash'`).all(driver.userId) as any[];
-      const totalEarnings = onlineDeliveries.reduce((acc, curr) => acc + (curr.clientProposedPrice || curr.cost || 0), 0) * driverShare / 100;
-      
       const pendingWithdrawalsSum = (db.prepare(`SELECT SUM(amount) as sum FROM withdrawals WHERE driverId = ? AND status = 'en_attente'`).get(driver.userId) as any)?.sum || 0;
-      
-      const earnings = totalEarnings - (driver.totalWithdrawn || 0) - pendingWithdrawalsSum;
+      const earnings = calculateDriverEarnings(driver.userId) - pendingWithdrawalsSum;
 
       if (amount > earnings) return res.status(400).json({ error: "Amount exceeds available balance" });
 
@@ -2253,15 +2261,7 @@ const MASTER_ADMIN_EMAILS = ['mandemohamed68@gmail.com', 'mandemohamed6868@gmail
       const driver = db.prepare("SELECT * FROM users WHERE userId = ?").get(withdrawal.driverId) as any;
       if (!driver) return res.status(404).json({ error: "Livreur non trouvé." });
 
-      // ... (rest of the logic remains unchanged for now, just focused on error messages)
-      const configRows = db.prepare("SELECT * FROM config").all() as any[];
-      const commissionsRow = configRows.find(c => c.key === 'commissions');
-      const commissionSettings = commissionsRow ? JSON.parse(commissionsRow.value) : { driverSharePercent: 85 };
-      const driverShare = commissionSettings.driverSharePercent || 85;
-
-      const onlineDeliveries = db.prepare(`SELECT * FROM deliveries WHERE driverId = ? AND status = 'delivered' AND paymentMethod != 'cash'`).all(driver.userId) as any[];
-      const totalEarnings = onlineDeliveries.reduce((acc, curr) => acc + (curr.clientProposedPrice || curr.cost || 0), 0) * driverShare / 100;
-      const earnings = totalEarnings - (driver.totalWithdrawn || 0);
+      const earnings = calculateDriverEarnings(driver.userId);
 
       const newBalance = earnings - withdrawal.amount;
       if (newBalance < 0) return res.status(400).json({ error: "Solde insuffisant." });
