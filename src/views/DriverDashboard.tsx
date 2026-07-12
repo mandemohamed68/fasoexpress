@@ -1329,7 +1329,7 @@ export default function DriverDashboard() {
                                 <div className="flex justify-between items-center mb-3">
                                    <div className="flex gap-1.5">
                                      <span className="px-1.5 py-0.5 bg-orange-100 text-orange-600 rounded text-[8px] font-black italic tracking-widest">#{job.id.slice(-4).toUpperCase()}</span>
-                                     {job.isUrgent && <Zap className="w-3 h-3 text-rose-500 fill-rose-500" />}
+                                     {!!job.isUrgent && <Zap className="w-3 h-3 text-rose-500 fill-rose-500" />}
                                    </div>
                                    <span className="text-sm font-black text-slate-900">{job.clientProposedPrice || job.cost} F</span>
                                 </div>
@@ -2205,7 +2205,7 @@ export default function DriverDashboard() {
                               <span className="px-2 py-0.5 bg-orange-100 text-orange-600 rounded-lg text-[9px] font-black uppercase tracking-widest">
                                 #{job.id.slice(-6).toUpperCase()}
                               </span>
-                              {job.isUrgent && (
+                              {!!job.isUrgent && (
                                 <span className="px-2 py-0.5 bg-rose-100 text-rose-600 rounded-lg text-[9px] font-black uppercase tracking-widest flex items-center gap-1">
                                   <Zap className="w-2.5 h-2.5 fill-rose-500 text-rose-500 animate-pulse" /> Urgent
                                 </span>

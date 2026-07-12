@@ -152,6 +152,10 @@ export interface UserProfile {
   carteGriseUrl?: string;
   displayName?: string;
   rib?: string;
+  earnings?: number;
+  availableBalance?: number;
+  pendingWithdrawals?: number;
+  totalNetEarnings?: number;
   createdAt: string;
 }
 

@@ -118,10 +118,12 @@ export default function CreateDelivery() {
   // Colis Details
   const [size, setSize] = useState<"small" | "medium" | "large">("small");
   const [weight, setWeight] = useState("");
+  const [customWeight, setCustomWeight] = useState("");
   const [vehicleType, setVehicleType] = useState<
     "moto" | "tricycle" | "camion"
   >("moto");
   const [notes, setNotes] = useState("");
+  const [customNotes, setCustomNotes] = useState("");
   const [senderPhone, setSenderPhone] = useState("");
   const [recipientPhone, setRecipientPhone] = useState("");
 
@@ -514,7 +516,11 @@ export default function CreateDelivery() {
         senderPhone: senderPhone || profile.phone || "",
         recipientPhone,
         vehicleType,
-        packageDetails: { size, weightStr: weight, notes },
+        packageDetails: { 
+          size, 
+          weightStr: weight === "custom" ? customWeight : weight, 
+          notes: notes === "custom" ? customNotes : notes 
+        },
         baseCost: estimatedCost,
         clientProposedPrice: Number(proposedPrice),
         cost: Number(proposedPrice),
@@ -1008,7 +1014,19 @@ export default function CreateDelivery() {
                   <option value="15">5kg - 20kg</option>
                   <option value="50">20kg - 100kg</option>
                   <option value="500">100kg - 1 Tonne</option>
+                  <option value="custom">Autre (Saisir...)</option>
                 </select>
+                {weight === "custom" && (
+                  <motion.input
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    type="text"
+                    placeholder="Saisir le poids (ex: 12kg)"
+                    value={customWeight}
+                    onChange={(e) => setCustomWeight(e.target.value)}
+                    className="w-full mt-2 bg-white border border-orange-200 rounded-xl px-4 py-2 text-sm font-bold focus:border-orange-500 outline-none"
+                  />
+                )}
               </div>
               <div>
                 <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1 block pl-1">
@@ -1048,7 +1066,19 @@ export default function CreateDelivery() {
                   <option value="Fragile">Fragile</option>
                   <option value="Alimentaire">Alimentaire</option>
                   <option value="Plis">Documents</option>
+                  <option value="custom">Autre (Saisir...)</option>
                 </select>
+                {notes === "custom" && (
+                  <motion.input
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    type="text"
+                    placeholder="Saisir la nature du colis"
+                    value={customNotes}
+                    onChange={(e) => setCustomNotes(e.target.value)}
+                    className="w-full mt-2 bg-white border border-orange-200 rounded-xl px-4 py-2 text-sm font-bold focus:border-orange-500 outline-none"
+                  />
+                )}
               </div>
             </div>
 
