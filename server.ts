@@ -620,10 +620,16 @@ const MASTER_ADMIN_EMAILS = ['mandemohamed68@gmail.com', 'mandemohamed6868@gmail
       
       // For drivers, we calculate real-time earnings to ensure harmony across views
       if (user.role === 'driver') {
-        user.earnings = calculateDriverEarnings(user.userId);
+        const totalNetEarnings = calculateDriverEarnings(user.userId) + (user.totalWithdrawn || 0);
+        user.totalNetEarnings = totalNetEarnings;
+        user.totalWithdrawn = user.totalWithdrawn || 0;
         
-        // Also provide pending withdrawals sum for the frontend to know what's available for new withdrawal
+        // Sum of all pending withdrawals
         const pendingWithdrawalsSum = (db.prepare(`SELECT SUM(amount) as sum FROM withdrawals WHERE driverId = ? AND (status = 'en_attente' OR status = 'pending' OR status = 'en cours')`).get(user.userId) as any)?.sum || 0;
+        user.pendingWithdrawals = pendingWithdrawalsSum;
+        
+        // availableBalance is what's left after already paid AND pending
+        user.earnings = totalNetEarnings - user.totalWithdrawn; // This is the current balance (excluding pending)
         user.availableBalance = Math.max(0, user.earnings - pendingWithdrawalsSum);
       }
       
@@ -2273,7 +2279,7 @@ const MASTER_ADMIN_EMAILS = ['mandemohamed68@gmail.com', 'mandemohamed6868@gmail
       const driver = db.prepare("SELECT * FROM users WHERE userId = ?").get(req.user.userId) as any;
       if (!driver) return res.status(404).json({ error: "Driver not found" });
 
-      const pendingWithdrawalsSum = (db.prepare(`SELECT SUM(amount) as sum FROM withdrawals WHERE driverId = ? AND status = 'en_attente'`).get(driver.userId) as any)?.sum || 0;
+      const pendingWithdrawalsSum = (db.prepare(`SELECT SUM(amount) as sum FROM withdrawals WHERE driverId = ? AND (status = 'en_attente' OR status = 'pending' OR status = 'en cours')`).get(driver.userId) as any)?.sum || 0;
       const earnings = calculateDriverEarnings(driver.userId) - pendingWithdrawalsSum;
 
       if (amountNum > earnings) return res.status(400).json({ error: "Amount exceeds available balance" });

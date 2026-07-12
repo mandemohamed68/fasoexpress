@@ -1480,7 +1480,13 @@ export default function DriverDashboard() {
                       <div>
                         <p className="text-[9px] uppercase tracking-[0.2em] font-black text-slate-400 mb-1 flex items-center gap-2">Solde Disponible</p>
                         <div className="flex items-baseline gap-1">
-                          <h2 className="text-4xl font-black tracking-tight">{earnings.toLocaleString('fr-FR')}</h2>
+                          <div className="flex flex-col items-center">
+                            <h2 className="text-4xl font-black tracking-tight">{earnings.toLocaleString('fr-FR')}</h2>
+                            <p className="text-[10px] font-bold text-indigo-200 mt-1 uppercase tracking-widest">Solde Disponible</p>
+                            {profile?.pendingWithdrawals > 0 && (
+                              <p className="text-[9px] text-white/60 font-medium italic mt-1">({profile.pendingWithdrawals.toLocaleString('fr-FR')} F en attente)</p>
+                            )}
+                          </div>
                           <span className="text-sm font-bold text-slate-500">FCFA</span>
                         </div>
                       </div>
@@ -1658,7 +1664,31 @@ export default function DriverDashboard() {
                           <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Gains du jour</h4>
                           <DollarSign className="w-4 h-4 text-emerald-500" />
                        </div>
-                       <p className="text-3xl font-black mb-1">{dailyEarnings} F</p>
+                       <div className="space-y-3">
+                          <div className="flex justify-between items-end">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase">Gains Totaux</span>
+                            <span className="text-lg font-black">{(profile?.totalNetEarnings || 0).toLocaleString('fr-FR')} F</span>
+                          </div>
+                          <div className="flex justify-between items-end">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase">Déjà Payé</span>
+                            <span className="text-lg font-bold text-slate-300">{(profile?.totalWithdrawn || 0).toLocaleString('fr-FR')} F</span>
+                          </div>
+                          <div className="w-full h-px bg-white/5" />
+                          <div className="flex justify-between items-end">
+                            <span className="text-[10px] font-black text-indigo-400 uppercase">Solde Net Actuel</span>
+                            <span className="text-xl font-black text-white">{(profile?.earnings || 0).toLocaleString('fr-FR')} F</span>
+                          </div>
+                          {profile?.pendingWithdrawals > 0 && (
+                            <div className="flex justify-between items-end">
+                              <span className="text-[10px] font-bold text-orange-400 uppercase">En attente (Admin)</span>
+                              <span className="text-sm font-bold text-orange-300">-{profile.pendingWithdrawals.toLocaleString('fr-FR')} F</span>
+                            </div>
+                          )}
+                          <div className="pt-2 flex justify-between items-end border-t border-white/10">
+                            <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Disponible</span>
+                            <span className="text-2xl font-black text-emerald-400">{earnings.toLocaleString('fr-FR')} F</span>
+                          </div>
+                       </div>
                        <p className="text-[10px] font-bold text-slate-400 mt-2 italic text-left">Chaque course complète s'ajoute ici instantanément.</p>
                        <button 
                          onClick={() => setIsWithdrawalModalOpen(true)}
@@ -1898,7 +1928,12 @@ export default function DriverDashboard() {
               <motion.div initial={{scale:0.95, opacity:0, y:20}} animate={{scale:1, opacity:1, y:0}} exit={{scale:0.95, opacity:0, y:20}} className="bg-white rounded-3xl p-6 w-full max-w-sm relative z-10 shadow-2xl flex flex-col gap-6">
                  <div>
                      <h2 className="text-2xl font-black text-slate-900 tracking-tighter mb-2">Retrait des gains</h2>
-                     <p className="text-[10px] text-slate-500 font-bold">Solde actuel : <span className="text-indigo-600 font-black">{earnings.toLocaleString('fr-FR')} FCFA</span></p>
+                     <div className="flex flex-col gap-1">
+                        <p className="text-[10px] text-slate-500 font-bold">Solde Disponible : <span className="text-emerald-600 font-black">{earnings.toLocaleString('fr-FR')} FCFA</span></p>
+                        {profile?.pendingWithdrawals > 0 && (
+                          <p className="text-[9px] text-orange-500 font-bold italic">({profile.pendingWithdrawals.toLocaleString('fr-FR')} FCFA en attente de validation)</p>
+                        )}
+                      </div>
                  </div>
                  
                   <div className="space-y-4 mb-4">
