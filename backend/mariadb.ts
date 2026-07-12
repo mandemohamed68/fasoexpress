@@ -157,6 +157,7 @@ export default function initMariaDB() {
     try { try { connection.query("ALTER TABLE announcements ADD COLUMN image_url LONGTEXT DEFAULT NULL"); } catch(e: any) { if(!e.message.includes('Duplicate column name')) console.error("Failed to add column image_url to announcements:", e.message); } } catch(e){}
     
     try { connection.query("ALTER TABLE withdrawals ADD COLUMN withdrawalInfo text DEFAULT NULL"); } catch(e: any) { if(!e.message.includes('Duplicate column name')) console.error("Failed to add column withdrawalInfo to withdrawals:", e.message); }
+    try { connection.query("ALTER TABLE withdrawals ADD COLUMN reason text DEFAULT NULL"); } catch(e: any) { if(!e.message.includes('Duplicate column name')) console.error("Failed to add column reason to withdrawals:", e.message); }
     
     // Add missing columns to deliveries table
     try { try { connection.query("ALTER TABLE deliveries ADD COLUMN lastMessageAt datetime DEFAULT NULL"); } catch(e: any) { if(!e.message.includes('Duplicate column name')) console.error("Failed to add column lastMessageAt to deliveries:", e.message); } } catch(e){

@@ -866,6 +866,23 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleRejectWithdrawal = async (withdrawalId: string) => {
+    const reason = window.prompt("Raison du rejet (facultatif) :");
+    if (reason === null) return; // Cancelled
+    
+    setIsProcessingAction(true);
+    try {
+      await api.admin.withdrawals.reject(withdrawalId, reason);
+      toast.success('Retrait rejete.');
+      fetchData();
+    } catch (e: any) {
+      console.error(e);
+      toast.error(`Erreur lors du rejet: ${e.message || 'Erreur inconnue'}`);
+    } finally {
+      setIsProcessingAction(false);
+    }
+  };
+
   const allSidebarItems = [
     { group: 'GENERAL', items: [
       { name: 'Vue d\'ensemble', icon: LayoutDashboard },
@@ -2013,13 +2030,22 @@ export default function AdminDashboard() {
                                 {withdrawal.amount?.toLocaleString()} FCFA
                               </p>
                            </div>
-                           <button 
-                             onClick={() => handleValidateWithdrawal(withdrawal.id)}
-                             disabled={isProcessingAction}
-                             className="bg-slate-900 text-white px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-blue-600 transition-all shadow-xl shadow-slate-200 disabled:opacity-50"
-                           >
-                             Valider
-                           </button>
+                           <div className="flex flex-col gap-2">
+                             <button 
+                               onClick={() => handleValidateWithdrawal(withdrawal.id)}
+                               disabled={isProcessingAction}
+                               className="bg-slate-900 text-white px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-emerald-600 transition-all shadow-xl shadow-slate-200 disabled:opacity-50"
+                             >
+                               Valider
+                             </button>
+                             <button 
+                               onClick={() => handleRejectWithdrawal(withdrawal.id)}
+                               disabled={isProcessingAction}
+                               className="bg-white text-rose-500 border border-rose-100 px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-rose-50 transition-all disabled:opacity-50"
+                             >
+                               Rejeter
+                             </button>
+                           </div>
                          </div>
                       </div>
                     );

@@ -611,11 +611,27 @@ const MASTER_ADMIN_EMAILS = ['mandemohamed68@gmail.com', 'mandemohamed6868@gmail
 
   // --- USER ENDPOINTS ---
   app.get("/api/profile", authenticate, (req: any, res) => {
-    const user = db.prepare("SELECT * FROM users WHERE userId = ?").get(req.user.userId) as any;
-    if (!user) return res.status(404).json({ error: "Utilisateur non trouvé." });
-    delete user.password;
-    if (user.currentLocation) user.currentLocation = JSON.parse(user.currentLocation);
-    res.json(user);
+    try {
+      const user = db.prepare("SELECT * FROM users WHERE userId = ?").get(req.user.userId) as any;
+      if (!user) return res.status(404).json({ error: "Utilisateur non trouvé." });
+      
+      delete user.password;
+      if (user.currentLocation) user.currentLocation = JSON.parse(user.currentLocation);
+      
+      // For drivers, we calculate real-time earnings to ensure harmony across views
+      if (user.role === 'driver') {
+        user.earnings = calculateDriverEarnings(user.userId);
+        
+        // Also provide pending withdrawals sum for the frontend to know what's available for new withdrawal
+        const pendingWithdrawalsSum = (db.prepare(`SELECT SUM(amount) as sum FROM withdrawals WHERE driverId = ? AND (status = 'en_attente' OR status = 'pending' OR status = 'en cours')`).get(user.userId) as any)?.sum || 0;
+        user.availableBalance = Math.max(0, user.earnings - pendingWithdrawalsSum);
+      }
+      
+      res.json(user);
+    } catch (err) {
+      console.error("Profile fetch error:", err);
+      res.status(500).json({ error: "Erreur lors de la récupération du profil." });
+    }
   });
 
   app.get("/api/users/:id", authenticate, (req: any, res) => {
@@ -2312,20 +2328,18 @@ const MASTER_ADMIN_EMAILS = ['mandemohamed68@gmail.com', 'mandemohamed6868@gmail
     try {
       const withdrawal = db.prepare("SELECT * FROM withdrawals WHERE id = ?").get(id) as any;
       if (!withdrawal) return res.status(404).json({ error: "Retrait non trouvé." });
-      if (withdrawal.status === 'valide') return res.status(400).json({ error: "Déjà validé." });
+      if (withdrawal.status === 'valide' || withdrawal.status === 'rejete') return res.status(400).json({ error: "Déjà traité." });
 
       const driver = db.prepare("SELECT * FROM users WHERE userId = ?").get(withdrawal.driverId) as any;
       if (!driver) return res.status(404).json({ error: "Livreur non trouvé." });
 
-      const earnings = calculateDriverEarnings(driver.userId);
-
-      const newBalance = earnings - withdrawal.amount;
-      if (newBalance < 0) return res.status(400).json({ error: "Solde insuffisant." });
+      const currentEarnings = calculateDriverEarnings(driver.userId);
 
       db.transaction(() => {
-        // Update user
-        db.prepare("UPDATE users SET earnings = ?, totalWithdrawn = COALESCE(totalWithdrawn, 0) + ? WHERE userId = ?").run(newBalance, withdrawal.amount, driver.userId);
-        // Update withdrawal
+        // Update user totalWithdrawn
+        db.prepare("UPDATE users SET totalWithdrawn = COALESCE(totalWithdrawn, 0) + ? WHERE userId = ?").run(withdrawal.amount, driver.userId);
+        
+        // Update withdrawal status
         db.prepare("UPDATE withdrawals SET status = 'valide', processedAt = CURRENT_TIMESTAMP WHERE id = ?").run(id);
 
         // Add to historique_gains
@@ -2334,16 +2348,43 @@ const MASTER_ADMIN_EMAILS = ['mandemohamed68@gmail.com', 'mandemohamed6868@gmail
           VALUES (?, ?, 'retrait', ?, CURRENT_TIMESTAMP)
         `).run(uuidv4(), driver.userId, withdrawal.amount);
 
-        // Add historic
-        const msg = `Retrait de ${withdrawal.amount} FCFA - validé`;
+        // Notify driver
+        const msg = `Votre retrait de ${withdrawal.amount} FCFA a été validé par l'administration.`;
         db.prepare("INSERT INTO notifications (id, userId, title, message, type) VALUES (?, ?, ?, ?, ?)")
           .run(uuidv4(), driver.userId, 'Retrait validé', msg, 'success');
+          
+        // Add native push notification
+        sendPushNotification(driver.userId, 'Paiement effectué', msg, { type: 'withdrawal_approved' });
       })();
 
       res.json({ status: "ok" });
     } catch (err: any) {
       console.error(err);
       res.status(500).json({ error: "Failed to validate withdrawal" });
+    }
+  });
+
+  app.post("/api/payout-registry/:id/rejeter", authenticate, checkAdmin, (req: any, res) => {
+    const { id } = req.params;
+    const { reason } = req.body;
+    try {
+      const withdrawal = db.prepare("SELECT * FROM withdrawals WHERE id = ?").get(id) as any;
+      if (!withdrawal) return res.status(404).json({ error: "Retrait non trouvé." });
+      if (withdrawal.status === 'valide' || withdrawal.status === 'rejete') return res.status(400).json({ error: "Déjà traité." });
+
+      db.transaction(() => {
+        db.prepare("UPDATE withdrawals SET status = 'rejete', reason = ?, processedAt = CURRENT_TIMESTAMP WHERE id = ?").run(reason, id);
+
+        const msg = `Votre demande de retrait de ${withdrawal.amount} FCFA a été rejetée. ${reason ? 'Raison: ' + reason : ''}`;
+        db.prepare("INSERT INTO notifications (id, userId, title, message, type) VALUES (?, ?, ?, ?, ?)")
+          .run(uuidv4(), withdrawal.driverId, 'Retrait rejeté', msg, 'error');
+          
+        sendPushNotification(withdrawal.driverId, 'Retrait rejeté', msg, { type: 'withdrawal_rejected' });
+      })();
+
+      res.json({ status: "ok" });
+    } catch (err) {
+      res.status(500).json({ error: "Failed to reject withdrawal" });
     }
   });
 

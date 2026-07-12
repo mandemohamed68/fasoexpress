@@ -521,15 +521,11 @@ export default function DriverDashboard() {
   const focusedJob = useMemo(() => activeJobs.find(j => j.id === focusedJobId), [activeJobs, focusedJobId]);
   
   const earnings = useMemo(() => {
-    // Tous les gains (les courses complétées online, c'est ce que la plateforme doit au livreur)
-    const onlineJobs = deliveredJobs.filter(d => d.paymentMethod !== 'cash' && d.pickupCode !== 'SUPPORT');
-    const totalEarnings = onlineJobs.reduce((sum, d) => sum + (d.clientProposedPrice || d.cost || 0), 0) * (commissionSettings?.driverSharePercent || 85) / 100;
-    
-    // Soustraire l'historique des retraits (validés par la base de données) ET les retraits en cours (pending) non encore validés
-    const pendingWithdrawalsSum = withdrawals.filter(w => w.status === 'pending' || w.status === 'en cours' || !w.status || w.status === 'en_attente').reduce((sum, w) => sum + (Number(w.amount) || 0), 0);
-    
-    return Math.floor(totalEarnings - (profile?.totalWithdrawn || 0) - pendingWithdrawalsSum);
-  }, [deliveredJobs, commissionSettings, profile?.totalWithdrawn, withdrawals]);
+    // We now use the calculated balance from the profile (backend-driven)
+    // profile.earnings is the total balance
+    // profile.availableBalance is earnings minus pending withdrawals
+    return profile?.availableBalance || 0;
+  }, [profile?.availableBalance]);
 
   const dailyEarnings = useMemo(() => {
     const today = new Date().toISOString().split('T')[0];

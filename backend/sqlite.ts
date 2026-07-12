@@ -251,7 +251,8 @@ const colsToAdd = [
 ];
 
 const withdrawCols = [
-  { name: 'withdrawalInfo', type: 'TEXT' }
+  { name: 'withdrawalInfo', type: 'TEXT' },
+  { name: 'reason', type: 'TEXT' }
 ];
 
 const userCols = [
@@ -464,6 +465,7 @@ addColumnIfNotExists('users', 'dailyGoal', "REAL DEFAULT 0");
 addColumnIfNotExists('users', 'photoURL', "TEXT");
 addColumnIfNotExists('users', 'address', "TEXT");
 addColumnIfNotExists('users', 'carteGriseUrl', "TEXT");
+addColumnIfNotExists('withdrawals', 'reason', "TEXT");
 
 addColumnIfNotExists('bids', 'attempts', "INTEGER DEFAULT 1");
 
