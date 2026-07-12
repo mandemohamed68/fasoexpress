@@ -395,7 +395,19 @@ export default function LandingView() {
       {/* Right Pane: Auth Forms */}
       <div className="flex flex-col items-center justify-center p-6 sm:p-10 bg-white lg:rounded-l-[40px] border-l border-slate-100 shadow-2xl relative z-10 w-full min-h-[100dvh] overflow-y-auto">
         <div className="w-full max-w-md my-auto pb-10 mt-12 lg:mt-auto">
-          <div className="text-center mb-8 flex flex-col items-center">
+          <div className="text-center mb-8 flex flex-col items-center relative w-full">
+            <button
+              type="button"
+              onClick={() => {
+                setShowServerConfig(!showServerConfig);
+                setConnectionStatus('idle');
+                setIsForgotPassword(false);
+              }}
+              title="Configurer l'adresse de l'API / du Serveur"
+              className="absolute right-0 top-1/2 -translate-y-1/2 p-2 rounded-xl bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-orange-500 transition-all border border-slate-100 shadow-sm cursor-pointer z-20"
+            >
+              <Settings className="w-4 h-4 animate-hover-spin" />
+            </button>
             <div className="w-32 h-32 sm:hidden rounded-2xl flex items-center justify-center bg-white shadow-xl shadow-orange-500/10 border-2 border-orange-100 overflow-hidden p-1 mb-4">
               {!logoError ? (
                  <img src={logoUrl} alt="FASO EXPRESS Logo" onError={() => setLogoError(true)} className="w-full h-full object-contain" />
@@ -404,39 +416,55 @@ export default function LandingView() {
               )}
             </div>
             <h2 className="text-3xl font-black text-slate-900 tracking-tight uppercase mb-2 italic">
-              {isRegistering ? "Création de compte" : "Bienvenue"}
+              {showServerConfig ? "Serveur API" : isRegistering ? "Création de compte" : "Bienvenue"}
             </h2>
-            <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest">Plateforme de Livraison Professionnelle FASO EXPRESS</p>
+            <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest">
+              {showServerConfig ? "Configuration de l'adresse de connexion" : "Plateforme de Livraison Professionnelle FASO EXPRESS"}
+            </p>
           </div>
 
-          <div className="flex p-1 bg-slate-50 rounded-2xl border border-slate-100 mb-8">
-            <button 
-              onClick={() => { setIsRegistering(false); setAuthMode('login'); confirmResult && setConfirmResult(null); setIsForgotPassword(false); setResetSent(false); }}
-              className={cn(
-                "flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-300 cursor-pointer",
-                (!isRegistering && !isForgotPassword) ? "bg-white text-slate-900 shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600"
-              )}
-            >
-              Email
-            </button>
-            <button 
-              onClick={() => { setIsRegistering(true); setAuthMode('login'); setIsForgotPassword(false); setResetSent(false); }}
-              className={cn(
-                "flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-300 cursor-pointer",
-                isRegistering ? "bg-white text-slate-900 shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600"
-              )}
-            >
-              Inscription
-            </button>
-          </div>
+          {!showServerConfig && (
+            <div className="flex p-1 bg-slate-50 rounded-2xl border border-slate-100 mb-8">
+              <button 
+                onClick={() => { setIsRegistering(false); setAuthMode('login'); confirmResult && setConfirmResult(null); setIsForgotPassword(false); setResetSent(false); }}
+                className={cn(
+                  "flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-300 cursor-pointer",
+                  (!isRegistering && !isForgotPassword) ? "bg-white text-slate-900 shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600"
+                )}
+              >
+                Email
+              </button>
+              <button 
+                onClick={() => { setIsRegistering(true); setAuthMode('login'); setIsForgotPassword(false); setResetSent(false); }}
+                className={cn(
+                  "flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-300 cursor-pointer",
+                  isRegistering ? "bg-white text-slate-900 shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600"
+                )}
+              >
+                Inscription
+              </button>
+            </div>
+          )}
 
           {error && (
             <motion.div 
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="mb-6 p-4 bg-red-50 border border-red-100 rounded-2xl text-red-500 text-[10px] font-black uppercase tracking-widest text-center"
+              className="mb-6 p-4 bg-red-50 border border-red-100 rounded-2xl text-red-500 text-[10px] font-black uppercase tracking-widest text-center flex flex-col items-center justify-center gap-2"
             >
-              {error}
+              <span>{error}</span>
+              {(error.toLowerCase().includes('fetch') || error.toLowerCase().includes('réseau') || error.toLowerCase().includes('network') || error.toLowerCase().includes('connexion') || error.toLowerCase().includes('impossible')) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowServerConfig(true);
+                    setConnectionStatus('idle');
+                  }}
+                  className="mt-2 bg-red-500 hover:bg-red-600 text-white text-[9px] font-black px-3 py-1.5 rounded-lg uppercase tracking-wider transition-all cursor-pointer shadow-md active:scale-95 duration-100"
+                >
+                  🔧 Configurer l'adresse du serveur
+                </button>
+              )}
             </motion.div>
           )}
 
@@ -523,6 +551,108 @@ export default function LandingView() {
                   </button>
                 </form>
               )}
+            </div>
+          ) : showServerConfig ? (
+            <div className="space-y-4">
+              <h3 className="text-lg font-black text-slate-900 uppercase italic tracking-tight text-center mb-1">Configuration Serveur</h3>
+              <p className="text-slate-400 text-[10px] font-bold text-center uppercase tracking-widest mb-4">Ajuster l'adresse de l'API / du Serveur</p>
+
+              <div className="space-y-3">
+                <div className="relative">
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-[10px] uppercase tracking-wider">API :</div>
+                  <input 
+                    required
+                    type="text"
+                    value={customApiUrl}
+                    onChange={e => setCustomApiUrl(e.target.value)}
+                    placeholder="Ex: http://167.172.39.172:1010/api"
+                    className="w-full bg-slate-50 border border-slate-100 rounded-xl pl-14 pr-4 py-3.5 text-xs font-bold text-slate-900 focus:border-orange-500 transition-all outline-none font-mono"
+                  />
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setCustomApiUrl("/api")}
+                    className="flex-1 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl py-2.5 text-[9px] font-black uppercase tracking-widest text-slate-600 transition-all cursor-pointer active:scale-95 duration-100"
+                  >
+                    Serveur Local (Web)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCustomApiUrl("http://167.172.39.172:1010/api")}
+                    className="flex-1 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl py-2.5 text-[9px] font-black uppercase tracking-widest text-slate-600 transition-all cursor-pointer active:scale-95 duration-100"
+                  >
+                    Serveur Distant (Debian)
+                  </button>
+                </div>
+
+                {connectionStatus === 'checking' && (
+                  <div className="p-3 bg-blue-50 border border-blue-100 rounded-xl text-center text-[10px] font-bold text-blue-600 uppercase tracking-wider">
+                    🔄 Vérification de la connexion...
+                  </div>
+                )}
+                {connectionStatus === 'success' && (
+                  <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-xl text-center text-[10px] font-bold text-emerald-600 uppercase tracking-wider">
+                    ✅ Connexion établie ! Rechargement...
+                  </div>
+                )}
+                {connectionStatus === 'error' && (
+                  <div className="p-3 bg-red-50 border border-red-100 rounded-xl text-center text-[10px] font-bold text-red-600 uppercase tracking-wider">
+                    ❌ Impossible d'accéder à l'API à cette adresse.
+                  </div>
+                )}
+
+                <div className="flex flex-col gap-2 pt-2">
+                  <button 
+                    type="button"
+                    onClick={handleSaveServerConfig}
+                    className="w-full bg-slate-900 hover:bg-orange-600 text-white rounded-xl py-3.5 font-black text-[10px] uppercase tracking-[0.3em] shadow-xl transition-all cursor-pointer"
+                  >
+                    Tester & Enregistrer
+                  </button>
+
+                  {connectionStatus === 'error' && (
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        localStorage.setItem('custom_api_base', customApiUrl.trim());
+                        setConnectionStatus('success');
+                        setTimeout(() => {
+                          setShowServerConfig(false);
+                          setConnectionStatus('idle');
+                          window.location.reload();
+                        }, 1000);
+                      }}
+                      className="w-full bg-amber-500 hover:bg-amber-600 text-white rounded-xl py-2.5 font-black text-[9px] uppercase tracking-[0.2em] shadow-md transition-all cursor-pointer"
+                    >
+                      Enregistrer sans tester
+                    </button>
+                  )}
+
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      localStorage.removeItem('custom_api_base');
+                      setConnectionStatus('success');
+                      setTimeout(() => {
+                        window.location.reload();
+                      }, 1000);
+                    }}
+                    className="w-full bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl py-2.5 font-black text-[9px] uppercase tracking-[0.2em] transition-all cursor-pointer"
+                  >
+                    Réinitialiser par défaut
+                  </button>
+
+                  <button 
+                    type="button"
+                    onClick={() => { setShowServerConfig(false); setConnectionStatus('idle'); }}
+                    className="w-full text-center text-[10px] font-black text-slate-400 hover:text-slate-600 uppercase tracking-widest transition-colors mt-2 cursor-pointer"
+                  >
+                    Retour à la connexion
+                  </button>
+                </div>
+              </div>
             </div>
           ) : isRegistering ? (
             <form onSubmit={handleAuth} className="space-y-4">
