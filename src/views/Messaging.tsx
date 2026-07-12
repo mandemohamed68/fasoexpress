@@ -67,7 +67,33 @@ export default function Messaging() {
             <p className="text-xs text-slate-400 font-bold uppercase tracking-widest leading-relaxed mb-8 max-w-[200px] mx-auto">
               Nos agents sont là pour vous accompagner en cas de problème.
             </p>
-            <button className="px-8 py-4 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-xl shadow-slate-200 active:scale-95 transition-all flex items-center gap-2 mx-auto">
+            <button 
+              onClick={async () => {
+                setLoading(true);
+                try {
+                  const newChat = await api.deliveries.create({
+                    from: { address: "SUPPORT" },
+                    to: { address: "SUPPORT" },
+                    pickupAddress: "SUPPORT",
+                    deliveryAddress: "SUPPORT",
+                    clientName: profile.name,
+                    clientPhone: profile.phone,
+                    packageType: "SUPPORT",
+                    pickupCode: "SUPPORT",
+                    status: 'pending'
+                  });
+                  await fetchChats();
+                  if (newChat && newChat.id) {
+                    setSelectedChatDeliveryId(newChat.id);
+                  }
+                } catch (e) {
+                  console.error(e);
+                } finally {
+                  setLoading(false);
+                }
+              }}
+              className="px-8 py-4 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-xl shadow-slate-200 active:scale-95 transition-all flex items-center gap-2 mx-auto"
+            >
                <Sparkles className="w-4 h-4 text-orange-400" /> Contacter le Support
             </button>
           </div>

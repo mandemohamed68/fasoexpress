@@ -14,11 +14,13 @@ export default defineConfig(({mode}) => {
     plugins: [
       react(), 
       tailwindcss(),
-      VitePWA({ 
+      VitePWA({
+ 
         registerType: 'autoUpdate',
         includeAssets: ['logo-faso.jpg', 'splash-faso.jpg', 'favicon.png', 'splash.png'],
         manifest: false, // We are using an external manifest in public/manifest.json
         workbox: {
+          maximumFileSizeToCacheInBytes: 5000000,
           runtimeCaching: [
             {
               urlPattern: ({ url }) => url.pathname.includes('/api/deliveries'),

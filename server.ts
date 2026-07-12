@@ -22,7 +22,19 @@ function getFirebaseAdmin() {
   const serviceAccountVar = process.env.FIREBASE_SERVICE_ACCOUNT;
   if (serviceAccountVar) {
     try {
-      const serviceAccount = JSON.parse(serviceAccountVar);
+      let cleanedVar = serviceAccountVar.trim();
+      if ((cleanedVar.startsWith("'") && cleanedVar.endsWith("'")) || (cleanedVar.startsWith('"') && cleanedVar.endsWith('"'))) {
+        cleanedVar = cleanedVar.substring(1, cleanedVar.length - 1).trim();
+      }
+      // Replace literal backslash-n with actual newlines in case it was passed as a single line string
+      cleanedVar = cleanedVar.replace(/\\n/g, '\n');
+      
+      // Sometimes env vars might have escaped quotes
+      if (cleanedVar.includes('\\"')) {
+        cleanedVar = cleanedVar.replace(/\\"/g, '"');
+      }
+
+      const serviceAccount = JSON.parse(cleanedVar);
       firebaseAdminApp = initializeApp({
         credential: cert(serviceAccount)
       });
@@ -2195,7 +2207,8 @@ const MASTER_ADMIN_EMAILS = ['mandemohamed68@gmail.com', 'mandemohamed6868@gmail
   app.post("/api/withdrawals", authenticate, (req: any, res) => {
     if (req.user.role !== 'driver') return res.status(400).json({ error: "Drivers only" });
     const { amount, method, phone, withdrawalInfo } = req.body;
-    if (!amount || amount <= 0) return res.status(400).json({ error: "Invalid amount" });
+    const amountNum = Number(amount);
+    if (isNaN(amountNum) || amountNum <= 0) return res.status(400).json({ error: "Invalid amount" });
 
     try {
       const driver = db.prepare("SELECT * FROM users WHERE userId = ?").get(req.user.userId) as any;
@@ -2204,13 +2217,13 @@ const MASTER_ADMIN_EMAILS = ['mandemohamed68@gmail.com', 'mandemohamed6868@gmail
       const pendingWithdrawalsSum = (db.prepare(`SELECT SUM(amount) as sum FROM withdrawals WHERE driverId = ? AND status = 'en_attente'`).get(driver.userId) as any)?.sum || 0;
       const earnings = calculateDriverEarnings(driver.userId) - pendingWithdrawalsSum;
 
-      if (amount > earnings) return res.status(400).json({ error: "Amount exceeds available balance" });
+      if (amountNum > earnings) return res.status(400).json({ error: "Amount exceeds available balance" });
 
       const id = uuidv4();
       db.prepare(`
         INSERT INTO withdrawals (id, driverId, driverName, amount, status, method, phone, withdrawalInfo)
         VALUES (?, ?, ?, ?, 'en_attente', ?, ?, ?)
-      `).run(id, req.user.userId, req.user.name, amount, method, phone, withdrawalInfo || phone);
+      `).run(id, req.user.userId, req.user.name, amountNum, method, phone, withdrawalInfo || phone);
 
       // Create a notification for admin
       db.prepare("INSERT INTO notifications (id, userId, title, message, type) VALUES (?, ?, ?, ?, ?)")

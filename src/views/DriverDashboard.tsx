@@ -624,8 +624,8 @@ export default function DriverDashboard() {
 
   const handleWithdrawal = async () => {
     const amount = Number(withdrawalAmountInput);
-    if (!profile || earnings < 500) { setToastMessage("Solde insuffisant"); return; }
-    if (!amount || amount < 500 || amount > earnings) { setToastMessage("Montant invalide"); return; }
+    if (!profile || earnings < 100) { setToastMessage("Solde insuffisant"); return; }
+    if (!amount || amount < 100 || amount > earnings) { setToastMessage("Montant invalide"); return; }
     if (!withdrawalInfo) { setToastMessage("Veuillez renseigner les coordonnées de retrait"); return; }
     
     setIsWithdrawing(true);
@@ -1493,7 +1493,7 @@ export default function DriverDashboard() {
                       </div>
                    </div>
                    
-                   <button onClick={initWithdrawal} disabled={earnings < 500} className="w-full py-4 bg-indigo-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.15em] shadow-lg shadow-indigo-600/20 hover:bg-indigo-700 transition-all disabled:opacity-30 flex items-center justify-center gap-2 active:scale-95">
+                   <button onClick={initWithdrawal} disabled={earnings < 100} className="w-full py-4 bg-indigo-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.15em] shadow-lg shadow-indigo-600/20 hover:bg-indigo-700 transition-all disabled:opacity-30 flex items-center justify-center gap-2 active:scale-95">
                       <ArrowRight className="w-3 h-3" /> Demander un retrait
                    </button>
                 </div>
@@ -1961,7 +1961,7 @@ export default function DriverDashboard() {
                     <button onClick={() => setIsWithdrawalModalOpen(false)} className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-slate-200 transition-colors">
                       Annuler
                     </button>
-                    <button onClick={handleWithdrawal} disabled={isWithdrawing || !withdrawalAmountInput || Number(withdrawalAmountInput) < 500 || Number(withdrawalAmountInput) > earnings || !withdrawalInfo} className="flex-1 py-4 bg-indigo-600 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-200 disabled:opacity-50">
+                    <button onClick={handleWithdrawal} disabled={isWithdrawing || !withdrawalAmountInput || Number(withdrawalAmountInput) < 100 || Number(withdrawalAmountInput) > earnings || !withdrawalInfo} className="flex-1 py-4 bg-indigo-600 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-200 disabled:opacity-50">
                       Confirmer
                     </button>
                  </div>

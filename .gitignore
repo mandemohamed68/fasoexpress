@@ -18,3 +18,4 @@ local.db-journal
 # Build outputs
 dist/
 build/
+service-account.json
