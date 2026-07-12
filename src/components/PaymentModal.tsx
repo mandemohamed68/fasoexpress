@@ -167,14 +167,9 @@ export default function PaymentModal({
   const getApiUrl = (path: string) => {
     let apiBase = "/api";
     if (typeof window !== 'undefined') {
-      const cachedUrl = localStorage.getItem('custom_api_base');
-      if (cachedUrl) {
-        apiBase = cachedUrl;
-      } else {
-        // @ts-ignore
-        if (window.Capacitor && window.Capacitor.isNativePlatform()) {
-          apiBase = "http://167.172.39.172:1010/api";
-        }
+      // @ts-ignore
+      if (window.Capacitor && window.Capacitor.isNativePlatform()) {
+        apiBase = "http://167.172.39.172:1010/api";
       }
     }
     

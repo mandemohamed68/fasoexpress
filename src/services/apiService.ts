@@ -3,10 +3,6 @@
 import { Capacitor } from '@capacitor/core';
 
 export const getApiBase = () => {
-  const cachedUrl = localStorage.getItem('custom_api_base');
-  if (cachedUrl) {
-    return cachedUrl;
-  }
   if (Capacitor.isNativePlatform()) {
     return "http://167.172.39.172:1010/api";
   }
