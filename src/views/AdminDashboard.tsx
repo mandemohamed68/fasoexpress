@@ -3325,9 +3325,12 @@ export default function AdminDashboard() {
         const currentChatMessages = chatMessages;
 
         return (
-          <div className="bg-white rounded-3xl shadow-sm border border-slate-100 flex h-[700px] overflow-hidden">
+          <div className="bg-white rounded-3xl shadow-sm border border-slate-100 flex h-[600px] lg:h-[700px] overflow-hidden">
              {/* Sidebar: List of Chats */}
-             <div className="w-80 border-r border-slate-100 flex flex-col bg-slate-50/50">
+             <div className={cn(
+               "w-full lg:w-80 border-r border-slate-100 flex flex-col bg-slate-50/50 shrink-0",
+               selectedChatDeliveryId ? "hidden lg:flex" : "flex"
+             )}>
                 <div className="p-5 lg:p-6 border-b border-slate-100 bg-white">
                    <h3 className="text-xl font-black text-slate-900 tracking-tighter uppercase">Discussions</h3>
                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">{chatDeliveries.length} actives</p>
@@ -3364,24 +3367,34 @@ export default function AdminDashboard() {
              </div>
 
              {/* Main: Active Chat */}
-             <div className="flex-1 flex flex-col bg-white">
+             <div className={cn(
+               "flex-1 flex flex-col bg-white",
+               selectedChatDeliveryId ? "flex" : "hidden lg:flex"
+             )}>
                 {selectedChatDeliveryId ? (
-                  <>
-                    <div className="p-5 lg:p-6 border-b border-slate-100 flex items-center justify-between">
-                       <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 bg-orange-100 text-orange-600 rounded-2xl flex items-center justify-center">
-                             <Package className="w-6 h-6" />
-                          </div>
-                          <div>
-                            <h4 className="font-black text-slate-900 uppercase">Support Course #{selectedChatDeliveryId.slice(0, 8)}</h4>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                               {selectedDelivery?.from?.address?.slice(0, 20) || 'Lieu'}... {'->'} {selectedDelivery?.to?.address?.slice(0, 20) || 'Lieu'}...
-                            </p>
-                          </div>
-                       </div>
-                    </div>
+                   <>
+                     <div className="p-4 lg:p-6 border-b border-slate-100 flex items-center justify-between">
+                        <div className="flex items-center gap-3 lg:gap-4 min-w-0">
+                           {/* Back button on mobile */}
+                           <button 
+                             onClick={() => setSelectedChatDeliveryId(null)}
+                             className="lg:hidden w-10 h-10 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition-all flex items-center justify-center shrink-0"
+                           >
+                             <ChevronLeft className="w-5 h-5" />
+                           </button>
+                           <div className="w-10 h-10 lg:w-12 lg:h-12 bg-orange-100 text-orange-600 rounded-2xl flex items-center justify-center shrink-0">
+                              <Package className="w-5 h-5 lg:w-6 lg:h-6" />
+                           </div>
+                           <div className="min-w-0">
+                             <h4 className="font-black text-slate-900 uppercase text-xs lg:text-sm truncate">Support #{selectedChatDeliveryId.slice(0, 8)}</h4>
+                             <p className="text-[8px] lg:text-[10px] font-bold text-slate-400 uppercase tracking-widest truncate">
+                                {selectedDelivery?.from?.address?.slice(0, 15) || 'Lieu'}... {'->'} {selectedDelivery?.to?.address?.slice(0, 15) || 'Lieu'}...
+                             </p>
+                           </div>
+                        </div>
+                     </div>
 
-                    <div className="flex-1 overflow-y-auto p-6 lg:p-5 lg:p-6 space-y-6 bg-slate-50/30">
+                     <div className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-4 lg:space-y-6 bg-slate-50/30">
                        {currentChatMessages.map((msg, idx) => {
                           const isMe = msg.senderId === profile?.userId;
                           const senderProfile = users.find(u => u.userId === msg.senderId);
@@ -3391,7 +3404,7 @@ export default function AdminDashboard() {
                                   {msg.senderName || 'Inconnu'} * {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString() : ''}
                                </span>
                                <div className={cn(
-                                 "max-w-[70%] p-5 rounded-xl text-sm font-bold shadow-sm",
+                                 "max-w-[85%] lg:max-w-[70%] p-3.5 lg:p-5 rounded-xl text-xs lg:text-sm font-bold shadow-sm",
                                  isMe ? "bg-slate-900 text-white rounded-tr-none" : "bg-white text-slate-800 rounded-tl-none border border-slate-100"
                                )}>
                                   {msg.text}
@@ -3401,17 +3414,17 @@ export default function AdminDashboard() {
                        })}
                     </div>
 
-                    <form onSubmit={handleSendAdminMessage} className="p-6 border-t border-slate-100 flex gap-4">
+                    <form onSubmit={handleSendAdminMessage} className="p-4 lg:p-6 border-t border-slate-100 flex gap-3 lg:gap-4">
                        <input 
                          type="text" 
                          value={adminMessage}
                          onChange={e => setAdminMessage(e.target.value)}
                          placeholder="Repondre a la discussion..."
-                         className="flex-1 bg-slate-50 border-none rounded-2xl px-6 font-bold text-sm focus:ring-4 focus:ring-orange-100 transition-all"
+                         className="flex-1 bg-slate-50 border-none rounded-2xl px-4 lg:px-6 py-3.5 font-bold text-xs lg:text-sm focus:ring-4 focus:ring-orange-100 transition-all outline-none"
                        />
                        <button 
                          type="submit"
-                         className="px-8 bg-orange-500 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-orange-600 transition-all shadow-xl shadow-orange-100"
+                         className="px-5 lg:px-8 bg-orange-500 text-white rounded-2xl font-black text-[9px] lg:text-[10px] uppercase tracking-widest hover:bg-orange-600 transition-all shadow-xl shadow-orange-100"
                        >
                          Envoyer
                        </button>
@@ -4210,16 +4223,19 @@ export default function AdminDashboard() {
                             key={item.name}
                             onClick={() => handleMenuChange(item.name)}
                             className={cn(
-                              "w-full flex items-center justify-between px-4 py-3 rounded-xl text-[11px] font-black uppercase tracking-tight transition-all",
+                              "w-full flex items-center justify-between px-4 py-3 rounded-xl text-[11px] font-black uppercase tracking-tight transition-all duration-300",
                               activeMenu === item.name 
-                                ? "bg-slate-900 text-white shadow-lg" 
+                                ? "bg-slate-900 text-white shadow-lg scale-[1.02]" 
                                 : "text-slate-500 hover:bg-slate-50"
                             )}
                           >
                             <div className="flex items-center gap-3">
-                              <item.icon className="w-4 h-4" />
+                              <item.icon className={cn("w-4 h-4", activeMenu === item.name ? "text-white" : "text-slate-400")} />
                               {item.name}
                             </div>
+                            {item.name === 'Paiements Livreurs' && withdrawals.some(w => w.status === 'en_attente') && (
+                              <span className="w-2 h-2 bg-red-500 rounded-full shadow-[0_0_8px_rgba(239,68,68,0.8)]" />
+                            )}
                           </button>
                         ))}
                       </div>
