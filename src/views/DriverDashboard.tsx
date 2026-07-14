@@ -1657,25 +1657,29 @@ export default function DriverDashboard() {
                     </div>
                  </div>
 
-                 {/* Gains Journaliers */}
+                 {/* Wallet & Earnings */}
                  <div className="bg-slate-900 rounded-2xl p-6 text-white mb-8 relative overflow-hidden">
                     <div className="relative z-10">
                        <div className="flex justify-between items-center mb-4">
-                          <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Gains du jour</h4>
+                          <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Mes Revenus</h4>
                           <DollarSign className="w-4 h-4 text-emerald-500" />
                        </div>
                        <div className="space-y-3">
+                          <div className="flex justify-between items-end bg-white/5 p-3 rounded-xl border border-white/10 mb-4">
+                            <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Gains d'aujourd'hui</span>
+                            <span className="text-xl font-black text-emerald-400">{dailyEarnings.toLocaleString('fr-FR')} F</span>
+                          </div>
                           <div className="flex justify-between items-end">
-                            <span className="text-[10px] font-bold text-slate-400 uppercase">Gains Totaux</span>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase">Gains Totaux (Historique)</span>
                             <span className="text-lg font-black">{(profile?.totalNetEarnings || 0).toLocaleString('fr-FR')} F</span>
                           </div>
                           <div className="flex justify-between items-end">
-                            <span className="text-[10px] font-bold text-slate-400 uppercase">Déjà Payé</span>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase">Déjà Retiré</span>
                             <span className="text-lg font-bold text-slate-300">{(profile?.totalWithdrawn || 0).toLocaleString('fr-FR')} F</span>
                           </div>
-                          <div className="w-full h-px bg-white/5" />
+                          <div className="w-full h-px bg-white/5 my-2" />
                           <div className="flex justify-between items-end">
-                            <span className="text-[10px] font-black text-indigo-400 uppercase">Solde Net Actuel</span>
+                            <span className="text-[10px] font-black text-indigo-400 uppercase">Solde Total</span>
                             <span className="text-xl font-black text-white">{(profile?.earnings || 0).toLocaleString('fr-FR')} F</span>
                           </div>
                           {profile?.pendingWithdrawals > 0 && (
@@ -1684,8 +1688,8 @@ export default function DriverDashboard() {
                               <span className="text-sm font-bold text-orange-300">-{profile.pendingWithdrawals.toLocaleString('fr-FR')} F</span>
                             </div>
                           )}
-                          <div className="pt-2 flex justify-between items-end border-t border-white/10">
-                            <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Disponible</span>
+                          <div className="pt-3 flex justify-between items-end border-t border-white/10">
+                            <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Solde Disponible</span>
                             <span className="text-2xl font-black text-emerald-400">{earnings.toLocaleString('fr-FR')} F</span>
                           </div>
                        </div>
