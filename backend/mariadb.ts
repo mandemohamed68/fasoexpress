@@ -354,22 +354,27 @@ export default function initMariaDB() {
             formattedSql = mysql2.format(formattedSql, processedArgs);
          }
          try {
+           if (!connection) {
+             console.warn("MariaDB connection is null, attempting to connect...");
+             connect();
+           }
            const result = connection.query(formattedSql);
            return result;
          } catch(e: any) {
            const errMsg = e.message || "";
-           if (errMsg.includes("nativeNC") || errMsg.includes("socket") || errMsg.includes("connection") || errMsg.includes("read ECONNRESET") || errMsg.includes("write EPIPE")) {
-             console.warn("MariaDB connection lost, attempting reconnect... (Error: " + errMsg + ")");
+           if (errMsg.includes("null") || errMsg.includes("nativeNC") || errMsg.includes("socket") || errMsg.includes("connection") || errMsg.includes("read ECONNRESET") || errMsg.includes("write EPIPE")) {
+             console.warn("MariaDB connection issue, attempting reconnect... (Error: " + errMsg + ")");
              try {
                connect();
                console.log("MariaDB reconnected successfully. Retrying query...");
+               if (!connection) throw new Error("Connection still null after reconnect attempt");
                return connection.query(formattedSql);
              } catch (reconnectErr) {
                console.error("MariaDB reconnect failed:", reconnectErr);
                throw e;
              }
            }
-           console.error("MariaDB query error:", e.message, "\\nSQL:", formattedSql);
+           console.error("MariaDB query error:", e.message, "\nSQL:", formattedSql);
            throw e;
          }
       };
