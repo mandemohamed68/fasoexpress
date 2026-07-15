@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { Truck, Package, MapPin, ArrowRight, UserCheck, User, ShieldCheck, Mail, Lock, Phone, ChevronRight, Globe, Zap, Camera, CheckSquare, Settings, Facebook, Plus, Info } from 'lucide-react';
+import { Truck, Package, MapPin, ArrowRight, UserCheck, User, ShieldCheck, Mail, Lock, Phone, ChevronRight, Globe, Zap, Camera, CheckSquare, Settings, Facebook, Plus, Info, Eye, EyeOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../lib/utils';
 import { UserRole } from '../types';
@@ -105,6 +105,7 @@ export default function LandingView() {
   const [localLoading, setLocalLoading] = useState(false);
   
   const [isForgotPassword, setIsForgotPassword] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [resetSent, setResetSent] = useState(false);
   const [resetCode, setResetCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -426,12 +427,19 @@ export default function LandingView() {
                     <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
                     <input 
                       required
-                      type="password"
+                      type={showPassword ? "text" : "password"}
                       value={newPassword}
                       onChange={e => setNewPassword(e.target.value)}
                       placeholder="Nouveau mot de passe"
-                      className="w-full bg-slate-50 border border-slate-100 rounded-xl pl-12 pr-4 py-3.5 text-sm font-bold text-slate-900 focus:border-orange-500 transition-all outline-none"
+                      className="w-full bg-slate-50 border border-slate-100 rounded-xl pl-12 pr-12 py-3.5 text-sm font-bold text-slate-900 focus:border-orange-500 transition-all outline-none"
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                    >
+                      {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    </button>
                   </div>
 
                   <button 
@@ -770,14 +778,23 @@ export default function LandingView() {
 
                   <div className="space-y-1.5 pt-4 border-t border-slate-200">
                     <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-1 italic">Définir un Mot de Passe</label>
-                    <input 
-                      required
-                      type="password"
-                      value={password}
-                      onChange={e => setPassword(e.target.value)}
-                      placeholder="Min. 6 caractères"
-                      className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-900 focus:border-orange-500 transition-all outline-none"
-                    />
+                    <div className="relative">
+                      <input 
+                        required
+                        type={showPassword ? "text" : "password"}
+                        value={password}
+                        onChange={e => setPassword(e.target.value)}
+                        placeholder="Min. 6 caractères"
+                        className="w-full bg-white border border-slate-200 rounded-xl px-4 pr-12 py-3 text-sm font-bold text-slate-900 focus:border-orange-500 transition-all outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                      >
+                        {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
@@ -887,12 +904,19 @@ export default function LandingView() {
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
                 <input 
                   required
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   placeholder="Mot de passe"
-                  className="w-full bg-slate-50 border border-slate-100 rounded-xl pl-12 pr-4 py-3.5 text-sm font-bold text-slate-900 focus:border-orange-500 transition-all outline-none"
+                  className="w-full bg-slate-50 border border-slate-100 rounded-xl pl-12 pr-12 py-3.5 text-sm font-bold text-slate-900 focus:border-orange-500 transition-all outline-none"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                >
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
               </div>
               <div className="flex justify-end">
                 <button
