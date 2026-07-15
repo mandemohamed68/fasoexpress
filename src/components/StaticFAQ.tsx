@@ -108,11 +108,11 @@ export default function StaticFAQ() {
       );
 
   return (
-    <div className="w-full bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm p-6 lg:p-8">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
+    <div className="w-full bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm p-4 sm:p-6 lg:p-8">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-6 sm:mb-8">
         <div>
-          <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tighter italic">FAQ Complète FASO EXPRESS</h3>
-          <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-1">
+          <h3 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white uppercase tracking-tighter italic">FAQ Complète FASO EXPRESS</h3>
+          <p className="text-[10px] sm:text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-1">
             Trouvez rapidement des réponses à toutes vos questions
           </p>
         </div>

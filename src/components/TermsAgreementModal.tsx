@@ -64,7 +64,7 @@ export default function TermsAgreementModal({ role, onAccept }: TermsAgreementMo
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-6 sm:p-8">
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-8">
           <AnimatePresence mode="wait">
             {step === 'intro' && (
               <motion.div

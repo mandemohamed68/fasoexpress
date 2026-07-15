@@ -2150,20 +2150,20 @@ export default function DriverDashboard() {
       {/* Interactive Guide Modal */}
       <AnimatePresence>
         {isGuideOpen && (
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 overflow-y-auto">
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-2 sm:p-4 overflow-y-auto">
             <motion.div 
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-[32px] w-full max-w-4xl p-6 sm:p-8 shadow-2xl border border-slate-100 relative max-h-[90vh] overflow-y-auto flex flex-col"
+              className="bg-white rounded-[24px] sm:rounded-[32px] w-full max-w-4xl shadow-2xl border border-slate-100 relative max-h-[95vh] flex flex-col overflow-hidden"
             >
               <button 
                 onClick={() => setIsGuideOpen(false)}
-                className="absolute top-6 right-6 p-2 hover:bg-slate-50 rounded-full transition-colors z-20 cursor-pointer"
+                className="absolute top-4 right-4 sm:top-6 sm:right-6 p-2 bg-white/80 backdrop-blur-sm hover:bg-slate-50 rounded-full transition-colors z-50 cursor-pointer shadow-sm border border-slate-100"
               >
                 <X className="w-5 h-5 text-slate-400" />
               </button>
-              <div className="flex-1 overflow-y-auto pr-1">
+              <div className="flex-1 overflow-y-auto scrollbar-hide">
                 <UserGuide />
               </div>
             </motion.div>
@@ -2174,20 +2174,20 @@ export default function DriverDashboard() {
       {/* Interactive FAQ Modal */}
       <AnimatePresence>
         {isFaqOpen && (
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 overflow-y-auto">
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-2 sm:p-4 overflow-y-auto">
             <motion.div 
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-[32px] w-full max-w-3xl p-6 sm:p-8 shadow-2xl border border-slate-100 relative max-h-[90vh] overflow-y-auto flex flex-col"
+              className="bg-white rounded-[24px] sm:rounded-[32px] w-full max-w-3xl shadow-2xl border border-slate-100 relative max-h-[95vh] flex flex-col overflow-hidden"
             >
               <button 
                 onClick={() => setIsFaqOpen(false)}
-                className="absolute top-6 right-6 p-2 hover:bg-slate-50 rounded-full transition-colors z-20 cursor-pointer"
+                className="absolute top-4 right-4 sm:top-6 sm:right-6 p-2 bg-white/80 backdrop-blur-sm hover:bg-slate-50 rounded-full transition-colors z-50 cursor-pointer shadow-sm border border-slate-100"
               >
                 <X className="w-5 h-5 text-slate-400" />
               </button>
-              <div className="flex-1 overflow-y-auto pr-1">
+              <div className="flex-1 overflow-y-auto scrollbar-hide">
                 <StaticFAQ />
               </div>
             </motion.div>

@@ -103,34 +103,34 @@ export default function UserGuide() {
   const currentStepData = currentSteps[activeStep];
 
   return (
-    <div className="w-full bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm p-6 lg:p-8">
+    <div className="w-full bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm p-4 sm:p-6 lg:p-8">
       {/* Title */}
-      <div className="text-center mb-8">
-        <span className="px-4 py-1.5 bg-orange-50 dark:bg-orange-950/30 text-orange-600 dark:text-orange-400 text-[10px] font-black uppercase tracking-[0.25em] rounded-full inline-block">
+      <div className="text-center mb-6 sm:mb-8">
+        <span className="px-3 py-1 bg-orange-50 dark:bg-orange-950/30 text-orange-600 dark:text-orange-400 text-[9px] sm:text-[10px] font-black uppercase tracking-[0.25em] rounded-full inline-block">
           FASO EXPRESS • MODE D'EMPLOI
         </span>
-        <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tighter italic mt-3">
+        <h3 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tighter italic mt-3">
           Guide de Démarrage Rapide
         </h3>
-        <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-1">
+        <p className="text-[10px] sm:text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-1">
           Apprenez à maîtriser l'application en quelques étapes simples
         </p>
       </div>
 
       {/* Tabs */}
-      <div className="flex p-1 bg-slate-100 dark:bg-slate-950 rounded-2xl border border-slate-200/50 dark:border-slate-800/80 mb-8 max-w-md mx-auto">
+      <div className="flex p-1 bg-slate-100 dark:bg-slate-950 rounded-2xl border border-slate-200/50 dark:border-slate-800/80 mb-6 sm:mb-8 max-w-md mx-auto">
         <button
           onClick={() => {
             setActiveTab('client');
             setActiveStep(0);
           }}
-          className={`flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2 ${
+          className={`flex-1 py-2.5 sm:py-3 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2 ${
             activeTab === 'client'
               ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-md border border-slate-200/20'
               : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
           }`}
         >
-          <Compass className="w-4 h-4" />
+          <Compass className="w-3.5 h-3.5 sm:w-4 h-4" />
           Espace Client
         </button>
         <button
@@ -138,54 +138,86 @@ export default function UserGuide() {
             setActiveTab('driver');
             setActiveStep(0);
           }}
-          className={`flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2 ${
+          className={`flex-1 py-2.5 sm:py-3 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2 ${
             activeTab === 'driver'
               ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-md border border-slate-200/20'
               : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
           }`}
         >
-          <Truck className="w-4 h-4" />
+          <Truck className="w-3.5 h-3.5 sm:w-4 h-4" />
           Espace Livreur
         </button>
       </div>
 
       {/* Interactive Step Carousel */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-stretch">
         {/* Left Column - Steps Navigation */}
-        <div className="lg:col-span-5 flex flex-col gap-3 justify-center">
+        <div className="lg:col-span-5 flex flex-col gap-2.5 justify-center">
           {currentSteps.map((step, idx) => (
-            <button
-              key={idx}
-              onClick={() => setActiveStep(idx)}
-              className={`flex items-start gap-4 p-4 rounded-2xl border transition-all cursor-pointer text-left ${
-                activeStep === idx
-                  ? 'bg-orange-500/[0.03] border-orange-500 shadow-sm'
-                  : 'bg-transparent border-slate-100 dark:border-slate-800/50 hover:border-slate-200 dark:hover:border-slate-700'
-              }`}
-            >
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border transition-all ${
-                activeStep === idx
-                  ? 'bg-orange-500 text-white border-orange-500'
-                  : 'bg-slate-50 dark:bg-slate-950 text-slate-400 border-slate-100 dark:border-slate-800'
-              }`}>
-                {idx + 1}
-              </div>
-              <div>
-                <h4 className={`text-sm font-black uppercase tracking-tight transition-all ${
-                  activeStep === idx ? 'text-orange-600 dark:text-orange-400' : 'text-slate-800 dark:text-slate-200'
+            <div key={idx} className="flex flex-col gap-2">
+              <button
+                onClick={() => setActiveStep(idx)}
+                className={`flex items-start gap-3 sm:gap-4 p-3 sm:p-4 rounded-2xl border transition-all cursor-pointer text-left ${
+                  activeStep === idx
+                    ? 'bg-orange-500/[0.03] border-orange-500 shadow-sm'
+                    : 'bg-transparent border-slate-100 dark:border-slate-800/50 hover:border-slate-200 dark:hover:border-slate-700'
+                }`}
+              >
+                <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center shrink-0 border transition-all text-xs sm:text-base ${
+                  activeStep === idx
+                    ? 'bg-orange-500 text-white border-orange-500'
+                    : 'bg-slate-50 dark:bg-slate-950 text-slate-400 border-slate-100 dark:border-slate-800'
                 }`}>
-                  {step.title}
-                </h4>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-1">
-                  {step.description}
-                </p>
-              </div>
-            </button>
+                  {idx + 1}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h4 className={`text-xs sm:text-sm font-black uppercase tracking-tight transition-all truncate ${
+                    activeStep === idx ? 'text-orange-600 dark:text-orange-400' : 'text-slate-800 dark:text-slate-200'
+                  }`}>
+                    {step.title}
+                  </h4>
+                  <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-1">
+                    {step.description}
+                  </p>
+                </div>
+              </button>
+
+              {/* Mobile details (accordion style) */}
+              <AnimatePresence>
+                {activeStep === idx && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="lg:hidden overflow-hidden bg-slate-50 dark:bg-slate-950/50 rounded-2xl border border-slate-100 dark:border-slate-800"
+                  >
+                    <div className="p-4 space-y-3">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="w-8 h-8 bg-white dark:bg-slate-900 rounded-lg flex items-center justify-center shadow-sm border border-slate-100 dark:border-slate-800 text-indigo-500">
+                          {step.icon}
+                        </div>
+                        <span className="text-[9px] font-black text-indigo-500 uppercase tracking-widest">
+                          Étape {idx + 1} de 4
+                        </span>
+                      </div>
+                      {step.details.map((detail, dIdx) => (
+                        <div key={dIdx} className="flex items-start gap-2.5">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" />
+                          <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 leading-relaxed">
+                            {detail}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           ))}
         </div>
 
-        {/* Right Column - Step Details Panel */}
-        <div className="lg:col-span-7">
+        {/* Right Column - Step Details Panel (Hidden on mobile, uses accordion instead) */}
+        <div className="lg:col-span-7 hidden lg:block">
           <AnimatePresence mode="wait">
             <motion.div
               key={`${activeTab}-${activeStep}`}
