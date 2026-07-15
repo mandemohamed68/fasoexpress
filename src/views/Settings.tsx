@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { User, Phone, MapPin, Truck, Save, ArrowLeft, ShieldCheck, CheckCircle, Camera } from 'lucide-react';
+import { User, Phone, MapPin, Truck, Save, ArrowLeft, ShieldCheck, CheckCircle, Camera, Eye, EyeOff } from 'lucide-react';
 import { cn, compressImage } from '../lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
@@ -21,6 +21,7 @@ export default function Settings() {
   const [photoURL, setPhotoURL] = useState('');
   const [carteGriseUrl, setCarteGriseUrl] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
 
@@ -282,13 +283,22 @@ export default function Settings() {
                 </div>
                 <div className="space-y-2 lg:col-span-2">
                   <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 pl-2">Mot de passe (laisser vide pour ne pas modifier)</label>
-                  <input 
-                    type="password" 
-                    value={password}
-                    onChange={e => setPassword(e.target.value)}
-                    placeholder="Nouveau mot de passe..."
-                    className="w-full bg-slate-50 border border-slate-100 text-slate-900 p-5 rounded-2xl focus:outline-none focus:border-orange-500 transition-all font-bold text-sm"
-                  />
+                  <div className="relative">
+                    <input 
+                      type={showPassword ? "text" : "password"} 
+                      value={password}
+                      onChange={e => setPassword(e.target.value)}
+                      placeholder="Nouveau mot de passe..."
+                      className="w-full bg-slate-50 border border-slate-100 text-slate-900 p-5 rounded-2xl focus:outline-none focus:border-orange-500 transition-all font-bold text-sm pr-12"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                    >
+                      {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

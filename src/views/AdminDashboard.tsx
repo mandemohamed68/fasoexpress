@@ -7,7 +7,7 @@ import {
   ClipboardCheck, History, Store, Map as MapIcon, Globe, 
   BadgePercent, CreditCard, Wallet, LogOut, Bell, Settings, Play, Mail, Facebook,
   Plus, Navigation, UserCircle, Percent, Database, Download, Building2, X, Trash2, Zap, Smartphone, Menu,
-  CheckCircle, AlertCircle, Landmark, Info, Phone, Star, ChevronLeft, ChevronRight
+  CheckCircle, AlertCircle, Landmark, Info, Phone, Star, ChevronLeft, ChevronRight, Eye, EyeOff
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
@@ -956,6 +956,7 @@ export default function AdminDashboard() {
   const [adminMessage, setAdminMessage] = useState('');
   
   const [showCreateUserModal, setShowCreateUserModal] = useState(false);
+  const [showUserPassword, setShowUserPassword] = useState(false);
   const [isSubmittingNewUser, setIsSubmittingNewUser] = useState(false);
   const [newUserData, setNewUserData] = useState<any>({
     role: 'client',
@@ -4392,7 +4393,22 @@ export default function AdminDashboard() {
                 </div>
                 <div>
                   <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Mot de passe temporaire *</label>
-                  <input type="password" value={newUserData.password} onChange={e => setNewUserData({...newUserData, password: e.target.value})} required className="w-full bg-slate-50 border-none rounded-2xl px-4 py-3 text-sm font-bold focus:ring-4 focus:ring-indigo-100" />
+                  <div className="relative">
+                    <input 
+                      type={showUserPassword ? "text" : "password"} 
+                      value={newUserData.password} 
+                      onChange={e => setNewUserData({...newUserData, password: e.target.value})} 
+                      required 
+                      className="w-full bg-slate-50 border-none rounded-2xl px-4 pr-12 py-3 text-sm font-bold focus:ring-4 focus:ring-indigo-100" 
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowUserPassword(!showUserPassword)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                    >
+                      {showUserPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    </button>
+                  </div>
                 </div>
                 <div>
                   <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Telephone</label>
