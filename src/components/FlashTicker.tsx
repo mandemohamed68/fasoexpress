@@ -21,7 +21,7 @@ export const FlashTicker: React.FC = () => {
         <motion.div
           animate={{ x: ["100%", "-100%"] }}
           transition={{
-            duration: 25,
+            duration: 45,
             repeat: Infinity,
             ease: "linear"
           }}
