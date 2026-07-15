@@ -957,6 +957,9 @@ export default function AdminDashboard() {
   
   const [showCreateUserModal, setShowCreateUserModal] = useState(false);
   const [showUserPassword, setShowUserPassword] = useState(false);
+  const [showSmtpPassword, setShowSmtpPassword] = useState(false);
+  const [showSappaySecret, setShowSappaySecret] = useState(false);
+  const [showSappayPassword, setShowSappayPassword] = useState(false);
   const [isSubmittingNewUser, setIsSubmittingNewUser] = useState(false);
   const [newUserData, setNewUserData] = useState<any>({
     role: 'client',
@@ -2826,13 +2829,22 @@ export default function AdminDashboard() {
                       </div>
                       <div>
                          <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider block mb-2">Sappay Client Secret</label>
-                         <input 
-                            type="password"
-                            placeholder="Entrez votre Sappay Client Secret..."
-                            value={configForm?.sappayClientSecret || ''}
-                            onChange={(e) => setConfigForm({ ...configForm!, sappayClientSecret: e.target.value })}
-                            className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold focus:ring-4 focus:ring-emerald-100 focus:border-emerald-500"
-                         />
+                         <div className="relative">
+                            <input 
+                               type={showSappaySecret ? "text" : "password"}
+                               placeholder="Entrez votre Sappay Client Secret..."
+                               value={configForm?.sappayClientSecret || ''}
+                               onChange={(e) => setConfigForm({ ...configForm!, sappayClientSecret: e.target.value })}
+                               className="w-full bg-white border border-slate-200 rounded-xl px-4 pr-12 py-3 text-xs font-bold focus:ring-4 focus:ring-emerald-100 focus:border-emerald-500"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowSappaySecret(!showSappaySecret)}
+                              className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                            >
+                              {showSappaySecret ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                            </button>
+                         </div>
                       </div>
                       <div>
                          <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider block mb-2">Identifiant de Connexion (Username)</label>
@@ -2846,13 +2858,22 @@ export default function AdminDashboard() {
                       </div>
                       <div>
                          <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider block mb-2">Mot de Passe (Password)</label>
-                         <input 
-                            type="password"
-                            placeholder="Entrez le mot de passe pour Sappay..."
-                            value={configForm?.sappayPassword || ''}
-                            onChange={(e) => setConfigForm({ ...configForm!, sappayPassword: e.target.value })}
-                            className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold focus:ring-4 focus:ring-emerald-100 focus:border-emerald-500"
-                         />
+                         <div className="relative">
+                            <input 
+                               type={showSappayPassword ? "text" : "password"}
+                               placeholder="Entrez le mot de passe pour Sappay..."
+                               value={configForm?.sappayPassword || ''}
+                               onChange={(e) => setConfigForm({ ...configForm!, sappayPassword: e.target.value })}
+                               className="w-full bg-white border border-slate-200 rounded-xl px-4 pr-12 py-3 text-xs font-bold focus:ring-4 focus:ring-emerald-100 focus:border-emerald-500"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowSappayPassword(!showSappayPassword)}
+                              className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                            >
+                              {showSappayPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                            </button>
+                         </div>
                       </div>
                    </div>
                 </div>
@@ -3270,13 +3291,22 @@ export default function AdminDashboard() {
 
                     <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
                       <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 px-2">Mot de passe SMTP</label>
-                      <input 
-                        type="password" 
-                        value={configForm?.smtpPass || ''}
-                        onChange={e => setConfigForm({ ...configForm!, smtpPass: e.target.value })}
-                        className="w-full bg-white border-none rounded-xl px-5 py-3 text-sm font-black focus:ring-4 focus:ring-blue-100 transition-all"
-                        placeholder="Mot de passe SMTP"
-                      />
+                      <div className="relative">
+                        <input 
+                          type={showSmtpPassword ? "text" : "password"} 
+                          value={configForm?.smtpPass || ''}
+                          onChange={e => setConfigForm({ ...configForm!, smtpPass: e.target.value })}
+                          className="w-full bg-white border-none rounded-xl px-5 pr-12 py-3 text-sm font-black focus:ring-4 focus:ring-blue-100 transition-all"
+                          placeholder="Mot de passe SMTP"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowSmtpPassword(!showSmtpPassword)}
+                          className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                        >
+                          {showSmtpPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                        </button>
+                      </div>
                     </div>
 
                     <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100">

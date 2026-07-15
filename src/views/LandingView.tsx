@@ -106,6 +106,8 @@ export default function LandingView() {
   
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showRegisterPassword, setShowRegisterPassword] = useState(false);
+  const [showResetPassword, setShowResetPassword] = useState(false);
   const [resetSent, setResetSent] = useState(false);
   const [resetCode, setResetCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -427,7 +429,7 @@ export default function LandingView() {
                     <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
                     <input 
                       required
-                      type={showPassword ? "text" : "password"}
+                      type={showResetPassword ? "text" : "password"}
                       value={newPassword}
                       onChange={e => setNewPassword(e.target.value)}
                       placeholder="Nouveau mot de passe"
@@ -435,10 +437,10 @@ export default function LandingView() {
                     />
                     <button
                       type="button"
-                      onClick={() => setShowPassword(!showPassword)}
+                      onClick={() => setShowResetPassword(!showResetPassword)}
                       className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
                     >
-                      {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                      {showResetPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                     </button>
                   </div>
 
@@ -636,14 +638,23 @@ export default function LandingView() {
                 ) : (
                   <div className="space-y-1.5">
                     <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-1 italic">Mot de Passe</label>
-                    <input 
-                      required
-                      type="password"
-                      value={password}
-                      onChange={e => setPassword(e.target.value)}
-                      placeholder="Min. 6 caractères"
-                      className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-sm font-bold text-slate-900 focus:border-orange-500 transition-all outline-none"
-                    />
+                    <div className="relative">
+                      <input 
+                        required
+                        type={showRegisterPassword ? "text" : "password"}
+                        value={password}
+                        onChange={e => setPassword(e.target.value)}
+                        placeholder="Min. 6 caractères"
+                        className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 pr-12 py-3 text-sm font-bold text-slate-900 focus:border-orange-500 transition-all outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowRegisterPassword(!showRegisterPassword)}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                      >
+                        {showRegisterPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -781,7 +792,7 @@ export default function LandingView() {
                     <div className="relative">
                       <input 
                         required
-                        type={showPassword ? "text" : "password"}
+                        type={showRegisterPassword ? "text" : "password"}
                         value={password}
                         onChange={e => setPassword(e.target.value)}
                         placeholder="Min. 6 caractères"
@@ -789,10 +800,10 @@ export default function LandingView() {
                       />
                       <button
                         type="button"
-                        onClick={() => setShowPassword(!showPassword)}
+                        onClick={() => setShowRegisterPassword(!showRegisterPassword)}
                         className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
                       >
-                        {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                        {showRegisterPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                       </button>
                     </div>
                   </div>
