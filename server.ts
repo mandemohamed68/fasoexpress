@@ -976,8 +976,22 @@ const MASTER_ADMIN_EMAILS = ['mandemohamed68@gmail.com', 'mandemohamed6868@gmail
     
     if (fields.length === 0) return res.json({ status: "no changes" });
 
-    const setClause = fields.map(f => `${f} = ?`).join(", ");
-    const values = fields.map(f => {
+    // --- SÉCURITÉ : Filtrer uniquement les colonnes existantes dans la DB ---
+    let finalFields = fields;
+    try {
+      const pragma = db.prepare(`PRAGMA table_info(deliveries)`).all() as any[];
+      if (pragma && pragma.length > 0) {
+        const existingCols = new Set(pragma.map(c => c.name));
+        finalFields = fields.filter(f => existingCols.has(f));
+      }
+    } catch (e) {
+      // Silencieusement continuer si PRAGMA échoue
+    }
+
+    if (finalFields.length === 0) return res.json({ status: "no valid fields to update" });
+
+    const setClause = finalFields.map(f => `${f} = ?`).join(", ");
+    const values = finalFields.map(f => {
       let val = updates[f];
       if (typeof val === 'string' && val.includes('T') && val.endsWith('Z')) {
         val = val.slice(0, 19).replace('T', ' ');

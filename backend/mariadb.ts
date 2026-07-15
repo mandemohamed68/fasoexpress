@@ -172,6 +172,8 @@ export default function initMariaDB() {
     try { try { connection.query("ALTER TABLE deliveries ADD COLUMN rating double DEFAULT NULL"); } catch(e: any) { if(!e.message.includes('Duplicate column name')) console.error("Failed to add column rating to deliveries:", e.message); } } catch(e){}
     try { try { connection.query("ALTER TABLE deliveries ADD COLUMN feedback TEXT DEFAULT NULL"); } catch(e: any) { if(!e.message.includes('Duplicate column name')) console.error("Failed to add column feedback to deliveries:", e.message); } } catch(e){}
     try { try { connection.query("ALTER TABLE deliveries ADD COLUMN proofImage LONGTEXT DEFAULT NULL"); } catch(e: any) { if(!e.message.includes('Duplicate column name')) console.error("Failed to add column proofImage to deliveries:", e.message); } } catch(e){}
+    try { try { connection.query("ALTER TABLE deliveries ADD COLUMN pickupProofImage LONGTEXT DEFAULT NULL"); } catch(e: any) { if(!e.message.includes('Duplicate column name')) console.error("Failed to add column pickupProofImage to deliveries:", e.message); } } catch(e){}
+    try { try { connection.query("ALTER TABLE deliveries ADD COLUMN deliveryProofImage LONGTEXT DEFAULT NULL"); } catch(e: any) { if(!e.message.includes('Duplicate column name')) console.error("Failed to add column deliveryProofImage to deliveries:", e.message); } } catch(e){}
     
     // Create sectors table if it doesn't exist
     connection.query(`
