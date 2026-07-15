@@ -2444,7 +2444,112 @@ Informations utiles sur Faso Express :
 
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://localhost:${PORT}`);
+    startAutoReassignmentTimer();
   });
+}
+
+// Automatic reassignment on delay
+function startAutoReassignmentTimer() {
+  setInterval(() => {
+    try {
+      // 1. Fetch app config
+      let reassignmentMode = 'manual';
+      let autoReassignmentDelay = 15; // default 15 minutes
+      const configRow = db.prepare("SELECT value FROM config WHERE `key` = 'app_config'").get() as any;
+      if (configRow && configRow.value) {
+        const appConfig = JSON.parse(configRow.value);
+        if (appConfig.reassignmentMode) reassignmentMode = appConfig.reassignmentMode;
+        if (appConfig.autoReassignmentDelay) autoReassignmentDelay = Number(appConfig.autoReassignmentDelay) || 15;
+      }
+
+      if (reassignmentMode !== 'automatic') return;
+
+      // 2. Fetch deliveries that are accepted or ready_for_pickup but not picked_up yet
+      const deliveriesToCheck = db.prepare(`
+        SELECT id, driverId, driverName, status, updatedAt 
+        FROM deliveries 
+        WHERE status IN ('accepted', 'ready_for_pickup') AND driverId IS NOT NULL
+      `).all() as any[];
+
+      const now = new Date();
+      for (const d of deliveriesToCheck) {
+        const updatedAtStr = d.updatedAt;
+        if (!updatedAtStr) continue;
+
+        // Parse updatedAt safely (handling both SQLite CURRENT_TIMESTAMP and ISO format)
+        const lastUpdated = new Date(updatedAtStr.includes('T') ? updatedAtStr : updatedAtStr + ' UTC');
+        const diffInMs = now.getTime() - lastUpdated.getTime();
+        const diffInMinutes = diffInMs / (1000 * 60);
+
+        if (diffInMinutes >= autoReassignmentDelay) {
+          console.log(`Auto-reassigning delivery ${d.id} due to timeout (${diffInMinutes.toFixed(1)} mins)`);
+
+          const prevDriverId = d.driverId;
+
+          // Update delivery back to pending
+          db.prepare(`
+            UPDATE deliveries 
+            SET status = 'pending', driverId = NULL, driverName = NULL, driverPhone = NULL, driverPhoto = NULL, updatedAt = CURRENT_TIMESTAMP 
+            WHERE id = ?
+          `).run(d.id);
+
+          // Update accepted bid for this driver (if any) to rejected
+          db.prepare(`
+            UPDATE bids 
+            SET status = 'rejected', updatedAt = CURRENT_TIMESTAMP 
+            WHERE deliveryId = ? AND driverId = ? AND status = 'accepted'
+          `).run(d.id, prevDriverId);
+
+          // Log unassignment to driver history
+          try {
+            db.prepare(`
+              INSERT INTO driver_mission_history (id, driverId, deliveryId, action, createdAt)
+              VALUES (?, ?, ?, 'unassigned_timeout', CURRENT_TIMESTAMP)
+            `).run(uuidv4(), prevDriverId, d.id);
+          } catch (err) {
+            console.error("Failed to log unassignment timeout:", err);
+          }
+
+          // Send notification to the driver
+          try {
+            db.prepare(`
+              INSERT INTO notifications (id, userId, title, message, type)
+              VALUES (?, ?, ?, ?, 'warning')
+            `).run(
+              uuidv4(), 
+              prevDriverId, 
+              'Course retirée [Temps dépassé]', 
+              `La course #${d.id.slice(-6).toUpperCase()} vous a été retirée car vous n'avez pas procédé à la récupération à temps (limite de ${autoReassignmentDelay} mins).`, 
+              'warning'
+            );
+          } catch (err) {
+            console.error("Failed to notify driver of timeout:", err);
+          }
+
+          // Send notification to client of driver timeout
+          try {
+            const deliveryDetails = db.prepare("SELECT clientId FROM deliveries WHERE id = ?").get(d.id) as any;
+            if (deliveryDetails && deliveryDetails.clientId) {
+              db.prepare(`
+                INSERT INTO notifications (id, userId, title, message, type)
+                VALUES (?, ?, ?, ?, 'info')
+              `).run(
+                uuidv4(), 
+                deliveryDetails.clientId, 
+                'Livreur indisponible', 
+                `Votre course #${d.id.slice(-6).toUpperCase()} a été remise en recherche automatique car le livreur précédent a dépassé le délai de prise en charge.`, 
+                'info'
+              );
+            }
+          } catch (err) {
+            console.error("Failed to notify client of driver timeout:", err);
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Error in startAutoReassignmentTimer check:", err);
+    }
+  }, 30000); // Check every 30 seconds
 }
 
 startServer();

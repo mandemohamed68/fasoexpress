@@ -46,6 +46,10 @@ export interface AppConfig {
   flashInfoAudience?: 'all' | 'client' | 'driver';
   flashInfoMessages?: string[];
   flashInfoColor?: string;
+
+  // Custom configurations
+  autoReassignmentDelay?: number;
+  maxMissionsBeforeRestriction?: number;
 }
 
 export interface Sector {
@@ -223,6 +227,8 @@ export interface DeliveryRequest {
   rating?: number;
   feedback?: string;
   proofImage?: string;
+  pickupProofImage?: string;
+  deliveryProofImage?: string;
   
   // Urgent & Priority
   isUrgent?: boolean;

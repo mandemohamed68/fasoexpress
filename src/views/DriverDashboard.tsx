@@ -65,6 +65,11 @@ export default function DriverDashboard() {
   const [activeJobs, setActiveJobs] = useState<DeliveryRequest[]>([]);
   const [pendingPaymentJobs, setPendingPaymentJobs] = useState<DeliveryRequest[]>([]);
   const [deliveredJobs, setDeliveredJobs] = useState<DeliveryRequest[]>([]);
+  const [appConfig, setAppConfig] = useState<any>(null);
+
+  const maxMissionsLimit = appConfig?.maxMissionsBeforeRestriction ?? 3;
+  const hasIncompleteDossier = profile?.verificationStatus !== 'verified';
+  const isAccountRestricted = hasIncompleteDossier && deliveredJobs.length >= maxMissionsLimit;
   
   const prevPendingJobIds = useRef<string[]>([]);
   useEffect(() => {
@@ -93,11 +98,12 @@ export default function DriverDashboard() {
 
   const filteredPendingJobs = useMemo(() => {
     if (!profile) return [];
+    if (isAccountRestricted) return [];
     return pendingJobs.filter(job => 
       !job.rejectedBy?.includes(profile.userId) && 
       job.pickupCode !== 'SUPPORT'
     );
-  }, [pendingJobs, profile]);
+  }, [pendingJobs, profile, isAccountRestricted]);
 
   const [showMissionDetails, setShowMissionDetails] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
@@ -309,6 +315,8 @@ export default function DriverDashboard() {
       try {
         const comm = await api.config.get('commissions');
         if (comm) setCommissionSettings(comm as CommissionSettings);
+        const config = await api.config.get('app_config');
+        if (config) setAppConfig(config);
       } catch (e) {
         console.warn("Could not fetch settings locally");
       }
@@ -545,6 +553,10 @@ export default function DriverDashboard() {
 
   const submitBid = async (jobId: string, isDirectAccept = false) => {
     if (!profile) return;
+    if (isAccountRestricted) {
+      setToastMessage("Votre compte est restreint. Veuillez compléter votre dossier pour avoir de nouvelles missions.");
+      return;
+    }
     const maxSimultaneous = commissionSettings?.maxSimultaneousDeliveries || 2;
     if (activeJobs.length >= maxSimultaneous) {
       setToastMessage(`Maximum ${maxSimultaneous} missions simultanées !`);
@@ -656,7 +668,10 @@ export default function DriverDashboard() {
         return;
       }
       const data: any = { status: 'picked_up', updatedAt: new Date().toISOString() };
-      if (proofImage) data.proofImage = proofImage;
+      if (proofImage) {
+        data.proofImage = proofImage;
+        data.pickupProofImage = proofImage;
+      }
       await api.deliveries.update(focusedJob.id, data);
       
       await api.notifications.create({
@@ -678,7 +693,10 @@ export default function DriverDashboard() {
         return;
       }
       const data: any = { status: 'delivered', updatedAt: new Date().toISOString() };
-      if (proofImage) data.proofImage = proofImage;
+      if (proofImage) {
+        data.proofImage = proofImage;
+        data.deliveryProofImage = proofImage;
+      }
       await api.deliveries.update(focusedJob.id, data);
       
       await api.notifications.create({
@@ -712,6 +730,11 @@ export default function DriverDashboard() {
 
   const toggleOnline = async () => {
     if (!profile) return;
+    
+    if (isAccountRestricted) {
+      setToastMessage("Votre compte est restreint. Veuillez compléter votre dossier pour pouvoir recevoir des missions.");
+      return;
+    }
     
     // Check if account is actually active for missions
     if (profile.accountStatus === 'pending_approval' || profile.verificationStatus !== 'verified') {
@@ -766,7 +789,27 @@ export default function DriverDashboard() {
              <motion.div key="radar" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} className="absolute inset-0">
                 {/* MAP BACKGROUND */}
                 <div className="absolute inset-0 z-0 bg-slate-200">
-                   {gpsError && (
+{isAccountRestricted && (
+                     <div className="absolute top-28 left-4 right-4 z-[40]">
+                       <div className="bg-rose-500 text-white p-5 rounded-[28px] shadow-2xl border border-rose-400 flex flex-col gap-2">
+                         <div className="flex items-center gap-2">
+                           <ShieldCheck className="w-5 h-5 text-white animate-pulse shrink-0" />
+                           <p className="text-[10px] font-black uppercase tracking-wider">Compte Restreint</p>
+                         </div>
+                         <p className="text-xs font-bold opacity-90 leading-tight">
+                           Votre dossier de vérification est incomplet. Vous avez atteint la limite de {maxMissionsLimit} missions d'essai autorisées. Veuillez compléter votre dossier pour débloquer votre compte.
+                         </p>
+                         <button 
+                           onClick={() => { setCurrentTab('profile'); navigate('/driver?tab=profile'); }}
+                           className="text-[9px] font-black uppercase tracking-widest bg-white text-rose-600 px-4 py-2 rounded-xl w-fit mt-1 shadow active:scale-95 transition-all self-start"
+                         >
+                           Compléter mon dossier
+                         </button>
+                       </div>
+                     </div>
+                   )}
+
+                                      {gpsError && (
                      <div className="absolute top-24 left-1/2 -translate-x-1/2 z-[40]">
                        <div className="bg-rose-500/90 backdrop-blur text-white px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest shadow-lg flex items-center gap-2">
                          <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
@@ -1039,7 +1082,7 @@ export default function DriverDashboard() {
                                         )}
                                     </button>
                                     {(focusedJob.isPaid || focusedJob.paymentMethod === 'cash') ? (
-                                      <button onClick={() => setShowKeypadFor('pickup')} className="flex-1 py-4 bg-slate-900 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-xl flex items-center justify-center gap-2 active:scale-95 transition-all">
+                                      <button onClick={() => { setProofImage(null); setShowKeypadFor('pickup'); }} className="flex-1 py-4 bg-slate-900 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-xl flex items-center justify-center gap-2 active:scale-95 transition-all">
                                          Récupéré <Package className="w-4 h-4" />
                                       </button>
                                     ) : (
@@ -1094,7 +1137,7 @@ export default function DriverDashboard() {
                                         {focusedJob.cost} F
                                      </div>
                                   </div>
-                                  <button onClick={() => setShowKeypadFor('delivery')} className="w-full py-4 bg-indigo-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-xl flex items-center justify-center gap-2 active:scale-95 transition-all">
+                                  <button onClick={() => { setProofImage(null); setShowKeypadFor('delivery'); }} className="w-full py-4 bg-indigo-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-xl flex items-center justify-center gap-2 active:scale-95 transition-all">
                                      Insérer le code pour terminer la course <CheckCircle className="w-4 h-4" />
                                   </button>
                                </>
@@ -1764,6 +1807,7 @@ export default function DriverDashboard() {
                         {profile?.verificationStatus === 'pending' && <span className="bg-orange-100 text-orange-600 px-2 py-0.5 rounded text-[8px] font-black uppercase inline-block">En attente</span>}
                         {profile?.verificationStatus === 'verified' && <span className="bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded text-[8px] font-black uppercase inline-block">Vérifié</span>}
                         {profile?.verificationStatus === 'rejected' && <span className="bg-rose-100 text-rose-600 px-2 py-0.5 rounded text-[8px] font-black uppercase inline-block font-bold">Rejeté / À corriger</span>}
+                        {isAccountRestricted && <span className="bg-rose-600 text-white px-2 py-0.5 rounded text-[8px] font-black uppercase inline-block ml-2 animate-pulse">Compte Restreint</span>}
                         {!profile?.verificationStatus && <span className="bg-slate-100 text-slate-400 px-2 py-0.5 rounded text-[8px] font-black uppercase inline-block">Non configuré</span>}
                       </div>
                     </div>

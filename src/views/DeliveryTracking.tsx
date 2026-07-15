@@ -663,24 +663,46 @@ export default function DeliveryTracking() {
                    </div>
                 </div>
 
-                {/* Preuve de livraison */}
-                {delivery.proofImage && (
-                   <div className="bg-slate-50/80 rounded-3xl p-5 mb-6 border border-slate-100 shadow-inner">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-3 flex items-center gap-1.5">
-                         <Camera className="w-3.5 h-3.5 text-indigo-600" /> Photo Preuve de Livraison
-                      </p>
-                      <div className="rounded-2xl overflow-hidden border border-slate-200 bg-white max-h-72 flex justify-center items-center">
-                         <img 
-                            src={getCleanProofImage(delivery.proofImage)} 
-                            alt="Preuve de livraison" 
-                            className="max-w-full max-h-72 object-contain"
-                            referrerPolicy="no-referrer"
-                         />
-                      </div>
-                   </div>
-                )}
+                                 {/* Preuves de Récupération et de Livraison */}
+                 {(delivery.pickupProofImage || delivery.deliveryProofImage || delivery.proofImage) && (
+                    <div className="space-y-4 mb-6 font-sans">
+                       {/* Preuve de récupération */}
+                       {delivery.pickupProofImage && (
+                          <div className="bg-slate-50/80 rounded-3xl p-5 border border-slate-100 shadow-inner">
+                             <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-3 flex items-center gap-1.5">
+                                <Camera className="w-3.5 h-3.5 text-emerald-600" /> Photo Preuve de Récupération
+                             </p>
+                             <div className="rounded-2xl overflow-hidden border border-slate-200 bg-white max-h-72 flex justify-center items-center">
+                                <img 
+                                   src={getCleanProofImage(delivery.pickupProofImage)} 
+                                   alt="Preuve de récupération" 
+                                   className="max-w-full max-h-72 object-contain"
+                                   referrerPolicy="no-referrer"
+                                />
+                             </div>
+                          </div>
+                       )}
 
-                {/* Driver Interaction Panel */}
+                       {/* Preuve de livraison */}
+                       {(delivery.deliveryProofImage || (!delivery.pickupProofImage && delivery.proofImage)) && (
+                          <div className="bg-slate-50/80 rounded-3xl p-5 border border-slate-100 shadow-inner">
+                             <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-3 flex items-center gap-1.5">
+                                <Camera className="w-3.5 h-3.5 text-indigo-600" /> Photo Preuve de Livraison
+                             </p>
+                             <div className="rounded-2xl overflow-hidden border border-slate-200 bg-white max-h-72 flex justify-center items-center">
+                                <img 
+                                   src={getCleanProofImage(delivery.deliveryProofImage || delivery.proofImage)} 
+                                   alt="Preuve de livraison" 
+                                   className="max-w-full max-h-72 object-contain"
+                                   referrerPolicy="no-referrer"
+                                />
+                             </div>
+                          </div>
+                       )}
+                    </div>
+                 )}
+
+                 {/* Driver Interaction Panel */}
                 {displayDriver ? (
                    <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 flex items-center justify-between">
                       <div className="flex items-center gap-3">
@@ -689,6 +711,12 @@ export default function DeliveryTracking() {
                          </div>
                          <div>
                             <p className="font-black text-sm text-slate-900 tracking-tight">{displayDriver.name}</p>
+                             <p className="text-[10px] font-bold text-slate-400 mt-0.5">{displayDriver.phone || 'Pas de numéro'}</p>
+                             {displayDriver.licensePlate && (
+                                <p className="text-[10px] font-bold text-slate-500 mt-1 flex items-center gap-1">
+                                   Immatriculation : <span className="bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded font-black text-[9px] uppercase tracking-wider">{displayDriver.licensePlate}</span>
+                                </p>
+                             )}
                              <p className="text-[10px] font-bold text-slate-400 mt-0.5">{displayDriver.phone || 'Pas de numéro'}</p>
                             <div className="flex items-center gap-1.5 mt-0.5">
                                <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />

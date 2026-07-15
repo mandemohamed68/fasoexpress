@@ -2679,6 +2679,34 @@ export default function AdminDashboard() {
                         </button>
                      </div>
                      <p className="text-[10px] text-slate-400 font-bold mt-4 leading-relaxed uppercase tracking-tight">Si automatique, le systeme recherche immediatement un autre livreur lorsqu'un refus survient.</p>
+
+                     {configForm?.reassignmentMode === 'automatic' && (
+                        <div className="mt-4 border-t border-slate-200/60 pt-4">
+                           <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1.5 text-left">Délai de réaffectation automatique (secondes)</label>
+                           <input 
+                             type="number"
+                             min="10"
+                             value={configForm?.autoReassignmentDelay !== undefined ? String(configForm.autoReassignmentDelay) : '60'}
+                             onChange={(e) => setConfigForm({ ...configForm!, autoReassignmentDelay: e.target.value ? parseInt(e.target.value) || 0 : 0 })}
+                             className="w-full bg-white border border-slate-200 px-4 py-2.5 rounded-xl font-bold text-xs focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-all text-slate-800"
+                             placeholder="Ex: 60"
+                           />
+                           <p className="text-[9px] text-slate-400 font-bold mt-1 uppercase tracking-tight">Temps d'attente d'acceptation de la mission avant désassignation automatique.</p>
+                        </div>
+                     )}
+
+                     <div className="mt-4 border-t border-slate-200/60 pt-4">
+                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1.5 text-left">Limite de missions d'essai (Dossier Incomplet)</label>
+                        <input 
+                          type="number"
+                          min="0"
+                          value={configForm?.maxMissionsBeforeRestriction !== undefined ? String(configForm.maxMissionsBeforeRestriction) : '3'}
+                          onChange={(e) => setConfigForm({ ...configForm!, maxMissionsBeforeRestriction: e.target.value ? parseInt(e.target.value) || 0 : 0 })}
+                          className="w-full bg-white border border-slate-200 px-4 py-2.5 rounded-xl font-bold text-xs focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-all text-slate-800"
+                          placeholder="Ex: 3"
+                        />
+                        <p className="text-[9px] text-slate-400 font-bold mt-1 uppercase tracking-tight">Nombre maximum de missions d'essai autorisées avant restriction automatique du livreur.</p>
+                     </div>
                   </div>
 
                   {/* Moyens de Paiement Actifs */}

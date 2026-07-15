@@ -112,6 +112,8 @@ try {
     deliveryCode TEXT,
     rejectedBy TEXT, -- JSON array
     proofImage TEXT,
+    pickupProofImage TEXT,
+    deliveryProofImage TEXT,
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
     updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(clientId) REFERENCES users(userId),
@@ -431,6 +433,8 @@ addColumnIfNotExists('deliveries', 'cancelledBy', "TEXT");
 addColumnIfNotExists('deliveries', 'cancelReason', "TEXT");
 addColumnIfNotExists('deliveries', 'rating', "REAL");
 addColumnIfNotExists('deliveries', 'feedback', "TEXT");
+addColumnIfNotExists('deliveries', 'pickupProofImage', "TEXT");
+addColumnIfNotExists('deliveries', 'deliveryProofImage', "TEXT");
 addColumnIfNotExists('users', 'isVerified', "INTEGER DEFAULT 0");
 addColumnIfNotExists('users', 'phone', "TEXT");
 addColumnIfNotExists('users', 'vehicleType', "TEXT");
