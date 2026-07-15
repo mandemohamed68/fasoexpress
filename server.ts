@@ -2489,7 +2489,7 @@ function startAutoReassignmentTimer() {
           // Update delivery back to pending
           db.prepare(`
             UPDATE deliveries 
-            SET status = 'pending', driverId = NULL, driverName = NULL, driverPhone = NULL, driverPhoto = NULL, updatedAt = CURRENT_TIMESTAMP 
+            SET status = 'pending', driverId = NULL, driverName = NULL, updatedAt = CURRENT_TIMESTAMP 
             WHERE id = ?
           `).run(d.id);
 
