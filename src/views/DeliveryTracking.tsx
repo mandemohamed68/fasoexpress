@@ -311,9 +311,7 @@ export default function DeliveryTracking() {
         deliveryCode,
         updatedAt: new Date().toISOString()
       });
-      setShowPaymentModal(false);
       setPaymentBid(null);
-      toast('Paiement enregistré sur le serveur local !');
 
       // Refresh delivery data
       const updatedDelivery = await api.deliveries.get(delivery.id);

@@ -601,57 +601,103 @@ export default function PaymentModal({
                 {paymentSuccess ? (
                   <motion.div 
                     key="payment-success"
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.9 }}
+                    initial={{ opacity: 0, scale: 0.8, y: 20 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.8, y: -20 }}
+                    transition={{ type: "spring", stiffness: 300, damping: 25 }}
                     className="py-12 text-center space-y-8"
                   >
-                    <div className="w-24 h-24 bg-emerald-500 text-white rounded-[32px] flex items-center justify-center mx-auto mb-6 shadow-2xl shadow-emerald-500/20">
+                    <motion.div 
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      transition={{ type: "spring", stiffness: 400, damping: 20, delay: 0.1 }}
+                      className="w-24 h-24 bg-emerald-500 text-white rounded-[32px] flex items-center justify-center mx-auto mb-6 shadow-2xl shadow-emerald-500/20"
+                    >
                       <CheckCircle className="w-12 h-12" />
-                    </div>
+                    </motion.div>
                     
                     <div className="space-y-4">
-                      <h3 className="text-3xl font-black text-emerald-600 tracking-tighter italic uppercase leading-none">Paiement Réussi !</h3>
-                      <p className="text-[11px] text-slate-500 font-bold leading-relaxed max-w-xs mx-auto uppercase tracking-widest italic">
+                      <motion.h3 
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.2 }}
+                        className="text-3xl font-black text-emerald-600 tracking-tighter italic uppercase leading-none"
+                      >
+                        Paiement Réussi !
+                      </motion.h3>
+                      <motion.p 
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.3 }}
+                        className="text-[11px] text-slate-500 font-bold leading-relaxed max-w-xs mx-auto uppercase tracking-widest italic"
+                      >
                         Votre paiement via {methods.find(m => m.id === selectedMethod)?.name || 'notre service'} a été validé avec succès.
-                      </p>
+                      </motion.p>
                     </div>
 
                     {(sappayInvoiceId || transactionId) && (
-                      <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 max-w-sm mx-auto">
+                      <motion.div 
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.4 }}
+                        className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 max-w-sm mx-auto"
+                      >
                         <p className="text-[10px] font-black uppercase text-emerald-800 tracking-widest leading-none mb-1">RÉFÉRENCE DE TRANSACTION</p>
                         <p className="font-mono text-xs text-emerald-600 tracking-wider break-all">
                           {sappayInvoiceId || transactionId}
                         </p>
-                      </div>
+                      </motion.div>
                     )}
                   </motion.div>
                 ) : paymentFailed ? (
                   <motion.div 
                     key="payment-failed"
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.9 }}
+                    initial={{ opacity: 0, scale: 0.8, y: 20 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.8, y: -20 }}
+                    transition={{ type: "spring", stiffness: 300, damping: 25 }}
                     className="py-12 text-center space-y-8"
                   >
-                    <div className="w-24 h-24 bg-red-500 text-white rounded-[32px] flex items-center justify-center mx-auto mb-6 shadow-2xl shadow-red-500/20">
+                    <motion.div 
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      transition={{ type: "spring", stiffness: 400, damping: 20, delay: 0.1 }}
+                      className="w-24 h-24 bg-red-500 text-white rounded-[32px] flex items-center justify-center mx-auto mb-6 shadow-2xl shadow-red-500/20"
+                    >
                       <AlertCircle className="w-12 h-12" />
-                    </div>
+                    </motion.div>
                     
                     <div className="space-y-4">
-                      <h3 className="text-3xl font-black text-red-600 tracking-tighter italic uppercase leading-none border-b border-red-50 pb-2">Échec du Paiement</h3>
-                      <p className="text-[11px] text-slate-500 font-bold leading-relaxed max-w-xs mx-auto uppercase tracking-widest italic my-2">
+                      <motion.h3 
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.2 }}
+                        className="text-3xl font-black text-red-600 tracking-tighter italic uppercase leading-none border-b border-red-50 pb-2"
+                      >
+                        Échec du Paiement
+                      </motion.h3>
+                      <motion.p 
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.3 }}
+                        className="text-[11px] text-slate-500 font-bold leading-relaxed max-w-xs mx-auto uppercase tracking-widest italic my-2"
+                      >
                         Le paiement via {methods.find(m => m.id === selectedMethod)?.name || 'notre service'} n'a pas pu aboutir.
-                      </p>
+                      </motion.p>
                     </div>
 
                     {failedMessage && (
-                      <div className="bg-red-50 border border-red-100 rounded-2xl p-5 max-w-sm mx-auto text-left">
+                      <motion.div 
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.4 }}
+                        className="bg-red-50 border border-red-100 rounded-2xl p-5 max-w-sm mx-auto text-left"
+                      >
                         <p className="text-[10px] font-black uppercase text-red-800 tracking-widest leading-none mb-2">Message d'erreur</p>
                         <p className="text-[11px] font-bold text-red-600 uppercase tracking-wide leading-relaxed">
                           {failedMessage}
                         </p>
-                      </div>
+                      </motion.div>
                     )}
                   </motion.div>
                 ) : step === 1 ? (

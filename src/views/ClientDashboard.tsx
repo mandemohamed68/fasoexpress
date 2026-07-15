@@ -162,7 +162,6 @@ export default function ClientDashboard() {
         updatedAt: new Date().toISOString()
       };
       await api.deliveries.update(paymentDelivery.id, updates);
-      setPaymentDelivery(null);
       // Refresh
       const jobs = await api.deliveries.list();
       setDeliveries(jobs);
