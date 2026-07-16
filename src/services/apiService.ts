@@ -127,7 +127,7 @@ export const api = {
     },
     withdrawals: {
       list: () => request('/payout-registry'),
-      validate: (id: string) => request(`/payout-registry/${id}/valider`, 'POST'),
+      validate: (id: string, data?: { mode?: 'manual' | 'auto' | 'force', txId?: string }) => request(`/payout-registry/${id}/valider`, 'POST', data),
       reject: (id: string, reason?: string) => request(`/payout-registry/${id}/rejeter`, 'POST', { reason }),
     },
     reset: () => request('/system-maintenance-reset', 'POST'),

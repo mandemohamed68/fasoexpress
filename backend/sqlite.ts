@@ -254,7 +254,9 @@ const colsToAdd = [
 
 const withdrawCols = [
   { name: 'withdrawalInfo', type: 'TEXT' },
-  { name: 'reason', type: 'TEXT' }
+  { name: 'reason', type: 'TEXT' },
+  { name: 'txId', type: 'TEXT' },
+  { name: 'mode', type: 'TEXT' }
 ];
 
 const userCols = [

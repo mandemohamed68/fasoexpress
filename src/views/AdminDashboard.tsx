@@ -7,7 +7,7 @@ import {
   ClipboardCheck, History, Store, Map as MapIcon, Globe, 
   BadgePercent, CreditCard, Wallet, LogOut, Bell, Settings, Play, Mail, Facebook,
   Plus, Navigation, UserCircle, Percent, Database, Download, Building2, X, Trash2, Zap, Smartphone, Menu,
-  CheckCircle, AlertCircle, Landmark, Info, Phone, Star, ChevronLeft, ChevronRight, Eye, EyeOff
+  CheckCircle, AlertCircle, Landmark, Info, Phone, Star, ChevronLeft, ChevronRight, Eye, EyeOff, Settings2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
@@ -852,12 +852,17 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleValidateWithdrawal = async (withdrawalId: string) => {
+  const [payoutModalData, setPayoutModalData] = useState<{ id: string, amount: number, driverName: string } | null>(null);
+  const [payoutForm, setPayoutForm] = useState<{ mode: 'manual' | 'auto' | 'force', txId: string }>({ mode: 'manual', txId: '' });
+
+  const handleValidateWithdrawal = async (withdrawalId: string, mode: 'manual'|'auto'|'force' = 'manual', txId: string = '') => {
     setIsProcessingAction(true);
     try {
-      await api.admin.withdrawals.validate(withdrawalId);
-      toast.success('Paiement enregistre avec succes.');
+      await api.admin.withdrawals.validate(withdrawalId, { mode, txId });
+      toast.success('Paiement enregistré avec succès.');
       fetchData();
+      setPayoutModalData(null);
+      setPayoutForm({ mode: 'manual', txId: '' });
     } catch (e: any) {
       console.error(e);
       toast.error(`Erreur lors de la validation: ${e.message || 'Erreur inconnue'}`);
@@ -2036,7 +2041,7 @@ export default function AdminDashboard() {
                            </div>
                            <div className="flex flex-col gap-2">
                              <button 
-                               onClick={() => handleValidateWithdrawal(withdrawal.id)}
+                               onClick={() => setPayoutModalData(withdrawal)}
                                disabled={isProcessingAction}
                                className="bg-slate-900 text-white px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-emerald-600 transition-all shadow-xl shadow-slate-200 disabled:opacity-50"
                              >
@@ -2072,9 +2077,20 @@ export default function AdminDashboard() {
                            <p className="text-[10px] uppercase font-bold text-slate-400 mt-0.5">{new Date(wd.processedAt || wd.createdAt).toLocaleString('fr-FR')}</p>
                          </div>
                        </div>
-                       <div className="text-right">
-                         <p className="text-lg font-black text-slate-900">{wd.amount} F</p>
-                         <span className={cn("text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full mt-1 inline-block", wd.status === 'valide' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600')}>{wd.status}</span>
+                       <div className="flex items-center gap-4 text-right">
+                         <div>
+                           <p className="text-lg font-black text-slate-900">{wd.amount} F</p>
+                           <span className={cn("text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full mt-1 inline-block", wd.status === 'valide' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600')}>{wd.status}</span>
+                         </div>
+                         {wd.status !== 'valide' && (
+                           <button
+                             onClick={() => setPayoutModalData(wd)}
+                             className="ml-4 p-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-600 transition-colors cursor-pointer"
+                             title="Forcer le statut (Force Update)"
+                           >
+                             <Settings2 className="w-5 h-5" />
+                           </button>
+                         )}
                        </div>
                      </div>
                    ))}
@@ -4355,6 +4371,82 @@ export default function AdminDashboard() {
                     {isSaving ? 'Nettoyage...' : 'Confirmer'}
                   </button>
                 </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Payout Modal */}
+      <AnimatePresence>
+        {payoutModalData && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setPayoutModalData(null)} />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white rounded-[24px] p-8 w-full max-w-md relative z-10 shadow-2xl"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h3 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Valider le Paiement</h3>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+                    {payoutModalData.driverName} - {payoutModalData.amount?.toLocaleString()} FCFA
+                  </p>
+                </div>
+                <button onClick={() => setPayoutModalData(null)} className="text-slate-300 hover:text-slate-900 transition-colors">
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <label className="flex items-start gap-4 p-4 rounded-xl border border-slate-100 cursor-pointer hover:bg-slate-50 transition-colors" onClick={() => setPayoutForm({ ...payoutForm, mode: 'manual' })}>
+                  <input type="radio" name="payoutMode" checked={payoutForm.mode === 'manual'} readOnly className="mt-1" />
+                  <div>
+                    <h4 className="text-sm font-black uppercase tracking-wider text-slate-900">Mode Manuel</h4>
+                    <p className="text-[10px] text-slate-500 mt-1">Vous avez effectué le paiement hors-plateforme. Le système sera mis à jour et le livreur notifié.</p>
+                  </div>
+                </label>
+
+                <label className="flex items-start gap-4 p-4 rounded-xl border border-emerald-100 cursor-pointer hover:bg-emerald-50 transition-colors" onClick={() => setPayoutForm({ ...payoutForm, mode: 'auto' })}>
+                  <input type="radio" name="payoutMode" checked={payoutForm.mode === 'auto'} readOnly className="mt-1" />
+                  <div>
+                    <h4 className="text-sm font-black uppercase tracking-wider text-emerald-600">Mode Automatique (SapPay)</h4>
+                    <p className="text-[10px] text-slate-500 mt-1">Déclenche instantanément un virement via l'API SapPay vers le mobile du livreur.</p>
+                  </div>
+                </label>
+
+                <label className="flex items-start gap-4 p-4 rounded-xl border border-orange-100 cursor-pointer hover:bg-orange-50 transition-colors" onClick={() => setPayoutForm({ ...payoutForm, mode: 'force' })}>
+                  <input type="radio" name="payoutMode" checked={payoutForm.mode === 'force'} readOnly className="mt-1" />
+                  <div>
+                    <h4 className="text-sm font-black uppercase tracking-wider text-orange-600">Forcer le Statut</h4>
+                    <p className="text-[10px] text-slate-500 mt-1">En cas d'anomalie réseau. Marque la transaction comme payée manuellement avec un TxID de référence.</p>
+                  </div>
+                </label>
+
+                {payoutForm.mode === 'force' && (
+                  <div className="mt-4">
+                    <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider block mb-2">Transaction ID (TxID)</label>
+                    <input
+                      type="text"
+                      placeholder="Ex: SP_123456789"
+                      value={payoutForm.txId}
+                      onChange={(e) => setPayoutForm({ ...payoutForm, txId: e.target.value })}
+                      className="w-full bg-slate-50 border-none rounded-xl px-4 py-3 text-xs font-bold focus:ring-4 focus:ring-orange-100"
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-8 flex gap-3">
+                <button
+                  onClick={() => handleValidateWithdrawal(payoutModalData.id, payoutForm.mode, payoutForm.txId)}
+                  disabled={isProcessingAction || (payoutForm.mode === 'force' && !payoutForm.txId)}
+                  className="flex-1 bg-slate-900 text-white py-3 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-slate-800 transition-colors disabled:opacity-50"
+                >
+                  {isProcessingAction ? 'En cours...' : 'Confirmer'}
+                </button>
               </div>
             </motion.div>
           </div>
