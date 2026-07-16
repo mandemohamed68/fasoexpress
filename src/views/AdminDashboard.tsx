@@ -888,6 +888,11 @@ export default function AdminDashboard() {
     }
   };
 
+  const togglePayoutMode = async (mode: 'manual' | 'auto') => {
+    setGlobalPayoutMode(mode);
+    toast.success(`Mode de traitement passé en ${mode === 'manual' ? 'Manuel' : 'Automatique'}`);
+  };
+
   const allSidebarItems = [
     { group: 'GENERAL', items: [
       { name: 'Vue d\'ensemble', icon: LayoutDashboard },
@@ -1036,6 +1041,7 @@ export default function AdminDashboard() {
   };
 
   const [isDeleting, setIsDeleting] = useState(false);
+  const [globalPayoutMode, setGlobalPayoutMode] = useState<'manual' | 'auto'>('manual');
   const handleDeleteUser = async (userId: string) => {
     if (!isSuperAdmin || isDeleting) return;
     setIsDeleting(true);
@@ -1985,82 +1991,159 @@ export default function AdminDashboard() {
         const pendingWithdrawals = withdrawals.filter(w => w.status === 'en_attente');
 
         return (
-          <div className="bg-white rounded-3xl p-6 lg:p-5 lg:p-6 shadow-sm border border-slate-100">
-             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
-                <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Paiements des Livreurs</h3>
-             </div>
+          <div className="space-y-6">
+            <div className="flex flex-col gap-2">
+              <h3 className="text-3xl font-black text-slate-900 uppercase tracking-tighter">Demandes de Retrait</h3>
+              <p className="text-slate-500 font-medium text-sm">Gérez les demandes de virement des gains des livreurs.</p>
+            </div>
 
-             {pendingWithdrawals.length === 0 ? (
+            {/* Global Payout Mode Banner */}
+            <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 to-slate-800 rounded-[32px] p-8 lg:p-10 shadow-2xl border border-slate-700">
+               <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 blur-[100px] -mr-32 -mt-32" />
+               <div className="absolute bottom-0 left-0 w-64 h-64 bg-emerald-500/10 blur-[100px] -ml-32 -mb-32" />
+               
+               <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-8">
+                  <div className="max-w-2xl">
+                     <div className="flex items-center gap-2 mb-4">
+                        <div className="w-2 h-2 rounded-full bg-orange-400 animate-pulse" />
+                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Mode de traitement actuel</span>
+                     </div>
+                     
+                     <div className="flex items-center gap-4 mb-4">
+                        <h4 className="text-2xl lg:text-3xl font-black text-white uppercase tracking-tight">
+                           {globalPayoutMode === 'manual' ? 'Traitement Manuel (Hors-Plateforme)' : 'Traitement Automatique (Virement Mobile)'}
+                        </h4>
+                        <span className="bg-orange-500/20 text-orange-400 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest border border-orange-500/30">Actif</span>
+                     </div>
+                     
+                     <p className="text-slate-400 text-sm leading-relaxed font-medium">
+                        {globalPayoutMode === 'manual' 
+                          ? "Règlement hors-plateforme : L'administrateur procède manuellement au virement ou paiement physique par ses propres moyens (espèces, virement direct, etc.) puis valide la demande pour en notifier les intervenants."
+                          : "Enclenchement : Dès la validation, le mécanisme de calcul s'exécute et initie immédiatement une transaction de payout (virement) via l'API SapPay vers le numéro mobile du livreur."
+                        }
+                     </p>
+                  </div>
+
+                  <div className="flex bg-slate-950/50 p-1.5 rounded-2xl border border-slate-700/50 backdrop-blur-md">
+                     <button 
+                        onClick={() => togglePayoutMode('manual')}
+                        className={cn(
+                          "flex items-center gap-3 px-8 py-4 rounded-xl transition-all duration-300",
+                          globalPayoutMode === 'manual' 
+                            ? "bg-white text-slate-900 shadow-xl scale-105" 
+                            : "text-slate-500 hover:text-slate-300"
+                        )}
+                     >
+                        <span className="text-lg">👋</span>
+                        <span className="text-[11px] font-black uppercase tracking-[0.2em]">Manuel</span>
+                     </button>
+                     <button 
+                        onClick={() => togglePayoutMode('auto')}
+                        className={cn(
+                          "flex items-center gap-3 px-8 py-4 rounded-xl transition-all duration-300",
+                          globalPayoutMode === 'auto' 
+                            ? "bg-indigo-600 text-white shadow-xl shadow-indigo-500/20 scale-105" 
+                            : "text-slate-500 hover:text-slate-300"
+                        )}
+                     >
+                        <Zap className={cn("w-4 h-4", globalPayoutMode === 'auto' ? "fill-current" : "")} />
+                        <span className="text-[11px] font-black uppercase tracking-[0.2em]">Automatique</span>
+                     </button>
+                  </div>
+               </div>
+            </div>
+
+            <div className="bg-white rounded-[32px] p-8 lg:p-10 shadow-sm border border-slate-100">
+               {pendingWithdrawals.length === 0 ? (
                <div className="text-center py-10 bg-slate-50 rounded-3xl border border-slate-100">
                  <Wallet className="w-12 h-12 text-slate-300 mx-auto mb-4" />
                  <p className="text-slate-500 font-medium">Aucun paiement en attente pour le moment.</p>
                </div>
              ) : (
-               <div className="grid grid-cols-1 gap-6">
+               <div className="space-y-6">
+                 {/* Table Headers */}
+                 <div className="hidden md:grid grid-cols-6 gap-4 px-6 py-4 bg-slate-50 rounded-2xl border border-slate-100 mb-4 items-center">
+                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Hôte / Demandeur</div>
+                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Montant (FCFA)</div>
+                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Méthode</div>
+                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Date Demande</div>
+                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 text-center">Statut</div>
+                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Actions</div>
+                 </div>
+
+                 <div className="grid grid-cols-1 gap-6">
                   {pendingWithdrawals.map((withdrawal) => {
                     const driver = users.find(u => u.userId === withdrawal.driverId);
                     return (
-                      <div key={withdrawal.id} className="p-5 lg:p-6 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-5 group hover:bg-white hover:shadow-2xl transition-all">
-                         <div className="flex items-center gap-6">
-                           <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-blue-600 shadow-sm border border-slate-100 relative">
-                             <Truck className="w-7 h-7" />
-                             {driver?.driverType === 'company' && (
-                               <div className="absolute -top-2 -right-2 bg-blue-600 text-white p-1 rounded-lg">
-                                 <Building2 className="w-3 h-3" />
-                               </div>
-                             )}
-                           </div>
-                           <div>
-                             <div className="flex items-center gap-2 mb-1">
-                               <h4 className="font-black text-slate-900 uppercase">
+                      <div key={withdrawal.id} className="px-6 py-5 bg-slate-50 rounded-2xl border border-slate-100 grid grid-cols-1 md:grid-cols-6 items-center gap-4 group hover:bg-white hover:shadow-2xl transition-all">
+                         {/* Hôte / Demandeur */}
+                         <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-blue-600 shadow-sm border border-slate-100 relative shrink-0">
+                              <Truck className="w-5 h-5" />
+                            </div>
+                            <div className="min-w-0">
+                               <h4 className="font-black text-slate-900 uppercase text-[11px] truncate">
                                  {withdrawal.driverName}
                                </h4>
-                               <span className={cn(
-                                 "text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full",
-                                 "bg-slate-200 text-slate-600"
-                               )}>
-                                 {driver?.phone || withdrawal.phone || 'Non renseigne'}
-                               </span>
-                             </div>
-                             <div className="flex flex-col gap-1">
-                               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                                  Du {new Date(withdrawal.createdAt).toLocaleDateString()}
+                               <p className="text-[10px] font-bold text-slate-400 truncate">
+                                 {driver?.phone || withdrawal.phone || 'Non renseigné'}
                                </p>
-                               <div className="flex items-center gap-2 mt-1">
-                                  <span className="text-[8px] font-black text-red-500 uppercase tracking-widest bg-red-50 px-2 py-0.5 rounded-full">Demande de {withdrawal.amount} F</span>
-                               </div>
-                             </div>
-                           </div>
+                            </div>
                          </div>
-                         <div className="flex gap-6 items-center">
-                           <div className="text-right">
-                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">A PAYER</p>
-                              <p className="text-2xl font-black text-slate-900 tracking-tighter">
-                                {withdrawal.amount?.toLocaleString()} FCFA
-                              </p>
-                           </div>
-                           <div className="flex flex-col gap-2">
-                             <button 
+
+                         {/* Montant */}
+                         <div>
+                            <p className="text-sm font-black text-slate-900">
+                               {withdrawal.amount?.toLocaleString()} F
+                            </p>
+                         </div>
+
+                         {/* Méthode */}
+                         <div>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 bg-slate-100 px-2 py-1 rounded-lg">
+                               {withdrawal.method === 'mobile_money' ? 'Mobile' : (withdrawal.method || 'Cash')}
+                            </span>
+                         </div>
+
+                         {/* Date */}
+                         <div>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                               {new Date(withdrawal.createdAt).toLocaleDateString('fr-FR')}
+                            </p>
+                         </div>
+
+                         {/* Statut */}
+                         <div className="text-center">
+                            <span className="text-[8px] font-black text-amber-600 uppercase tracking-widest bg-amber-50 px-2 py-1 rounded-full border border-amber-100">
+                               En attente
+                            </span>
+                         </div>
+
+                         {/* Actions */}
+                         <div className="flex items-center justify-end gap-2">
+                            <button 
                                onClick={() => setPayoutModalData(withdrawal)}
                                disabled={isProcessingAction}
-                               className="bg-slate-900 text-white px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-emerald-600 transition-all shadow-xl shadow-slate-200 disabled:opacity-50"
-                             >
+                               className="bg-slate-900 text-white px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-emerald-600 transition-all disabled:opacity-50 flex items-center gap-2"
+                            >
+                               <Settings2 className="w-3 h-3" />
                                Valider
-                             </button>
-                             <button 
+                            </button>
+                            <button 
                                onClick={() => handleRejectWithdrawal(withdrawal.id)}
                                disabled={isProcessingAction}
-                               className="bg-white text-rose-500 border border-rose-100 px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-rose-50 transition-all disabled:opacity-50"
-                             >
+                               className="bg-white text-rose-500 border border-rose-100 px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-rose-50 transition-all disabled:opacity-50"
+                            >
                                Rejeter
-                             </button>
-                           </div>
+                            </button>
                          </div>
                       </div>
                     );
                   })}
                </div>
+             </div>
              )}
+            </div>
 
              {withdrawals.filter(w => w.status !== 'en_attente').length > 0 && (
                <div className="mt-12 pt-8 border-t border-slate-100">
@@ -4380,7 +4463,7 @@ export default function AdminDashboard() {
       {/* Payout Modal */}
       <AnimatePresence>
         {payoutModalData && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setPayoutModalData(null)} />
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}

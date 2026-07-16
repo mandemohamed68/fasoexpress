@@ -1,7 +1,6 @@
-@import "leaflet/dist/leaflet.css";
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap');
-@import "tailwindcss";
 @import "leaflet/dist/leaflet.css";
+@import "tailwindcss";
 
 @theme {
   --color-primary: #f97316; /* orange-500 */
@@ -144,9 +143,9 @@ html.dark body,
 
 /* Override utility colors for dark mode */
 .dark .bg-slate-50,
-.dark .bg-slate-100/50,
-.dark .bg-[#f8fafc],
-.dark .bg-[#f1f5f9],
+.dark .bg-slate-100\/50,
+.dark .bg-\[#f8fafc\],
+.dark .bg-\[#f1f5f9\],
 .dark .bg-slate-50\/40,
 .dark .bg-slate-50\/50,
 .dark .bg-slate-50\/60,
