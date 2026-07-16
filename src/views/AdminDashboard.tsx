@@ -852,7 +852,7 @@ export default function AdminDashboard() {
     }
   };
 
-  const [payoutModalData, setPayoutModalData] = useState<{ id: string, amount: number, driverName: string } | null>(null);
+  const [payoutModalData, setPayoutModalData] = useState<{ id: string, amount: number, driverName: string, phone?: string, info?: string } | null>(null);
   const [payoutForm, setPayoutForm] = useState<{ mode: 'manual' | 'auto' | 'force', txId: string }>({ mode: 'manual', txId: '' });
 
   const handleValidateWithdrawal = async (withdrawalId: string, mode: 'manual'|'auto'|'force' = 'manual', txId: string = '') => {
@@ -2085,8 +2085,8 @@ export default function AdminDashboard() {
                                <h4 className="font-black text-slate-900 uppercase text-[11px] truncate">
                                  {withdrawal.driverName}
                                </h4>
-                               <p className="text-[10px] font-bold text-slate-400 truncate">
-                                 {driver?.phone || withdrawal.phone || 'Non renseigné'}
+                               <p className="text-[10px] font-bold text-indigo-600 truncate">
+                                 {withdrawal.withdrawalInfo || withdrawal.phone || driver?.phone || 'Non renseigné'}
                                </p>
                             </div>
                          </div>
@@ -2122,7 +2122,7 @@ export default function AdminDashboard() {
                          {/* Actions */}
                          <div className="flex items-center justify-end gap-2">
                             <button 
-                               onClick={() => setPayoutModalData(withdrawal)}
+                               onClick={() => setPayoutModalData({ ...withdrawal, phone: withdrawal.phone, info: withdrawal.withdrawalInfo })}
                                disabled={isProcessingAction}
                                className="bg-slate-900 text-white px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-emerald-600 transition-all disabled:opacity-50 flex items-center gap-2"
                             >
@@ -2167,7 +2167,7 @@ export default function AdminDashboard() {
                          </div>
                          {wd.status !== 'valide' && (
                            <button
-                             onClick={() => setPayoutModalData(wd)}
+                             onClick={() => setPayoutModalData({ ...wd, phone: wd.phone, info: wd.withdrawalInfo })}
                              className="ml-4 p-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-600 transition-colors cursor-pointer"
                              title="Forcer le statut (Force Update)"
                            >
@@ -4477,6 +4477,13 @@ export default function AdminDashboard() {
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
                     {payoutModalData.driverName} - {payoutModalData.amount?.toLocaleString()} FCFA
                   </p>
+                  {(payoutModalData.phone || payoutModalData.info) && (
+                    <div className="mt-2 bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100 inline-block">
+                      <p className="text-[10px] font-black text-indigo-600 uppercase tracking-wider">
+                         CIBLE: {payoutModalData.phone || payoutModalData.info}
+                      </p>
+                    </div>
+                  )}
                 </div>
                 <button onClick={() => setPayoutModalData(null)} className="text-slate-300 hover:text-slate-900 transition-colors">
                   <X className="w-6 h-6" />
