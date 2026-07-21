@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { DeliveryRequest, CommissionSettings } from '../types';
-import { Compass, History as HistoryIcon, Wallet, User, Navigation, Package, DollarSign, Zap, CheckCircle, ShieldCheck, MapPin, X, ArrowRight, ArrowLeft, ChevronRight, Menu, List, Check, Info, Camera, Target, FileText, FileCheck, MessageSquare, Phone, HelpCircle, Truck, MessageCircle } from 'lucide-react';
+import { Compass, History as HistoryIcon, Wallet, User, Navigation, Package, DollarSign, Zap, CheckCircle, ShieldCheck, MapPin, X, ArrowRight, ArrowLeft, ChevronRight, Menu, List, Check, Info, Camera, Target, FileText, FileCheck, MessageSquare, Phone, HelpCircle, Truck, MessageCircle, Eye } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import { api } from '../services/apiService';
@@ -106,6 +106,7 @@ export default function DriverDashboard() {
   }, [pendingJobs, profile, isAccountRestricted]);
 
   const [showMissionDetails, setShowMissionDetails] = useState(false);
+  const [previewModalImage, setPreviewModalImage] = useState<string | null>(null);
   const [cancelReason, setCancelReason] = useState('');
   const [isCancelling, setIsCancelling] = useState(false);
 
@@ -1269,6 +1270,63 @@ export default function DriverDashboard() {
                               </div>
                            </div>
 
+                            {/* Package Details & Image Section */}
+                            {selectedPendingJob.packageDetails && (
+                              <div className="mb-4 p-3.5 bg-slate-50 border border-slate-100 rounded-2xl">
+                                <div className="flex items-center justify-between mb-2">
+                                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1">
+                                    <Package className="w-3.5 h-3.5 text-indigo-500" /> Détails du Colis
+                                  </span>
+                                  <div className="flex gap-1.5">
+                                    {selectedPendingJob.packageDetails.size && (
+                                      <span className="px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-md text-[9px] font-extrabold uppercase">
+                                        Taille : {selectedPendingJob.packageDetails.size}
+                                      </span>
+                                    )}
+                                    {selectedPendingJob.packageDetails.weightStr && (
+                                      <span className="px-2 py-0.5 bg-amber-50 text-amber-700 rounded-md text-[9px] font-extrabold">
+                                        Poids : {selectedPendingJob.packageDetails.weightStr} kg
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {selectedPendingJob.packageDetails.notes && (
+                                  <p className="text-xs font-bold text-slate-800 mb-2">
+                                    Nature : <span className="font-medium text-slate-600">{selectedPendingJob.packageDetails.notes}</span>
+                                  </p>
+                                )}
+
+                                {selectedPendingJob.packageDetails.imageUrl ? (
+                                  <div className="mt-2.5">
+                                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1.5">
+                                      📷 Photo du colis :
+                                    </p>
+                                    <div 
+                                      onClick={() => setPreviewModalImage(selectedPendingJob.packageDetails?.imageUrl || null)}
+                                      className="relative w-full h-36 rounded-xl overflow-hidden border border-slate-200 cursor-pointer group bg-slate-900 shadow-inner"
+                                    >
+                                      <img 
+                                        src={selectedPendingJob.packageDetails.imageUrl} 
+                                        alt="Photo du colis" 
+                                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                      />
+                                      <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold gap-1.5">
+                                        <Eye className="w-4 h-4" /> Cliquer pour agrandir
+                                      </div>
+                                      <span className="absolute bottom-2 right-2 px-2 py-1 bg-black/60 backdrop-blur-md text-white rounded-lg text-[9px] font-bold flex items-center gap-1">
+                                        <Eye className="w-3 h-3" /> Zoom
+                                      </span>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="mt-1 flex items-center gap-1.5 text-[10px] text-slate-400 font-medium italic">
+                                    <span>Pas de photo jointe par le client</span>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
                            {/* Affichage de l'état des négociations en cours ou refusées */}
                            {myBidOnJob && (
                              <div className={cn(
@@ -2374,6 +2432,46 @@ export default function DriverDashboard() {
                   )}
                 </div>
 
+                {/* Package Details in Mission Details */}
+                {focusedJob.packageDetails && (
+                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1">
+                      <Package className="w-3.5 h-3.5 text-indigo-500" /> Information Colis
+                    </p>
+                    <div className="flex gap-2 mb-2">
+                      {focusedJob.packageDetails.size && (
+                        <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded text-[10px] font-extrabold uppercase">
+                          Taille: {focusedJob.packageDetails.size}
+                        </span>
+                      )}
+                      {focusedJob.packageDetails.weightStr && (
+                        <span className="px-2 py-0.5 bg-amber-100 text-amber-800 rounded text-[10px] font-extrabold">
+                          Poids: {focusedJob.packageDetails.weightStr} kg
+                        </span>
+                      )}
+                    </div>
+                    {focusedJob.packageDetails.notes && (
+                      <p className="text-xs font-bold text-slate-800 mb-2">
+                        Nature: <span className="font-normal text-slate-600">{focusedJob.packageDetails.notes}</span>
+                      </p>
+                    )}
+                    {focusedJob.packageDetails.imageUrl && (
+                      <div className="mt-2">
+                        <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Photo du colis :</p>
+                        <div 
+                          onClick={() => setPreviewModalImage(focusedJob.packageDetails?.imageUrl || null)}
+                          className="relative w-full h-40 rounded-xl overflow-hidden border border-slate-200 cursor-pointer bg-slate-900"
+                        >
+                          <img src={focusedJob.packageDetails.imageUrl} alt="Colis" className="w-full h-full object-cover hover:scale-105 transition-transform" />
+                          <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity text-white text-xs font-bold gap-1">
+                            <Eye className="w-4 h-4" /> Agrandir
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
                   <div className="flex justify-between items-center">
                     <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Gains Prévus</p>
@@ -2442,6 +2540,51 @@ export default function DriverDashboard() {
           </span>
         </button>
       </div>
+
+      {/* Modal d'Agrandissement Photo du Colis */}
+      <AnimatePresence>
+        {previewModalImage && (
+          <div 
+            onClick={() => setPreviewModalImage(null)}
+            className="fixed inset-0 z-[120] bg-black/90 backdrop-blur-md flex items-center justify-center p-4 cursor-pointer"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="relative max-w-2xl max-h-[85vh] bg-slate-900 rounded-3xl overflow-hidden shadow-2xl border border-white/10 flex flex-col"
+            >
+              <div className="absolute top-4 right-4 z-10">
+                <button 
+                  onClick={() => setPreviewModalImage(null)}
+                  className="w-10 h-10 bg-black/60 hover:bg-black text-white rounded-full flex items-center justify-center backdrop-blur-md border border-white/20 shadow-lg transition-all"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="p-2 flex-1 overflow-auto flex items-center justify-center">
+                <img 
+                  src={previewModalImage} 
+                  alt="Agrandissement photo colis" 
+                  className="max-w-full max-h-[75vh] object-contain rounded-2xl"
+                />
+              </div>
+              <div className="bg-slate-950 px-6 py-4 flex items-center justify-between border-t border-white/10">
+                <span className="text-xs font-bold text-slate-300 flex items-center gap-2">
+                  <Package className="w-4 h-4 text-orange-500" /> Photo du colis transmise par le client
+                </span>
+                <button
+                  onClick={() => setPreviewModalImage(null)}
+                  className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold transition-all"
+                >
+                  Fermer
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

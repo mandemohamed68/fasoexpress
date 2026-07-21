@@ -181,8 +181,10 @@ export interface PackageDetails {
   size: 'small' | 'medium' | 'large';
   weightStr: string;
   contentCategory?: string;
-  isFragile: boolean;
+  isFragile?: boolean;
   valueDeclared?: number;
+  notes?: string;
+  imageUrl?: string;
 }
 
 export interface DeliveryBid {

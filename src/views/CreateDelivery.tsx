@@ -22,6 +22,8 @@ import {
   X,
   ChevronDown,
   ChevronUp,
+  Camera,
+  Upload,
 } from "lucide-react";
 import { cn, calculateDistance } from "../lib/utils";
 import { CommissionSettings } from "../types";
@@ -126,6 +128,45 @@ export default function CreateDelivery() {
   const [customNotes, setCustomNotes] = useState("");
   const [senderPhone, setSenderPhone] = useState("");
   const [recipientPhone, setRecipientPhone] = useState("");
+  const [packageImage, setPackageImage] = useState<string | null>(null);
+  const [isCompressingImage, setIsCompressingImage] = useState(false);
+
+  const compressImage = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          let width = img.width;
+          let height = img.height;
+          const maxDim = 800;
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) {
+            reject(new Error("Erreur canvas"));
+            return;
+          }
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL("image/jpeg", 0.7));
+        };
+        img.onerror = () => reject(new Error("Image invalide"));
+        img.src = event.target?.result as string;
+      };
+      reader.onerror = () => reject(new Error("Erreur de lecture"));
+      reader.readAsDataURL(file);
+    });
+  };
 
   // Prix
   const [commissionSettings, setCommissionSettings] =
@@ -519,7 +560,8 @@ export default function CreateDelivery() {
         packageDetails: { 
           size, 
           weightStr: weight === "custom" ? customWeight : weight, 
-          notes: notes === "custom" ? customNotes : notes 
+          notes: notes === "custom" ? customNotes : notes,
+          imageUrl: packageImage || undefined
         },
         baseCost: estimatedCost,
         clientProposedPrice: Number(proposedPrice),
@@ -1080,6 +1122,72 @@ export default function CreateDelivery() {
                   />
                 )}
               </div>
+
+              <div>
+                <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1 flex items-center justify-between pl-1">
+                  <span>Photo du colis</span>
+                  <span className="text-[9px] text-indigo-600 font-bold lowercase">(optionnelle)</span>
+                </label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  id="packageImageInput"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      try {
+                        setIsCompressingImage(true);
+                        const base64 = await compressImage(file);
+                        setPackageImage(base64);
+                      } catch (err: any) {
+                        toast.error("Erreur lors du chargement de la photo");
+                      } finally {
+                        setIsCompressingImage(false);
+                      }
+                    }
+                  }}
+                />
+                {!packageImage ? (
+                  <label
+                    htmlFor="packageImageInput"
+                    className="w-full bg-slate-50 border-2 border-dashed border-slate-200 rounded-xl py-3.5 px-4 flex items-center justify-center gap-2 cursor-pointer hover:bg-slate-100 hover:border-slate-300 transition-all text-slate-500 group"
+                  >
+                    <Camera className="w-4 h-4 text-slate-400 group-hover:text-indigo-600 transition-colors" />
+                    <span className="text-xs font-bold group-hover:text-slate-800">
+                      {isCompressingImage ? "Traitement de la photo..." : "Ajouter une photo du colis"}
+                    </span>
+                  </label>
+                ) : (
+                  <div className="relative w-full h-36 rounded-xl overflow-hidden border-2 border-indigo-200 group bg-slate-900">
+                    <img
+                      src={packageImage}
+                      alt="Aperçu du colis"
+                      className="w-full h-full object-cover group-hover:opacity-80 transition-opacity"
+                    />
+                    <div className="absolute top-2 right-2 flex gap-1.5 z-10">
+                      <label
+                        htmlFor="packageImageInput"
+                        className="p-1.5 bg-black/60 backdrop-blur-md rounded-lg text-white hover:bg-black/80 transition-all cursor-pointer"
+                        title="Changer la photo"
+                      >
+                        <Camera className="w-3.5 h-3.5" />
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setPackageImage(null)}
+                        className="p-1.5 bg-rose-600/80 backdrop-blur-md rounded-lg text-white hover:bg-rose-700 transition-all"
+                        title="Supprimer la photo"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                    <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-md text-white text-[9px] font-bold px-2 py-0.5 rounded-md">
+                      Photo ajoutée
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
             <button
@@ -1125,6 +1233,24 @@ export default function CreateDelivery() {
                   <p className="font-bold text-xs">{to?.address}</p>
                 </div>
               </div>
+
+              {packageImage && (
+                <div className="pt-3 border-t border-slate-100 flex items-center gap-3">
+                  <img
+                    src={packageImage}
+                    alt="Colis"
+                    className="w-12 h-12 rounded-xl object-cover border border-slate-200 shrink-0"
+                  />
+                  <div>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase">
+                      Photo du colis jointe
+                    </p>
+                    <p className="text-xs font-bold text-slate-800">
+                      {notes === "custom" ? customNotes : notes || "Colis Standard"} ({size.toUpperCase()})
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
 
             {driversAvailable === 0 && (
