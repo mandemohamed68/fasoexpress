@@ -75,7 +75,7 @@ try {
     name TEXT NOT NULL,
     email TEXT NOT NULL,
     password TEXT, -- For local auth
-    role TEXT CHECK(role IN ('client', 'driver', 'admin', 'superadmin')) NOT NULL,
+    role TEXT NOT NULL,
     status TEXT DEFAULT 'online',
     accountStatus TEXT DEFAULT 'active', -- active, rejected, suspended
     isVerified INTEGER DEFAULT 0,

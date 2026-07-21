@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS `users` (
   `name` varchar(255) NOT NULL,
   `email` varchar(255) NOT NULL,
   `password` varchar(255) DEFAULT NULL,
-  `role` enum('client', 'driver', 'admin', 'superadmin') NOT NULL,
+  `role` varchar(50) NOT NULL DEFAULT 'client',
   `status` varchar(50) DEFAULT 'online',
   `accountStatus` varchar(50) DEFAULT 'active',
   `isVerified` tinyint(1) DEFAULT 0,

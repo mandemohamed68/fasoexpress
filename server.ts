@@ -351,11 +351,11 @@ const MASTER_ADMIN_EMAILS = ['mandemohamed68@gmail.com', 'mandemohamed6868@gmail
   };
 
   const checkAdmin = (req: any, res: any, next: any) => {
-    if (req.user.role === 'admin' || req.user.role === 'superadmin' || req.user.isMaster) {
+    if (req.user && (req.user.role === 'admin' || req.user.role === 'superadmin' || req.user.role === 'manager' || req.user.role === 'support' || req.user.isMaster)) {
       next();
     } else {
-      console.warn(`[API ACCESS DENIED] User ${req.user.email} (ID: ${req.user.userId}) attempted to access ADMIN endpoint: ${req.originalUrl}, but role is: '${req.user.role}'`);
-      res.status(400).json({ error: `Access denied. Role 'admin' or 'superadmin' is required (your role: '${req.user.role}').` });
+      console.warn(`[API ACCESS DENIED] User ${req.user?.email} (ID: ${req.user?.userId}) attempted to access ADMIN endpoint: ${req.originalUrl}, but role is: '${req.user?.role}'`);
+      res.status(400).json({ error: `Access denied. Administrative role is required (your role: '${req.user?.role}').` });
     }
   };
 
