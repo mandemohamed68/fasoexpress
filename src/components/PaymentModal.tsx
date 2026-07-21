@@ -3,6 +3,7 @@ import { X, ShieldCheck, Smartphone, Landmark, CreditCard, Wallet, Clock, CheckC
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
+import { getApiBase } from '../services/apiService';
 import toast from 'react-hot-toast';
 
 // --- CUSTOM ICONS ---
@@ -165,14 +166,7 @@ export default function PaymentModal({
   };
 
   const getApiUrl = (path: string) => {
-    let apiBase = "/api";
-    if (typeof window !== 'undefined') {
-      // @ts-ignore
-      if (window.Capacitor && window.Capacitor.isNativePlatform()) {
-        apiBase = "http://167.172.39.172:1010/api";
-      }
-    }
-    
+    const apiBase = getApiBase();
     if (path.startsWith('/api')) {
       if (apiBase.startsWith('http')) {
         return path.replace('/api', apiBase);

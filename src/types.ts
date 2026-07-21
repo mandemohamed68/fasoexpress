@@ -70,7 +70,17 @@ export interface AppAnnouncement {
   createdAt: string;
 }
 
-export type UserRole = 'client' | 'driver' | 'admin' | 'superadmin';
+export type UserRole = 'client' | 'driver' | 'admin' | 'superadmin' | 'manager' | 'support';
+
+export type UserPermission = 
+  | 'manage_deliveries' 
+  | 'manage_drivers' 
+  | 'manage_clients' 
+  | 'manage_withdrawals' 
+  | 'manage_support' 
+  | 'manage_announcements' 
+  | 'manage_settings' 
+  | 'manage_database';
 
 export interface DistancePricingRule {
   id: string;
@@ -106,6 +116,8 @@ export interface UserProfile {
   email: string;
   phone?: string;
   role: UserRole;
+  permissions?: UserPermission[];
+  permissionsList?: string[];
   status?: 'online' | 'offline' | 'busy';
   accountStatus?: 'active' | 'suspended' | 'pending_approval';
   city?: string;

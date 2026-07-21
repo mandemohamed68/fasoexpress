@@ -3,8 +3,11 @@
 import { Capacitor } from '@capacitor/core';
 
 export const getApiBase = () => {
+  if (import.meta.env.VITE_API_BASE) {
+    return import.meta.env.VITE_API_BASE;
+  }
   if (Capacitor.isNativePlatform()) {
-    return "http://167.172.39.172:1010/api";
+    return "https://fasoexpress.net/api";
   }
   return "/api";
 };

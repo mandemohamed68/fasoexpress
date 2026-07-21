@@ -133,6 +133,8 @@ export default function initMariaDB() {
     try { connection.query("ALTER TABLE users ADD COLUMN driverType varchar(50) DEFAULT 'freelance'"); } catch(e: any) { if(!e.message.includes('Duplicate column name')) console.error("Failed to add column driverType to users:", e.message); }
     try { connection.query("ALTER TABLE users ADD COLUMN resetCode varchar(255) DEFAULT NULL"); } catch(e: any) { if(!e.message.includes('Duplicate column name')) console.error("Failed to add column resetCode to users:", e.message); }
     try { connection.query("ALTER TABLE users ADD COLUMN resetExpires varchar(255) DEFAULT NULL"); } catch(e: any) { if(!e.message.includes('Duplicate column name')) console.error("Failed to add column resetExpires to users:", e.message); }
+    try { connection.query("ALTER TABLE users ADD COLUMN permissions text DEFAULT NULL"); } catch(e: any) {}
+    try { connection.query("ALTER TABLE users ADD COLUMN permissionsList text DEFAULT NULL"); } catch(e: any) {}
     
     // Ensure announcements table has all required columns
     connection.query(`

@@ -1,13 +1,13 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { api } from '../services/apiService';
-import { DeliveryRequest, UserProfile, UserRole, CommissionSettings, AppConfig, DistancePricingRule, Sector, AppAnnouncement } from '../types';
+import { DeliveryRequest, UserProfile, UserRole, UserPermission, CommissionSettings, AppConfig, DistancePricingRule, Sector, AppAnnouncement } from '../types';
 import { 
   ShieldCheck, Package, Users, Truck, DollarSign, 
   ArrowUpRight, Clock, LayoutDashboard, MessageSquare, 
   ClipboardCheck, History, Store, Map as MapIcon, Globe, 
   BadgePercent, CreditCard, Wallet, LogOut, Bell, Settings, Play, Mail, Facebook,
   Plus, Navigation, UserCircle, Percent, Database, Download, Building2, X, Trash2, Zap, Smartphone, Menu,
-  CheckCircle, AlertCircle, Landmark, Info, Phone, Star, ChevronLeft, ChevronRight, Eye, EyeOff, Settings2
+  CheckCircle, AlertCircle, Landmark, Info, Phone, Star, ChevronLeft, ChevronRight, Eye, EyeOff, Settings2, UserCheck, Shield
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
@@ -18,6 +18,26 @@ import { useAuth, ADMIN_EMAILS } from '../context/AuthContext';
 import { useNavigate, Navigate, useLocation } from 'react-router-dom';
 import LiveMap from '../components/LiveMap';
 import { sendNotification } from '../lib/notificationService';
+
+export const ALL_PERMISSIONS: { id: UserPermission; label: string; description: string }[] = [
+  { id: 'manage_deliveries', label: 'Gestion des Courses & Livraisons', description: 'Consulter, réattribuer et suivre les courses' },
+  { id: 'manage_drivers', label: 'Gestion Flotte & Livreurs', description: 'Valider dossiers, approuver, bloquer/débloquer livreurs' },
+  { id: 'manage_clients', label: 'Gestion des Clients', description: 'Consulter la liste et gérer les comptes clients' },
+  { id: 'manage_withdrawals', label: 'Validation Paiements & Retraits', description: 'Valider les rechargements et demandes de retrait' },
+  { id: 'manage_support', label: 'Support Chat & Assistance', description: 'Répondre au tchat et demandes d\'aide' },
+  { id: 'manage_announcements', label: 'Annonces & Flash Info', description: 'Diffuser des annonces et messages flash' },
+  { id: 'manage_settings', label: 'Configuration & Tarifs', description: 'Modifier commissions, prix et paramètres app' },
+  { id: 'manage_database', label: 'Gestion Équipe & Privilèges', description: 'Gérer les administrateurs, managers et la base de données' }
+];
+
+export const DEFAULT_ROLE_PERMISSIONS: Record<string, UserPermission[]> = {
+  manager: ['manage_deliveries', 'manage_drivers', 'manage_clients', 'manage_withdrawals', 'manage_support', 'manage_announcements'],
+  support: ['manage_deliveries', 'manage_drivers', 'manage_clients', 'manage_support'],
+  admin: ['manage_deliveries', 'manage_drivers', 'manage_clients', 'manage_withdrawals', 'manage_support', 'manage_announcements', 'manage_settings', 'manage_database'],
+  superadmin: ['manage_deliveries', 'manage_drivers', 'manage_clients', 'manage_withdrawals', 'manage_support', 'manage_announcements', 'manage_settings', 'manage_database'],
+  client: [],
+  driver: []
+};
 
 const chartData = [];
 
@@ -719,8 +739,8 @@ export default function AdminDashboard() {
   };
 
   useEffect(() => {
-    // Only subscribe if we have a valid admin profile
-    const isAdmin = isMasterAdmin || profile?.role === 'admin' || profile?.role === 'superadmin';
+    // Only subscribe if we have a valid admin/staff profile
+    const isAdmin = isMasterAdmin || profile?.role === 'admin' || profile?.role === 'superadmin' || profile?.role === 'manager' || profile?.role === 'support';
     if (!isAdmin) {
       setLoading(false);
       return;
@@ -816,6 +836,30 @@ export default function AdminDashboard() {
 
   const isSuperAdmin = profile?.role === 'superadmin' || isMasterAdmin;
 
+  const userPermissions = React.useMemo<UserPermission[]>(() => {
+    if (profile?.role === 'admin' || profile?.role === 'superadmin' || isMasterAdmin) {
+      return ['manage_deliveries', 'manage_drivers', 'manage_clients', 'manage_withdrawals', 'manage_support', 'manage_announcements', 'manage_settings', 'manage_database'];
+    }
+    if (profile?.permissions && Array.isArray(profile.permissions)) {
+      return profile.permissions;
+    }
+    if (profile?.permissionsList && Array.isArray(profile.permissionsList)) {
+      return profile.permissionsList as UserPermission[];
+    }
+    if (typeof (profile as any)?.permissions === 'string') {
+      try {
+        const parsed = JSON.parse((profile as any).permissions);
+        if (Array.isArray(parsed)) return parsed;
+      } catch (e) {}
+    }
+    return DEFAULT_ROLE_PERMISSIONS[profile?.role || ''] || [];
+  }, [profile, isMasterAdmin]);
+
+  const hasPerm = (perm: UserPermission) => {
+    if (isMasterAdmin || profile?.role === 'admin' || profile?.role === 'superadmin') return true;
+    return userPermissions.includes(perm);
+  };
+
   const handleSeedData = async () => {
     if (!window.confirm('Voulez-vous injecter des donnees de test locales ?')) return;
     setIsSaving(true);
@@ -898,37 +942,47 @@ export default function AdminDashboard() {
       { name: 'Vue d\'ensemble', icon: LayoutDashboard },
     ]},
     { group: 'COMMUNICATION', items: [
-      { name: 'Support Chat', icon: MessageSquare },
-      ...(isSuperAdmin ? [
+      ...(hasPerm('manage_support') ? [{ name: 'Support Chat', icon: MessageSquare }] : []),
+      ...(hasPerm('manage_announcements') ? [
         { name: 'Annonces Globales', icon: Bell },
         { name: 'Flash Info', icon: Zap }
       ] : []),
     ]},
     { group: 'LOGISTIQUE', items: [
-      { name: 'En cours', icon: Navigation },
-      { name: 'En attente', icon: Clock },
-      { name: 'Programmees', icon: History },
-      { name: 'Historique', icon: ClipboardCheck },
+      ...(hasPerm('manage_deliveries') ? [
+        { name: 'En cours', icon: Navigation },
+        { name: 'En attente', icon: Clock },
+        { name: 'Programmees', icon: History },
+        { name: 'Historique', icon: ClipboardCheck }
+      ] : []),
     ]},
     { group: 'FLOTTE & RESEAU', items: [
-      { name: 'Carte Live (GPS)', icon: MapIcon },
-      { name: 'Livreurs (Zems)', icon: Truck },
-      { name: 'Clients', icon: Users },
-      ...(isSuperAdmin ? [{ name: 'Administrateurs', icon: ShieldCheck }] : []),
-      ...(isSuperAdmin ? [{ name: 'Secteurs d\'Ouaga', icon: Globe }] : []),
+      ...(hasPerm('manage_deliveries') ? [{ name: 'Carte Live (GPS)', icon: MapIcon }] : []),
+      ...(hasPerm('manage_drivers') ? [{ name: 'Livreurs (Zems)', icon: Truck }] : []),
+      ...(hasPerm('manage_clients') ? [{ name: 'Clients', icon: Users }] : []),
+      ...(hasPerm('manage_database') ? [{ name: 'Équipe & Support', icon: UserCheck }] : []),
+      ...(isSuperAdmin || hasPerm('manage_database') ? [{ name: 'Administrateurs', icon: ShieldCheck }] : []),
+      ...(isSuperAdmin || hasPerm('manage_settings') ? [{ name: 'Secteurs d\'Ouaga', icon: Globe }] : []),
     ]},
     { group: 'FINANCES', items: [
-      ...(isSuperAdmin ? [{ name: 'Modele Eco', icon: BadgePercent }] : []),
-      { name: 'Validations Paiements', icon: CreditCard },
-      { name: 'Paiements Livreurs', icon: Wallet },
-      ...(isSuperAdmin ? [{ name: 'Commissions', icon: Percent }, { name: 'Tarification', icon: Settings }] : []),
-      { name: 'Codes Promo', icon: BadgePercent },
+      ...(hasPerm('manage_settings') ? [{ name: 'Modele Eco', icon: BadgePercent }] : []),
+      ...(hasPerm('manage_withdrawals') ? [
+        { name: 'Validations Paiements', icon: CreditCard },
+        { name: 'Paiements Livreurs', icon: Wallet }
+      ] : []),
+      ...(hasPerm('manage_settings') ? [
+        { name: 'Commissions', icon: Percent },
+        { name: 'Tarification', icon: Settings }
+      ] : []),
+      ...(hasPerm('manage_withdrawals') || hasPerm('manage_settings') ? [{ name: 'Codes Promo', icon: BadgePercent }] : []),
     ]},
-    ...(isSuperAdmin ? [{
+    ...((isSuperAdmin || hasPerm('manage_settings') || hasPerm('manage_database')) ? [{
       group: 'SYSTEME & DATA', items: [
-        { name: 'Parametres App', icon: Settings },
-        { name: 'Base de Donnees', icon: Database },
-        { name: 'Logs Systeme', icon: ClipboardCheck },
+        ...(hasPerm('manage_settings') ? [{ name: 'Parametres App', icon: Settings }] : []),
+        ...(isSuperAdmin || hasPerm('manage_database') ? [
+          { name: 'Base de Donnees', icon: Database },
+          { name: 'Logs Systeme', icon: ClipboardCheck },
+        ] : []),
       ]
     }] : []),
   ];
@@ -974,6 +1028,7 @@ export default function AdminDashboard() {
   const [newUserData, setNewUserData] = useState<any>({
     role: 'client',
     name: '', email: '', phone: '', password: '', photoURL: '',
+    permissions: [],
     // driver specific defaults
     vehicleType: 'Moto',
     licensePlate: '',
@@ -991,7 +1046,7 @@ export default function AdminDashboard() {
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newUserData.email || !newUserData.password || !newUserData.name) {
-      toast("Veuillez remplir les informations obligatoires (Nom, Email, Mot de passe);.");
+      toast("Veuillez remplir les informations obligatoires (Nom, Email, Mot de passe).");
       return;
     }
     
@@ -1006,6 +1061,14 @@ export default function AdminDashboard() {
         role: newUserData.role,
         accountStatus: 'active',
       };
+
+      if (newUserData.role === 'admin' || newUserData.role === 'manager' || newUserData.role === 'support' || newUserData.role === 'superadmin') {
+        const perms = newUserData.permissions && newUserData.permissions.length > 0 
+          ? newUserData.permissions 
+          : (DEFAULT_ROLE_PERMISSIONS[newUserData.role] || []);
+        newUserProfile.permissions = JSON.stringify(perms);
+        newUserProfile.permissionsList = JSON.stringify(perms);
+      }
 
       if (newUserData.role === 'driver') {
         newUserProfile.vehicleType = newUserData.vehicleType;
@@ -1023,18 +1086,20 @@ export default function AdminDashboard() {
 
       await api.admin.users.create(newUserProfile);
       
-      toast.success("Utilisateur cree avec succes sur le serveur local !");
+      toast.success("Utilisateur créé avec succès !");
       setShowCreateUserModal(false);
       setNewUserData({
         role: 'client',
         name: '', email: '', phone: '', password: '', photoURL: '',
+        permissions: [],
         vehicleType: 'Moto', licensePlate: '', driverType: 'freelance', sectors: [],
         withdrawalPhone: '', rib: '', idCardFront: '', idCardBack: '',
         guarantorName: '', guarantorPhone: '', guarantorCniUrl: ''
       });
+      fetchData();
     } catch (err: any) {
       console.error(err);
-      toast.error("Erreur lors de la creation locale : " + (err.message || 'Erreur inconnue'));
+      toast.error("Erreur lors de la création : " + (err.message || 'Erreur inconnue'));
     } finally {
       setIsSubmittingNewUser(false);
     }
@@ -1627,6 +1692,7 @@ export default function AdminDashboard() {
             </div>
           </div>
         );
+      case 'Équipe & Support':
       case 'Administrateurs':
       case 'Livreurs (Zems)':
       case 'Clients':
@@ -1634,6 +1700,7 @@ export default function AdminDashboard() {
           if (activeMenu === 'Livreurs (Zems)') return u.role === 'driver';
           if (activeMenu === 'Clients') return u.role === 'client';
           if (activeMenu === 'Administrateurs') return u.role === 'admin' || u.role === 'superadmin';
+          if (activeMenu === 'Équipe & Support') return u.role === 'manager' || u.role === 'support';
           return false;
         });
 
@@ -1658,9 +1725,11 @@ export default function AdminDashboard() {
               </div>
               <button 
                 onClick={() => {
+                  const defaultRole = activeMenu === 'Clients' ? 'client' : (activeMenu === 'Administrateurs' ? 'admin' : (activeMenu === 'Équipe & Support' ? 'manager' : 'driver'));
                   setNewUserData(prev => ({ 
                     ...prev, 
-                    role: activeMenu === 'Clients' ? 'client' : (activeMenu === 'Administrateurs' ? 'admin' : 'driver') 
+                    role: defaultRole,
+                    permissions: DEFAULT_ROLE_PERMISSIONS[defaultRole] || []
                   }));
                   setShowCreateUserModal(true);
                 }}
@@ -4203,9 +4272,9 @@ export default function AdminDashboard() {
     }
   };
 
-  // Safety redirection: If for some reason the profile role changes to non-admin 
+  // Safety redirection: If for some reason the profile role changes to non-admin or non-staff
   // and we are still on the admin view, redirect immediately.
-  if (profile && profile.role !== 'admin' && profile.role !== 'superadmin' && !isMasterAdmin) {
+  if (profile && profile.role !== 'admin' && profile.role !== 'superadmin' && profile.role !== 'manager' && profile.role !== 'support' && !isMasterAdmin) {
     return <Navigate to={profile.role === 'driver' ? '/driver' : '/client'} />;
   }
 
@@ -4623,6 +4692,66 @@ export default function AdminDashboard() {
                   </div>
                 </div>
                 <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Rôle / Profil *</label>
+                  <select 
+                    value={newUserData.role} 
+                    onChange={e => {
+                      const selectedRole = e.target.value as UserRole;
+                      setNewUserData({
+                        ...newUserData,
+                        role: selectedRole,
+                        permissions: DEFAULT_ROLE_PERMISSIONS[selectedRole] || []
+                      });
+                    }}
+                    className="w-full bg-slate-50 border-none rounded-2xl px-4 py-3 text-sm font-bold focus:ring-4 focus:ring-indigo-100"
+                  >
+                    <option value="client">Client Standard</option>
+                    <option value="driver">Livreur (Zem)</option>
+                    <option value="manager">Manager / Gestionnaire Flotte</option>
+                    <option value="support">Agent Support & Assistance</option>
+                    <option value="admin">Administrateur</option>
+                    {isSuperAdmin && <option value="superadmin">Super Admin</option>}
+                  </select>
+                </div>
+
+                {(newUserData.role === 'manager' || newUserData.role === 'support' || newUserData.role === 'admin' || newUserData.role === 'superadmin') && (
+                  <div className="bg-slate-50 p-4 rounded-2xl space-y-3 border border-slate-100">
+                    <div className="flex justify-between items-center">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-700">Permissions et Droits d'Accès</label>
+                      <span className="text-[9px] font-bold text-indigo-600 uppercase bg-indigo-50 px-2 py-0.5 rounded-full">
+                        {(newUserData.permissions || []).length} / {ALL_PERMISSIONS.length}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto pr-1">
+                      {ALL_PERMISSIONS.map(p => {
+                        const isChecked = (newUserData.permissions || []).includes(p.id);
+                        return (
+                          <label key={p.id} className="flex items-start gap-3 p-2.5 bg-white rounded-xl border border-slate-100 cursor-pointer hover:border-indigo-200 transition-colors">
+                            <input 
+                              type="checkbox" 
+                              checked={isChecked}
+                              onChange={(e) => {
+                                const currentPerms: UserPermission[] = newUserData.permissions || [];
+                                if (e.target.checked) {
+                                  setNewUserData({ ...newUserData, permissions: [...currentPerms, p.id] });
+                                } else {
+                                  setNewUserData({ ...newUserData, permissions: currentPerms.filter(id => id !== p.id) });
+                                }
+                              }}
+                              className="mt-0.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                            />
+                            <div>
+                              <p className="text-xs font-bold text-slate-800">{p.label}</p>
+                              <p className="text-[10px] text-slate-400 font-medium">{p.description}</p>
+                            </div>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                <div>
                   <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Telephone</label>
                   <input type="tel" value={newUserData.phone} onChange={e => setNewUserData({...newUserData, phone: e.target.value})} className="w-full bg-slate-50 border-none rounded-2xl px-4 py-3 text-sm font-bold focus:ring-4 focus:ring-indigo-100" />
                 </div>
@@ -4760,14 +4889,17 @@ export default function AdminDashboard() {
                          <select
                            value={selectedUser.role}
                            onChange={async (e) => {
-                             const newRole = e.target.value;
+                             const newRole = e.target.value as UserRole;
                              try {
+                               const newPerms = DEFAULT_ROLE_PERMISSIONS[newRole] || [];
                                await api.admin.users.update(selectedUser.userId, { 
                                  role: newRole,
+                                 permissions: JSON.stringify(newPerms),
+                                 permissionsList: JSON.stringify(newPerms),
                                  updatedAt: new Date().toISOString()
                                });
-                               setSelectedUser({ ...selectedUser, role: newRole as any });
-                                fetchData();
+                               setSelectedUser({ ...selectedUser, role: newRole, permissions: newPerms } as any);
+                               fetchData();
                              } catch (err) {
                                console.error(err);
                              }
@@ -4775,12 +4907,16 @@ export default function AdminDashboard() {
                            className={cn(
                              "px-2 py-0.5 rounded-md text-[7px] font-black uppercase tracking-widest border-none cursor-pointer focus:ring-2 appearance-none shadow-sm",
                              selectedUser.role === 'driver' ? "bg-blue-50 text-blue-600 focus:ring-blue-200" : 
+                             selectedUser.role === 'manager' ? "bg-purple-50 text-purple-600 focus:ring-purple-200" :
+                             selectedUser.role === 'support' ? "bg-teal-50 text-teal-600 focus:ring-teal-200" :
                              (selectedUser.role === 'admin' || selectedUser.role === 'superadmin') ? "bg-orange-50 text-orange-600 focus:ring-orange-200" :
                              "bg-emerald-50 text-emerald-600 focus:ring-emerald-200"
                            )}
                          >
                            <option value="client">CLIENT</option>
                            <option value="driver">LIVREUR</option>
+                           <option value="manager">MANAGER</option>
+                           <option value="support">SUPPORT</option>
                            <option value="admin">ADMIN</option>
                            <option value="superadmin">SUPER ADMIN</option>
                          </select>
@@ -4788,6 +4924,8 @@ export default function AdminDashboard() {
                          <span className={cn(
                            "px-2 py-0.5 rounded-md text-[7px] font-black uppercase tracking-widest",
                            selectedUser.role === 'driver' ? "bg-blue-50 text-blue-600" : 
+                           selectedUser.role === 'manager' ? "bg-purple-50 text-purple-600" :
+                           selectedUser.role === 'support' ? "bg-teal-50 text-teal-600" :
                            (selectedUser.role === 'admin' || selectedUser.role === 'superadmin') ? "bg-orange-50 text-orange-600" :
                            "bg-emerald-50 text-emerald-600"
                          )}>
@@ -4831,6 +4969,86 @@ export default function AdminDashboard() {
                     <p className="text-xs font-bold text-slate-900 text-left">{selectedUser.createdAt ? new Date(selectedUser.createdAt).toLocaleDateString() : 'Inconnu'}</p>
                   </div>
                 </div>
+
+                {(selectedUser.role === 'manager' || selectedUser.role === 'support' || selectedUser.role === 'admin' || selectedUser.role === 'superadmin') && (
+                  <div className="bg-slate-50 p-4 rounded-3xl border border-slate-100 space-y-3">
+                    <div className="flex justify-between items-center">
+                      <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest">Droits & Permissions</p>
+                      <button
+                        onClick={async () => {
+                          try {
+                            let currentPerms: UserPermission[] = [];
+                            if (Array.isArray((selectedUser as any).permissions)) {
+                              currentPerms = (selectedUser as any).permissions;
+                            } else if (typeof (selectedUser as any).permissions === 'string') {
+                              try {
+                                currentPerms = JSON.parse((selectedUser as any).permissions);
+                              } catch (e) {
+                                currentPerms = DEFAULT_ROLE_PERMISSIONS[selectedUser.role] || [];
+                              }
+                            } else {
+                              currentPerms = DEFAULT_ROLE_PERMISSIONS[selectedUser.role] || [];
+                            }
+
+                            await api.admin.users.update(selectedUser.userId, {
+                              permissions: JSON.stringify(currentPerms),
+                              permissionsList: JSON.stringify(currentPerms),
+                              updatedAt: new Date().toISOString()
+                            });
+                            toast.success("Droits mis à jour avec succès !");
+                            fetchData();
+                          } catch (e: any) {
+                            toast.error("Erreur lors de la mise à jour des droits : " + (e.message || ''));
+                          }
+                        }}
+                        className="px-3 py-1.5 bg-indigo-600 text-white text-[9px] font-black uppercase rounded-xl hover:bg-indigo-700 transition-all shadow-md shadow-indigo-600/20"
+                      >
+                        Enregistrer Droits
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto pr-1">
+                      {ALL_PERMISSIONS.map(p => {
+                        let activePerms: UserPermission[] = [];
+                        if (Array.isArray((selectedUser as any).permissions)) {
+                          activePerms = (selectedUser as any).permissions;
+                        } else if (typeof (selectedUser as any).permissions === 'string') {
+                          try {
+                            activePerms = JSON.parse((selectedUser as any).permissions);
+                          } catch (e) {
+                            activePerms = DEFAULT_ROLE_PERMISSIONS[selectedUser.role] || [];
+                          }
+                        } else {
+                          activePerms = DEFAULT_ROLE_PERMISSIONS[selectedUser.role] || [];
+                        }
+
+                        const isChecked = activePerms.includes(p.id);
+
+                        return (
+                          <label key={p.id} className="flex items-start gap-3 p-2.5 bg-white rounded-2xl border border-slate-100 cursor-pointer hover:border-indigo-200 transition-colors">
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={(e) => {
+                                const newPerms = e.target.checked
+                                  ? [...activePerms, p.id]
+                                  : activePerms.filter(id => id !== p.id);
+                                setSelectedUser({
+                                  ...selectedUser,
+                                  permissions: newPerms
+                                } as any);
+                              }}
+                              className="mt-0.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                            />
+                            <div>
+                              <p className="text-xs font-bold text-slate-800">{p.label}</p>
+                              <p className="text-[10px] text-slate-400 font-medium">{p.description}</p>
+                            </div>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 <div className="pt-2 flex gap-3">
                    <button 

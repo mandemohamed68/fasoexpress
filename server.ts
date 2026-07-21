@@ -420,14 +420,19 @@ const MASTER_ADMIN_EMAILS = ['mandemohamed68@gmail.com', 'mandemohamed6868@gmail
       const allowedFields = [
         'city', 'neighborhood', 'address', 'driverType', 'phone', 'withdrawalPhone', 'rib', 'idCardFront', 'idCardBack',
         'guarantorName', 'guarantorPhone', 'guarantorCniUrl',
-        'status', 'termsAcceptedAt', 'vehicleType', 'licensePlate', 'sectors'
+        'status', 'termsAcceptedAt', 'vehicleType', 'licensePlate', 'sectors',
+        'permissions', 'permissionsList'
       ];
       const updates = [];
       const params = [];
       for (const field of allowedFields) {
         if (req.body[field] !== undefined) {
           updates.push(`${field} = ?`);
-          params.push(req.body[field]);
+          let val = req.body[field];
+          if (typeof val === 'object' && val !== null) {
+            val = JSON.stringify(val);
+          }
+          params.push(val);
         }
       }
       if (updates.length > 0) {

@@ -268,7 +268,9 @@ const userCols = [
   { name: 'criminalRecordUrl', type: 'TEXT' },
   { name: 'verificationStatus', type: 'TEXT' },
   { name: 'resetCode', type: 'TEXT' },
-  { name: 'resetExpires', type: 'TEXT' }
+  { name: 'resetExpires', type: 'TEXT' },
+  { name: 'permissions', type: 'TEXT' },
+  { name: 'permissionsList', type: 'TEXT' }
 ];
 
 colsToAdd.forEach(col => {
