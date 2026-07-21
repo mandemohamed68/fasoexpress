@@ -124,7 +124,7 @@ export default function LandingView() {
     try {
       const res = await api.auth.forgotPassword(email) as any;
       if (res && res.sandbox && res.code) {
-        toast.success(`[Test Sandbox] Code généré : ${res.code}`, { duration: 10000 });
+        toast.success(`[Mode Test] Code de sécurité généré : ${res.code}`, { duration: 10000 });
       } else {
         toast.success("Code de réinitialisation envoyé par e-mail.");
       }

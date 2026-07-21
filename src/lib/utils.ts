@@ -5,6 +5,15 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+export function translateSize(size?: string): string {
+  if (!size) return "";
+  const s = size.toLowerCase();
+  if (s === "small") return "Petit / Léger";
+  if (s === "medium") return "Moyen / Standard";
+  if (s === "large") return "Grand / Lourd";
+  return size;
+}
+
 export function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371; // Earth radius in km
   const dLat = (lat2 - lat1) * Math.PI / 180;

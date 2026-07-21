@@ -158,7 +158,7 @@ export default function Navbar() {
           className="px-4 py-2 rounded-xl transition-all flex items-center gap-2 text-xs font-black uppercase tracking-widest w-full lg:w-auto text-white/70 hover:text-white hover:bg-orange-600/50 cursor-pointer text-left"
         >
           <HelpCircle className="h-4 w-4 shrink-0" />
-          <span>SUPPORT</span>
+          <span>ASSISTANCE</span>
         </button>
       )}
     </>
@@ -236,21 +236,6 @@ export default function Navbar() {
             </div>
             
             <div className="flex items-center gap-2 sm:gap-4 lg:pl-6 lg:border-l lg:border-white/20">
-              <div className="hidden md:flex bg-white/10 p-1 rounded-xl border border-white/20">
-                {languages.map(lang => (
-                  <button
-                    key={lang.code}
-                    onClick={() => setLanguage(lang.code)}
-                    className={cn(
-                      "px-2 py-1 rounded-lg text-[9px] font-black transition-all uppercase tracking-widest",
-                      language === lang.code ? "bg-white text-primary shadow-lg" : "text-white/70 hover:text-white"
-                    )}
-                  >
-                    {lang.code.toUpperCase()}
-                  </button>
-                ))}
-              </div>
-
               <NotificationBell />
               
               {/* Toggle Dark Mode Button */}
@@ -309,24 +294,6 @@ export default function Navbar() {
             className="xl:hidden bg-primary-dark overflow-hidden"
           >
             <div className="p-6 flex flex-col gap-6">
-              <div className="flex bg-white/10 p-1.5 rounded-xl border border-white/5">
-                {languages.map(lang => (
-                  <button
-                    key={lang.code}
-                    onClick={() => {
-                      setLanguage(lang.code);
-                      setIsMenuOpen(false);
-                    }}
-                    className={cn(
-                      "flex-1 py-3 rounded-lg text-xs font-black transition-all uppercase tracking-[0.2em]",
-                      language === lang.code ? "bg-white text-primary shadow-xl" : "text-white/60"
-                    )}
-                  >
-                    {lang.label}
-                  </button>
-                ))}
-              </div>
-              
               <div className="flex bg-white/10 p-1.5 rounded-xl border border-white/5 items-center justify-between px-4 py-3">
                 <span className="text-xs font-black uppercase tracking-widest text-white/80">Mode Sombre</span>
                 <button

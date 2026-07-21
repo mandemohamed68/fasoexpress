@@ -763,7 +763,7 @@ export default function DeliveryTracking() {
                                    </div>
                                    <div className="text-right">
                                       <p className="font-black text-2xl text-indigo-600 leading-none">{bid.price} <span className="text-sm">FCFA</span></p>
-                                      <p className="text-[10px] text-indigo-400 font-bold mt-1.5 uppercase italic">Dans ~{bid.timeEstimateMins} mins</p>
+                                      <p className="text-[10px] text-indigo-400 font-bold mt-1.5 uppercase italic">Dans ~{bid.timeEstimateMins} min</p>
                                    </div>
                                 </div>
                                 <div className="flex gap-3">

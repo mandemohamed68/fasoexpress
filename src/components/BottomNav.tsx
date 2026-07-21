@@ -71,17 +71,17 @@ export default function BottomNav() {
     { to: '/driver', icon: Home, label: 'ACCUEIL', match: '/driver', exact: true },
     { to: '/driver?tab=history', icon: Package, label: 'COURSES', match: '/driver?tab=history' },
     { to: '/messaging', icon: MessageSquare, label: 'CHAT', match: '/messaging' },
-    { to: '#support', icon: HelpCircle, label: 'SUPPORT', match: '#support', isAction: true },
+    { to: '#support', icon: HelpCircle, label: 'ASSISTANCE', match: '#support', isAction: true },
     { to: '/driver?tab=profile', icon: User, label: 'PROFIL', match: '/driver?tab=profile' },
   ] : isAdmin ? [
     { to: '/admin', icon: Home, label: 'ADMIN', match: '/admin', exact: true },
-    { to: '#support', icon: HelpCircle, label: 'SUPPORT', match: '#support', isAction: true },
+    { to: '#support', icon: HelpCircle, label: 'ASSISTANCE', match: '#support', isAction: true },
     { to: '/settings', icon: User, label: 'PROFIL', match: '/settings' },
   ] : [
     { to: '/client', icon: Home, label: 'ACCUEIL', match: '/client', exact: true },
     { to: '/client/history', icon: Package, label: 'COURSES', match: '/client/history' },
     { to: '/messaging', icon: MessageSquare, label: 'CHAT', match: '/messaging' },
-    { to: '#support', icon: HelpCircle, label: 'SUPPORT', match: '#support', isAction: true },
+    { to: '#support', icon: HelpCircle, label: 'ASSISTANCE', match: '#support', isAction: true },
     { to: '/settings', icon: User, label: 'PROFIL', match: '/settings' },
   ];
 

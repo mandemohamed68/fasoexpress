@@ -95,7 +95,7 @@ export default function Settings() {
           className="flex items-center gap-2 text-slate-400 hover:text-slate-900 mb-8 transition-colors font-black text-[10px] uppercase tracking-[0.3em] group"
         >
           <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-          Retour au Dashboard
+          Retour au tableau de bord
         </button>
 
         <header className="mb-12">

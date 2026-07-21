@@ -312,7 +312,7 @@ export default function ClientDashboard() {
                                             </div>
                                          </div>
                                          <div className="text-right shrink-0">
-                                            <p className="text-[10px] text-indigo-400 font-bold uppercase italic">~{bid.timeEstimateMins} mins</p>
+                                            <p className="text-[10px] text-indigo-400 font-bold uppercase italic">~{bid.timeEstimateMins} min</p>
                                          </div>
                                       </div>
                                       <div className="flex gap-2 w-full">
@@ -754,7 +754,7 @@ export default function ClientDashboard() {
           
           {/* Tooltip */}
           <span className="absolute right-16 bg-slate-900 text-white text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap shadow-md pointer-events-none">
-            SUPPORT CHAT
+            ASSISTANCE EN DIRECT
           </span>
         </button>
       </div>

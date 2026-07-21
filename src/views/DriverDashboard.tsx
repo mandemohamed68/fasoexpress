@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import { api } from '../services/apiService';
 import L from 'leaflet';
-import { cn, calculateDistance, compressImage } from '../lib/utils';
+import { cn, calculateDistance, compressImage, translateSize } from '../lib/utils';
 import { playNotificationSound } from '../lib/audio';
 import LoadingScreen from '../components/LoadingScreen';
 import AnnouncementBanner from '../components/AnnouncementBanner';
@@ -66,6 +66,7 @@ export default function DriverDashboard() {
   const [pendingPaymentJobs, setPendingPaymentJobs] = useState<DeliveryRequest[]>([]);
   const [deliveredJobs, setDeliveredJobs] = useState<DeliveryRequest[]>([]);
   const [appConfig, setAppConfig] = useState<any>(null);
+  const [showAvailableMissionsModal, setShowAvailableMissionsModal] = useState(false);
 
   const maxMissionsLimit = appConfig?.maxMissionsBeforeRestriction ?? 3;
   const hasIncompleteDossier = profile?.verificationStatus !== 'verified';
@@ -76,9 +77,12 @@ export default function DriverDashboard() {
     const newJobs = pendingJobs.filter(j => !prevPendingJobIds.current.includes(j.id));
     if (newJobs.length > 0 && newJobs.some(j => j.status === 'pending')) {
       playNotificationSound();
+      if (showAvailableMissionsModal) {
+        setShowAvailableMissionsModal(false);
+      }
     }
     prevPendingJobIds.current = pendingJobs.map(j => j.id);
-  }, [pendingJobs]);
+  }, [pendingJobs, showAvailableMissionsModal]);
   
   const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
   const [gpsError, setGpsError] = useState<string | null>(null);
@@ -233,7 +237,6 @@ export default function DriverDashboard() {
     setIsProcessingAction(false);
   };
   const [selectedPendingJob, setSelectedPendingJob] = useState<DeliveryRequest | null>(null);
-  const [showAvailableMissionsModal, setShowAvailableMissionsModal] = useState(false);
   const [myBidOnJob, setMyBidOnJob] = useState<any | null>(null);
   const [fetchingBids, setFetchingBids] = useState(false);
 
@@ -244,6 +247,20 @@ export default function DriverDashboard() {
       return dateB - dateA;
     });
   }, [filteredPendingJobs]);
+
+  // Auto-close modal if no missions remain
+  useEffect(() => {
+    if (showAvailableMissionsModal && sortedPendingJobs.length === 0) {
+      setShowAvailableMissionsModal(false);
+    }
+  }, [showAvailableMissionsModal, sortedPendingJobs.length]);
+
+  // If selectedPendingJob is masked or no longer available, clear it
+  useEffect(() => {
+    if (selectedPendingJob && !filteredPendingJobs.some(j => j.id === selectedPendingJob.id)) {
+      setSelectedPendingJob(null);
+    }
+  }, [filteredPendingJobs, selectedPendingJob]);
 
   useEffect(() => {
     if (!selectedPendingJob || !profile) {
@@ -490,7 +507,10 @@ export default function DriverDashboard() {
         }
       }
       setSelectedPendingJob(null);
-      setToastMessage("Mission refusée");
+      if (filteredPendingJobs.length <= 1) {
+        setShowAvailableMissionsModal(false);
+      }
+      setToastMessage("Mission masquée");
     } catch (e) {
       console.error("Error rejecting job:", e);
       setToastMessage("Erreur lors du refus");
@@ -1280,7 +1300,7 @@ export default function DriverDashboard() {
                                   <div className="flex gap-1.5">
                                     {selectedPendingJob.packageDetails.size && (
                                       <span className="px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-md text-[9px] font-extrabold uppercase">
-                                        Taille : {selectedPendingJob.packageDetails.size}
+                                        Taille : {translateSize(selectedPendingJob.packageDetails.size)}
                                       </span>
                                     )}
                                     {selectedPendingJob.packageDetails.weightStr && (
@@ -2288,9 +2308,15 @@ export default function DriverDashboard() {
                       <Compass className="w-8 h-8" />
                     </div>
                     <p className="text-sm font-black text-slate-700 uppercase tracking-tight">Aucune mission disponible</p>
-                    <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-wider">
+                    <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-wider mb-6">
                       Le radar cherche en temps réel... Restez connecté !
                     </p>
+                    <button
+                      onClick={() => setShowAvailableMissionsModal(false)}
+                      className="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-md"
+                    >
+                      Retour à la carte
+                    </button>
                   </div>
                 ) : (
                   sortedPendingJobs.map((job) => {
@@ -2441,7 +2467,7 @@ export default function DriverDashboard() {
                     <div className="flex gap-2 mb-2">
                       {focusedJob.packageDetails.size && (
                         <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded text-[10px] font-extrabold uppercase">
-                          Taille: {focusedJob.packageDetails.size}
+                          Taille: {translateSize(focusedJob.packageDetails.size)}
                         </span>
                       )}
                       {focusedJob.packageDetails.weightStr && (
@@ -2536,7 +2562,7 @@ export default function DriverDashboard() {
           
           {/* Tooltip */}
           <span className="absolute right-16 bg-slate-900 text-white text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap shadow-md pointer-events-none">
-            SUPPORT CHAT
+            ASSISTANCE EN DIRECT
           </span>
         </button>
       </div>

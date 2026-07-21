@@ -25,7 +25,7 @@ import {
   Camera,
   Upload,
 } from "lucide-react";
-import { cn, calculateDistance } from "../lib/utils";
+import { cn, calculateDistance, translateSize } from "../lib/utils";
 import { CommissionSettings } from "../types";
 import L from "leaflet";
 
@@ -1246,7 +1246,7 @@ export default function CreateDelivery() {
                       Photo du colis jointe
                     </p>
                     <p className="text-xs font-bold text-slate-800">
-                      {notes === "custom" ? customNotes : notes || "Colis Standard"} ({size.toUpperCase()})
+                      {notes === "custom" ? customNotes : notes || "Colis Standard"} ({translateSize(size)})
                     </p>
                   </div>
                 </div>

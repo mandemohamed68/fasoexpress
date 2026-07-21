@@ -2852,7 +2852,7 @@ export default function AdminDashboard() {
                           Production
                         </button>
                      </div>
-                     <p className="text-[10px] text-slate-400 font-bold mt-4 leading-relaxed uppercase tracking-tight">Le mode test desactive les vrais paiements bancaires et utilise les sandbox operateurs.</p>
+                     <p className="text-[10px] text-slate-400 font-bold mt-4 leading-relaxed uppercase tracking-tight">Le mode test désactive les vrais paiements et utilise les simulateurs des opérateurs.</p>
                   </div>
 
                   <div className="p-5 lg:p-6 bg-slate-50 rounded-2xl border border-slate-100">
