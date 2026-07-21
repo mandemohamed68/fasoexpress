@@ -7,7 +7,7 @@ import {
   ClipboardCheck, History, Store, Map as MapIcon, Globe, 
   BadgePercent, CreditCard, Wallet, LogOut, Bell, Settings, Play, Mail, Facebook,
   Plus, Navigation, UserCircle, Percent, Database, Download, Building2, X, Trash2, Zap, Smartphone, Menu,
-  CheckCircle, AlertCircle, Landmark, Info, Phone, Star, ChevronLeft, ChevronRight, Eye, EyeOff, Settings2, UserCheck, Shield
+  CheckCircle, AlertCircle, Landmark, Info, Phone, Star, ChevronLeft, ChevronRight, Eye, EyeOff, Settings2, UserCheck, Shield, Search
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
@@ -68,6 +68,8 @@ export default function AdminDashboard() {
   const [resetCode, setResetCode] = useState('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [userSearchTerm, setUserSearchTerm] = useState('');
+  const [userRoleFilter, setUserRoleFilter] = useState<string>('all');
   const [toastState, setToastState] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
   const toast = (arg: string | { type?: 'success' | 'error' | 'info'; message: string } | null) => {
@@ -1086,7 +1088,11 @@ export default function AdminDashboard() {
 
       await api.admin.users.create(newUserProfile);
       
-      toast.success("Utilisateur créé avec succès !");
+      const targetMenu = newUserProfile.role === 'client' ? 'Clients' :
+        newUserProfile.role === 'driver' ? 'Livreurs (Zems)' :
+        (newUserProfile.role === 'admin' || newUserProfile.role === 'superadmin') ? 'Administrateurs' :
+        'Équipe & Support';
+
       setShowCreateUserModal(false);
       setNewUserData({
         role: 'client',
@@ -1096,7 +1102,9 @@ export default function AdminDashboard() {
         withdrawalPhone: '', rib: '', idCardFront: '', idCardBack: '',
         guarantorName: '', guarantorPhone: '', guarantorCniUrl: ''
       });
-      fetchData();
+      await fetchData();
+      handleMenuChange(targetMenu);
+      toast.success(`Compte "${newUserData.name}" (${newUserProfile.role.toUpperCase()}) créé ! Redirection vers le menu "${targetMenu}".`);
     } catch (err: any) {
       console.error(err);
       toast.error("Erreur lors de la création : " + (err.message || 'Erreur inconnue'));
@@ -1697,11 +1705,36 @@ export default function AdminDashboard() {
       case 'Livreurs (Zems)':
       case 'Clients':
         const filteredUsers = users.filter(u => {
-          if (activeMenu === 'Livreurs (Zems)') return u.role === 'driver';
-          if (activeMenu === 'Clients') return u.role === 'client';
-          if (activeMenu === 'Administrateurs') return u.role === 'admin' || u.role === 'superadmin';
-          if (activeMenu === 'Équipe & Support') return u.role === 'manager' || u.role === 'support';
-          return false;
+          let roleMatches = false;
+          if (activeMenu === 'Livreurs (Zems)') {
+            roleMatches = u.role === 'driver';
+          } else if (activeMenu === 'Clients') {
+            roleMatches = u.role === 'client';
+          } else if (activeMenu === 'Administrateurs' || activeMenu === 'Équipe & Support') {
+            roleMatches = u.role === 'admin' || u.role === 'superadmin' || u.role === 'manager' || u.role === 'support';
+          }
+
+          if (!roleMatches) return false;
+
+          if (userRoleFilter !== 'all') {
+            if (userRoleFilter === 'admin') {
+              if (u.role !== 'admin' && u.role !== 'superadmin') return false;
+            } else if (u.role !== userRoleFilter) {
+              return false;
+            }
+          }
+
+          if (userSearchTerm.trim()) {
+            const term = userSearchTerm.toLowerCase();
+            const nameMatch = u.name?.toLowerCase().includes(term);
+            const emailMatch = u.email?.toLowerCase().includes(term);
+            const phoneMatch = u.phone?.toLowerCase().includes(term);
+            const roleMatch = u.role?.toLowerCase().includes(term);
+            const idMatch = u.userId?.toLowerCase().includes(term);
+            return nameMatch || emailMatch || phoneMatch || roleMatch || idMatch;
+          }
+
+          return true;
         });
 
         // Pagination calculations (50 per page)
@@ -1714,7 +1747,7 @@ export default function AdminDashboard() {
 
         return (
           <div className="bg-white rounded-3xl p-6 lg:p-8 shadow-sm border border-slate-100 flex flex-col h-full min-h-0">
-            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-8">
+            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6">
               <div>
                 <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">
                   {activeMenu} ({totalItems})
@@ -1737,6 +1770,72 @@ export default function AdminDashboard() {
               >
                 <Plus className="w-4 h-4" /> Nouvel Utilisateur
               </button>
+            </div>
+
+            {/* Filter & Search Bar */}
+            <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 mb-6 p-3 bg-slate-50 rounded-2xl border border-slate-100">
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Rechercher par nom, email, téléphone, ID..."
+                  value={userSearchTerm}
+                  onChange={(e) => {
+                    setUserSearchTerm(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="w-full pl-10 pr-4 py-2 bg-white rounded-xl border border-slate-200 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                />
+                {userSearchTerm && (
+                  <button 
+                    onClick={() => setUserSearchTerm('')} 
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {(activeMenu === 'Administrateurs' || activeMenu === 'Équipe & Support') && (
+                <div className="flex items-center gap-1 overflow-x-auto pb-1 md:pb-0">
+                  <button
+                    onClick={() => { setUserRoleFilter('all'); setCurrentPage(1); }}
+                    className={cn(
+                      "px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all whitespace-nowrap",
+                      userRoleFilter === 'all' ? "bg-slate-900 text-white shadow-sm" : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
+                    )}
+                  >
+                    Tous Staff ({users.filter(u => ['admin','superadmin','manager','support'].includes(u.role)).length})
+                  </button>
+                  <button
+                    onClick={() => { setUserRoleFilter('admin'); setCurrentPage(1); }}
+                    className={cn(
+                      "px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all whitespace-nowrap",
+                      userRoleFilter === 'admin' ? "bg-orange-600 text-white shadow-sm" : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
+                    )}
+                  >
+                    Admins ({users.filter(u => u.role === 'admin' || u.role === 'superadmin').length})
+                  </button>
+                  <button
+                    onClick={() => { setUserRoleFilter('manager'); setCurrentPage(1); }}
+                    className={cn(
+                      "px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all whitespace-nowrap",
+                      userRoleFilter === 'manager' ? "bg-purple-600 text-white shadow-sm" : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
+                    )}
+                  >
+                    Managers ({users.filter(u => u.role === 'manager').length})
+                  </button>
+                  <button
+                    onClick={() => { setUserRoleFilter('support'); setCurrentPage(1); }}
+                    className={cn(
+                      "px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all whitespace-nowrap",
+                      userRoleFilter === 'support' ? "bg-teal-600 text-white shadow-sm" : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
+                    )}
+                  >
+                    Support ({users.filter(u => u.role === 'support').length})
+                  </button>
+                </div>
+              )}
             </div>
 
             <div className="overflow-x-auto rounded-2xl border border-slate-100">
