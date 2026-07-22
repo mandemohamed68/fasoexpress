@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { cn, calculateDistance, translateSize } from "../lib/utils";
 import { CommissionSettings } from "../types";
+import { GeolocationService } from "../services/GeolocationService";
 import L from "leaflet";
 
 // @ts-ignore
@@ -246,77 +247,48 @@ export default function CreateDelivery() {
 
   const detectLocation = useCallback(async () => {
     setIsDetectingLocation(true);
-    
-    const getBrowserPosition = (options: PositionOptions) => {
-      return new Promise<{ lat: number; lng: number }>((resolve, reject) => {
-        if (!navigator.geolocation) {
-          reject(new Error("La géolocalisation n'est pas supportée par votre navigateur."));
-          return;
-        }
-        navigator.geolocation.getCurrentPosition(
-          (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-          (err) => reject(err),
-          options
-        );
-      });
-    };
 
     try {
       let lat = 0;
       let lng = 0;
       let usedIPFallback = false;
 
-      // 1. Try modern GPS Geolocation
+      // 1. Try GeolocationService (Capacitor Native GPS on iOS/Android, HTML5 Geolocation on Web)
       try {
-        const coords = await getBrowserPosition({
-          enableHighAccuracy: false,
-          timeout: 4000,
-          maximumAge: 10000,
-        });
+        const coords = await GeolocationService.getCurrentPosition();
         lat = coords.lat;
         lng = coords.lng;
       } catch (gpsError: any) {
-        console.warn("Standard accuracy failed, trying high accuracy...", gpsError);
+        console.warn("GPS failed, falling back to IP-based Geolocation...", gpsError);
+        // 2. Fetch IP location when GPS is blocked/unsupported or unavailable
         try {
-          const coords = await getBrowserPosition({
-            enableHighAccuracy: true,
-            timeout: 6000,
-            maximumAge: 0,
-          });
-          lat = coords.lat;
-          lng = coords.lng;
-        } catch (highAccError: any) {
-          console.warn("GPS failed, falling back to IP-based Geolocation...", highAccError);
-          // 2. Fetch IP location when GPS is blocked/unsupported (e.g. non-localhost HTTP)
-          try {
-            const res = await fetch("https://ipapi.co/json/");
-            if (res.ok) {
-              const data = await res.json();
-              if (data && data.latitude && data.longitude) {
-                lat = data.latitude;
-                lng = data.longitude;
-                usedIPFallback = true;
-              } else {
-                throw new Error("No lat/lng returned");
-              }
+          const res = await fetch("https://ipapi.co/json/");
+          if (res.ok) {
+            const data = await res.json();
+            if (data && data.latitude && data.longitude) {
+              lat = data.latitude;
+              lng = data.longitude;
+              usedIPFallback = true;
             } else {
-              throw new Error("ipapi error response");
+              throw new Error("No lat/lng returned");
             }
-          } catch (ipApiError) {
-            console.warn("ipapi failed, trying freeipapi...", ipApiError);
-            const res = await fetch("https://freeipapi.com/api/json");
-            if (res.ok) {
-              const data = await res.json();
-              if (data && data.latitude && data.longitude) {
-                lat = data.latitude;
-                lng = data.longitude;
-                usedIPFallback = true;
-              } else {
-                throw new Error("No lat/lng from freeipapi");
-              }
+          } else {
+            throw new Error("ipapi error response");
+          }
+        } catch (ipApiError) {
+          console.warn("ipapi failed, trying freeipapi...", ipApiError);
+          const res = await fetch("https://freeipapi.com/api/json");
+          if (res.ok) {
+            const data = await res.json();
+            if (data && data.latitude && data.longitude) {
+              lat = data.latitude;
+              lng = data.longitude;
+              usedIPFallback = true;
             } else {
-              throw new Error("All geolocation APIs failed");
+              throw new Error("No lat/lng from freeipapi");
             }
+          } else {
+            throw new Error("All geolocation APIs failed");
           }
         }
       }
