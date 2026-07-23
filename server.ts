@@ -807,7 +807,8 @@ const MASTER_ADMIN_EMAILS = ['mandemohamed68@gmail.com', 'mandemohamed6868@gmail
   });
 
   app.get("/api/deliveries", authenticate, (req: any, res) => {
-    const { role, userId } = req.user;
+    try {
+      const { role, userId } = req.user;
     let query = "SELECT * FROM deliveries";
     const params: any[] = [];
 
@@ -817,8 +818,8 @@ const MASTER_ADMIN_EMAILS = ['mandemohamed68@gmail.com', 'mandemohamed6868@gmail
     } else if (role === 'driver') {
       query += " WHERE (status = 'pending' OR driverId = ?)";
       params.push(userId);
-    } else if (role !== 'admin' && role !== 'superadmin') {
-      return res.status(400).json({ error: "Access denied" });
+    } else if (!['admin', 'superadmin', 'manager', 'support'].includes(role) && !req.user.isMaster) {
+      return res.status(403).json({ error: "Access denied. Your role (" + role + ") does not have permission to list all deliveries." });
     }
 
     query += " ORDER BY createdAt DESC LIMIT 100";
@@ -844,8 +845,11 @@ const MASTER_ADMIN_EMAILS = ['mandemohamed68@gmail.com', 'mandemohamed6868@gmail
           // Urgent deliveries bypass radius delays
           if (d.isUrgent) return true;
 
-          let originData = typeof d.origin === 'string' ? JSON.parse(d.origin) : d.origin;
-          if (!originData || !originData.lat || !originData.lng) return true;
+        let originData = null;
+        try {
+          originData = typeof d.origin === 'string' ? JSON.parse(d.origin) : d.origin;
+        } catch(e){}
+        if (!originData || !originData.lat || !originData.lng) return true;
 
           const distanceKm = calculateDistance(driverLoc.lat, driverLoc.lng, originData.lat, originData.lng);
           const ageInMinutes = (Date.now() - new Date(d.createdAt).getTime()) / 60000;
@@ -908,7 +912,11 @@ const MASTER_ADMIN_EMAILS = ['mandemohamed68@gmail.com', 'mandemohamed6868@gmail
         d.bids = [];
       }
     });
-    res.json(deliveries);
+      res.json(deliveries);
+    } catch (err: any) {
+      console.error("Critical error in GET /api/deliveries:", err);
+      res.status(500).json({ error: "Internal server error while fetching deliveries", details: err.message });
+    }
   });
 
   app.get("/api/deliveries/:id", authenticate, (req: any, res) => {
@@ -1308,16 +1316,22 @@ const MASTER_ADMIN_EMAILS = ['mandemohamed68@gmail.com', 'mandemohamed6868@gmail
   const SAPPAY_BASE_PUBLIC = "https://api.prod.sappay.net/api/public";
   const SAPPAY_BASE_CHECKOUT = "https://api.prod.sappay.net/api/checkout";
 
-  // Normalisation du numéro pour Sappay : Supprimer l'indicatif international (Burkina 226 par défaut)
-  const normalizePhoneNumberSappay = (phone: string, countryId: number = 1) => {
+  // Normalisation du numéro pour Sappay selon l'opérateur
+  const normalizePhoneNumberSappay = (phone: string, processorId?: string) => {
     let clean = phone.replace(/\D/g, "");
-    if (countryId === 1) { // Burkina Faso
-      if (clean.startsWith("00226")) {
-        clean = clean.substring(5);
-      } else if (clean.startsWith("226")) {
-        clean = clean.substring(3);
+    
+    // Moov Money (11688813838374580) et Coris Money (11702302492453862) demandent le 226
+    if (processorId === "11688813838374580" || processorId === "11702302492453862") {
+      if (!clean.startsWith("226")) {
+        if (clean.length === 8) {
+          clean = "226" + clean;
+        }
       }
-      if (clean.length > 8) {
+    } else {
+      // Orange Money (11688813752134336) et Telecel (11744695746597207) préfèrent 8 chiffres
+      if (clean.startsWith("226") && clean.length === 11) {
+        clean = clean.substring(3);
+      } else if (clean.length > 8) {
         clean = clean.substring(clean.length - 8);
       }
     }
@@ -1420,21 +1434,23 @@ const MASTER_ADMIN_EMAILS = ['mandemohamed68@gmail.com', 'mandemohamed6868@gmail
       const { amount, note, email } = req.body;
       const token = await getSappayToken();
 
+      const payload = {
+        type: "SIMPLE",
+        customer: {
+          email: email || "client@faso.app",
+          country: 1
+        },
+        amount: amount.toString(),
+        note: note || `COURSE FASO #${Math.random().toString(36).substr(2, 5).toUpperCase()}`
+      };
+
       const invoiceResponse = await fetch(`${SAPPAY_BASE_PUBLIC}/invoice/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${token}`
         },
-        body: JSON.stringify({
-          type: "SIMPLE",
-          customer: {
-            email: email || "client@faso.app",
-            country: 1
-          },
-          amount: amount.toString(),
-          note: note || `Livraison FASO #${Math.random().toString(36).substr(2, 5)}`
-        }),
+        body: JSON.stringify(payload),
       });
 
       let responseText = "";
@@ -1466,7 +1482,47 @@ const MASTER_ADMIN_EMAILS = ['mandemohamed68@gmail.com', 'mandemohamed6868@gmail
         status: responseData.status || "PENDING"
       });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      console.error("[Sappay Init Error]:", error);
+      let errMsg = error.message || "Une erreur est survenue lors de l'initialisation du paiement.";
+      if (typeof errMsg === "string" && (
+        errMsg.toLowerCase().includes("fetch failed") || 
+        errMsg.toLowerCase().includes("timeout") || 
+        errMsg.toLowerCase().includes("enotfound") || 
+        errMsg.toLowerCase().includes("econnrefused") ||
+        errMsg.toLowerCase().includes("etimedout")
+      )) {
+        errMsg = "Le service de paiement (SapPay) est temporairement injoignable ou en maintenance. Veuillez réessayer dans quelques instants ou choisir un autre moyen de paiement.";
+      }
+      res.status(500).json({ error: errMsg });
+    }
+  });
+
+  // Diagnostic route for Sappay
+  app.get("/api/payment/sappay/config-check", async (req, res) => {
+    try {
+      console.log("[DIAGNOSTIC] Checking Sappay configuration...");
+      const token = await getSappayToken();
+      res.json({ 
+        status: "success", 
+        message: "SAPPAY configuration is valid and authentication was successful.",
+        token_prefix: token.substring(0, 10) + "..."
+      });
+    } catch (error: any) {
+      console.error("[DIAGNOSTIC] Sappay config check failed:", error.message);
+      let errMsg = error.message || "La vérification de configuration a échoué.";
+      if (typeof errMsg === "string" && (
+        errMsg.toLowerCase().includes("fetch failed") || 
+        errMsg.toLowerCase().includes("timeout") || 
+        errMsg.toLowerCase().includes("enotfound") || 
+        errMsg.toLowerCase().includes("econnrefused") ||
+        errMsg.toLowerCase().includes("etimedout")
+      )) {
+        errMsg = "Échec de connexion au serveur SapPay (Time-out de connexion). Le serveur distant est injoignable.";
+      }
+      res.status(401).json({ 
+        status: "error", 
+        message: errMsg 
+      });
     }
   });
 
@@ -1481,11 +1537,14 @@ const MASTER_ADMIN_EMAILS = ['mandemohamed68@gmail.com', 'mandemohamed6868@gmail
         headers["Authorization"] = `Bearer ${access_token}`;
       }
 
-      const response = await fetch(`${SAPPAY_BASE_CHECKOUT}/get-otp/`, {
+      const targetUrl = `${SAPPAY_BASE_CHECKOUT}/get-otp/`;
+      console.log("[Sappay OTP] Sending payload to checkout URL:", targetUrl);
+      
+      const response = await fetch(targetUrl, {
         method: "POST",
         headers,
         body: JSON.stringify({
-          customer_msisdn: normalizePhoneNumberSappay(customer_msisdn),
+          customer_msisdn: normalizePhoneNumberSappay(customer_msisdn, payment_processor_id),
           invoice_id,
           payment_processor_id
         }),
@@ -1513,61 +1572,103 @@ const MASTER_ADMIN_EMAILS = ['mandemohamed68@gmail.com', 'mandemohamed6868@gmail
       }
       res.status(response.status).json(data);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      console.error("[Sappay OTP Error]:", error);
+      let errMsg = error.message || "Une erreur est survenue lors de la génération de l'OTP.";
+      if (typeof errMsg === "string" && (
+        errMsg.toLowerCase().includes("fetch failed") || 
+        errMsg.toLowerCase().includes("timeout") || 
+        errMsg.toLowerCase().includes("enotfound") || 
+        errMsg.toLowerCase().includes("econnrefused") ||
+        errMsg.toLowerCase().includes("etimedout")
+      )) {
+        errMsg = "Impossible de contacter l'opérateur (via SapPay) pour générer le code OTP. Veuillez vérifier votre connexion ou réessayer.";
+      }
+      res.status(500).json({ error: errMsg });
     }
   });
 
   app.post("/api/payment/sappay/perform", async (req, res) => {
     try {
-      const { invoice_id, payment_processor_id, customer_msisdn, otp, trans_id, access_token } = req.body;
+      const { invoice_id, payment_processor_id, customer_msisdn, otp, trans_id, access_token, amount, email } = req.body;
       
       const payload: any = {
         invoice_id,
         payment_processor_id,
-        customer_msisdn: normalizePhoneNumberSappay(customer_msisdn),
-        otp: otp.toString()
+        customer_msisdn: normalizePhoneNumberSappay(customer_msisdn || "", payment_processor_id),
+        otp: (otp || "").toString()
       };
 
       if (trans_id) {
         payload.trans_id = trans_id;
       }
 
+      if (amount) {
+        payload.amount = amount.toString();
+      }
+
+      if (email) {
+        payload.email = email;
+      }
+
       const headers: any = {
         "Content-Type": "application/json"
       };
       if (access_token) {
-        headers["Authorization"] = `Bearer ${access_token}`;
+        headers["Authorization"] = `Bearer ${access_token.trim()}`;
       }
 
-      const response = await fetch(`${SAPPAY_BASE_CHECKOUT}/perform/`, {
+      const targetUrl = `${SAPPAY_BASE_CHECKOUT}/perform/`;
+      console.log("[Sappay Perform] Sending payload to checkout URL:", targetUrl);
+
+      const response = await fetch(targetUrl, {
         method: "POST",
         headers,
         body: JSON.stringify(payload),
       });
 
+      console.log("[Sappay Perform] Response Status:", response.status);
+      console.log("[Sappay Perform] Response Headers:", JSON.stringify(response.headers));
+
       let responseText = "";
       try {
         responseText = await response.text();
       } catch (e) {
-        responseText = "Impossible de lire la réponse.";
+        responseText = "Impossible de lire la réponse brute.";
       }
 
       if (!response.ok) {
+        console.error("[Sappay Perform] Error Response Body:", responseText);
+        // If it's a 500, we try to extract more info
         return res.status(response.status).json({ 
           error: "Sappay Perform Error",
-          details: responseText.substring(0, 500)
+          message: `Sappay returned status ${response.status}`,
+          details: responseText.substring(0, 2000)
         });
       }
+
+      console.log("[Sappay Perform] Success Response Body:", responseText.substring(0, 500));
 
       let data;
       try {
         data = JSON.parse(responseText);
       } catch (e) {
-        return res.status(500).json({ error: "Format de réponse perform invalide" });
+        console.error("[Sappay Perform] JSON Parse Error:", e);
+        return res.status(500).json({ error: "Format de réponse perform invalide", raw: responseText });
       }
       res.status(response.status).json(data);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      console.error("[Sappay Perform Error]:", error);
+      let errMsg = error.message || "Une erreur est survenue lors de la validation du paiement.";
+      if (typeof errMsg === "string" && (
+        errMsg.toLowerCase().includes("fetch failed") || 
+        errMsg.toLowerCase().includes("timeout") || 
+        errMsg.toLowerCase().includes("enotfound") || 
+        errMsg.toLowerCase().includes("econnrefused") ||
+        errMsg.toLowerCase().includes("etimedout")
+      )) {
+        errMsg = "La validation du paiement a échoué car le serveur de paiement (SapPay) ne répond pas. Si vous avez déjà été débité par votre opérateur, veuillez contacter notre service client immédiatement.";
+      }
+      res.status(500).json({ error: errMsg });
     }
   });
 

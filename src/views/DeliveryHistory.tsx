@@ -163,7 +163,9 @@ export default function DeliveryHistory() {
 
                     <div className="flex items-center justify-between pt-3 mt-1 border-t border-slate-100 gap-2">
                       <div className="flex-1 min-w-0">
-                        <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mb-0.5 font-mono">RÉGLÉ</p>
+                        <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mb-0.5 font-mono">
+                          {delivery.status === 'cancelled' ? 'MONTANT' : 'RÉGLÉ'}
+                        </p>
                         <p className="text-xl sm:text-2xl font-black text-slate-900 tracking-tighter leading-none truncate">{delivery.cost} FCFA</p>
                       </div>
                       <div className="flex gap-2 shrink-0">

@@ -3,6 +3,12 @@
 import { Capacitor } from '@capacitor/core';
 
 export const getApiBase = () => {
+  // Pour le web, on utilise toujours le chemin relatif /api du serveur local
+  if (typeof window !== 'undefined' && !Capacitor.isNativePlatform()) {
+    return "/api";
+  }
+
+  // Fallback pour les plateformes natives (Capacitor)
   if (import.meta.env.VITE_API_BASE) {
     return import.meta.env.VITE_API_BASE;
   }

@@ -92,7 +92,7 @@ export default function PaymentModal({
   title = "Paiement Sécurisé",
   description = "Le montant est bloqué par notre plateforme et ne sera versé au livreur qu'une fois la confirmation de livraison effectuée par vos soins."
 }: PaymentModalProps) {
-  const { appConfig } = useAuth();
+  const { appConfig, user } = useAuth();
   const [step, setStep] = useState(1); // 1: Methods, 2: USSD/Input, 3: Success/Waiting
   const [selectedMethod, setSelectedMethod] = useState<'orange' | 'moov' | 'telecel' | 'coris' | 'orange_ussd' | 'moov_ussd' | 'telecel_ussd' | 'card' | 'cash' | 'aggregator' | 'ussd' | null>(null);
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -183,7 +183,7 @@ export default function PaymentModal({
       cleaned = cleaned.slice(3);
     }
     if (cleaned.length > 8) {
-      cleaned = cleaned.slice(-8);
+      cleaned = cleaned.slice(cleaned.length - 8);
     }
     return cleaned;
   };
@@ -195,12 +195,12 @@ export default function PaymentModal({
     const isHtml = (str: any) => typeof str === 'string' && (str.trim().startsWith('<') || str.includes('<html') || str.includes('<h1>Oops') || str.includes('Ooops!!! 500'));
     
     if (isHtml(errorData)) {
-      return "Le serveur de paiement Sappay rencontre des perturbations temporaires (Erreur interne 500). Veuillez réessayer dans quelques instants.";
+      return "Le serveur Sappay a retourné une erreur 500 (HTML). Cela indique généralement une surcharge ou un problème de configuration chez l'opérateur. Veuillez réessayer.";
     }
 
     if (errorData.details) {
       if (isHtml(errorData.details)) {
-        return "Le serveur de paiement de l'opérateur (Sappay) rencontre actuellement des perturbations temporaires (Erreur interne 500). Veuillez réessayer dans quelques instants.";
+        return "Perturbation temporaire du serveur de paiement (500). Veuillez réessayer dans quelques instants.";
       }
       if (typeof errorData.details === 'string') {
         try {
@@ -261,8 +261,9 @@ export default function PaymentModal({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           amount,
-          note: `COURSE FASO EXPRESS #${Math.random().toString(36).substr(2, 5)}`,
-          email: 'client@faso.app'
+          note: `COURSE FASO EXPRESS #${Math.random().toString(36).substr(2, 5).toUpperCase()}`,
+          email: user?.email || 'client@faso.app',
+          payment_processor_id: processors[selectedMethod as string]
         })
       });
       
@@ -295,52 +296,26 @@ export default function PaymentModal({
       setSappayInvoiceId(initData.invoice_id);
       setSappayAccessToken(initData.access_token);
 
-      // 2. Déclenchement OTP : obligatoire pour Moov Money, Coris Money et Telecel Money
-      const needsOtpInitiation = selectedMethod === 'moov' || selectedMethod === 'coris';
-      if (needsOtpInitiation) {
-        const otpRes = await fetch(getApiUrl('/api/payment/sappay/get-otp'), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            customer_msisdn: cleanPhoneNumber(phoneNumber),
-            invoice_id: initData.invoice_id,
-            payment_processor_id: processors[selectedMethod as string],
-            access_token: initData.access_token
-          })
-        });
-        
-        if (!otpRes.ok) {
-            let errorMsg = "Erreur lors de l'envoi de la requête OTP.";
-            try {
-              const textBody = await otpRes.text();
-              try {
-                const otpError = JSON.parse(textBody);
-                errorMsg = extractSpecificError(otpError, errorMsg);
-              } catch (e) {
-                errorMsg = `Erreur OTP ${otpRes.status}`;
-              }
-            } catch (e) {
-              errorMsg = "Le réseau n'a pas pu envoyer la requête OTP. Réessayez.";
-            }
-            throw new Error(errorMsg);
-        }
-
-        let otpData;
+      // Si c'est Moov Money ou Coris Money, on déclenche l'envoi de l'OTP
+      if (selectedMethod === 'moov' || selectedMethod === 'coris') {
         try {
-          const textOtp = await otpRes.text();
-          otpData = JSON.parse(textOtp);
-        } catch (e) {
-          throw new Error("Format de réponse OTP invalide.");
+          await fetch(getApiUrl('/api/payment/sappay/get-otp'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              customer_msisdn: phoneNumber,
+              invoice_id: initData.invoice_id,
+              payment_processor_id: processors[selectedMethod],
+              access_token: initData.access_token
+            })
+          });
+        } catch (otpErr) {
+          console.warn("OTP auto-request failed:", otpErr);
         }
-        
-        // Correctly extract trans_id for Moov/Coris (often inside response object)
-        const tId = otpData.trans_id || otpData.response?.trans_id || otpData.response?.transactionId;
-        if (tId) setSappayTransId(tId);
-      } else {
-        setSappayTransId('');
       }
 
       setSappayStep('otp');
+      setSappayTransId('');
     } catch (err: any) {
       // Log as warning to avoid looking like a code crash
       console.warn("Init warning:", err.message);
@@ -376,7 +351,9 @@ export default function PaymentModal({
             customer_msisdn: cleanPhoneNumber(phoneNumber),
             otp: otpCode,
             access_token: sappayAccessToken,
-            trans_id: sappayTransId
+            trans_id: sappayTransId,
+            amount: amount,
+            email: user?.email || 'client@faso.app'
           })
         });
 
@@ -427,6 +404,7 @@ export default function PaymentModal({
             setIsProcessing(false);
             onConfirm(selectedMethod as any, sappayInvoiceId, true);
             setTimeout(() => {
+              window.location.href = "http://167.172.39.172:1000/";
               onClose();
               setPaymentSuccess(false);
             }, 3000);
@@ -500,6 +478,7 @@ export default function PaymentModal({
           setPaymentSuccess(true);
           onConfirm(selectedMethod as any, transactionId, true);
           setTimeout(() => {
+            window.location.href = "http://167.172.39.172:1000/";
             onClose();
             setPaymentSuccess(false);
           }, 3000);
@@ -1010,9 +989,14 @@ export default function PaymentModal({
                               </div>
                               <input 
                                 type="text" 
-                                placeholder={selectedMethod === 'coris' ? "00000" : "000000"} 
+                                placeholder={(selectedMethod === 'coris' || selectedMethod === 'telecel') ? "00000" : "000000"} 
+                                maxLength={(selectedMethod === 'coris' || selectedMethod === 'telecel') ? 5 : 6}
                                 value={otpCode}
-                                onChange={e => setOtpCode(e.target.value)}
+                                onChange={e => {
+                                  const val = e.target.value.replace(/\D/g, '');
+                                  const maxLen = (selectedMethod === 'coris' || selectedMethod === 'telecel') ? 5 : 6;
+                                  if (val.length <= maxLen) setOtpCode(val);
+                                }}
                                 className="w-full px-8 py-6 bg-slate-50 border-2 border-slate-100 rounded-[28px] font-black text-3xl text-center text-slate-900 tracking-[0.1em] focus:outline-none focus:border-orange-500 transition-all outline-none"
                               />
                             </div>
@@ -1146,7 +1130,10 @@ export default function PaymentModal({
                 </div>
               ) : (
                 <button
-                  onClick={onClose}
+                  onClick={() => {
+                    window.location.href = "http://167.172.39.172:1000/";
+                    onClose();
+                  }}
                   className="w-full py-5 bg-slate-950 text-white text-[11px] font-black uppercase tracking-[0.3em] rounded-[24px] italic"
                 >
                   TERMINE LA CONSULTATION
