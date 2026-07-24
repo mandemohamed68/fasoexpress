@@ -1,6 +1,7 @@
 import { Capacitor } from '@capacitor/core';
 import { PushNotifications } from '@capacitor/push-notifications';
 import { api } from './apiService';
+import { playNotificationSound } from '../lib/audio';
 
 export const pushNotificationService = {
   async register(userId: string) {
@@ -10,8 +11,27 @@ export const pushNotificationService = {
     }
 
     try {
+      // Create high-importance notification channel with vibration for Android devices
+      if (Capacitor.getPlatform() === 'android') {
+        try {
+          await PushNotifications.createChannel({
+            id: 'high_importance_channel',
+            name: 'Faso Express Notifications',
+            description: 'Canal de notifications importantes de Faso Express',
+            importance: 5, // IMPORTANCE_HIGH: vibration and sound enabled
+            sound: 'default',
+            visibility: 1, // VISIBILITY_PUBLIC
+            vibration: true
+          });
+          console.log('[Push] High importance channel created successfully on Android.');
+        } catch (channelErr) {
+          console.error('[Push] Failed to create Android notification channel:', channelErr);
+        }
+      }
+
       // 1. Check/request permission
       let permStatus = await PushNotifications.checkPermissions();
+
 
       if (permStatus.receive !== 'granted') {
         permStatus = await PushNotifications.requestPermissions();
@@ -65,6 +85,7 @@ export const pushNotificationService = {
     // When a push notification is received while app is active (foreground)
     await PushNotifications.addListener('pushNotificationReceived', (notification) => {
       console.log('[Push] Notification received while app was active:', notification);
+      playNotificationSound();
     });
 
     // When user taps/clicks a native push notification

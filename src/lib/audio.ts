@@ -1,4 +1,28 @@
+import { Capacitor } from '@capacitor/core';
+import { Haptics, NotificationType } from '@capacitor/haptics';
+
+export const triggerVibration = async () => {
+    try {
+        if (Capacitor.isNativePlatform()) {
+            // Native vibration using official Capacitor Haptics
+            await Haptics.notification({
+                type: NotificationType.Success
+            });
+            // Additional vibration pattern for devices that support it
+            await Haptics.vibrate({ duration: 300 });
+        } else if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+            // HTML5 vibration fallback for Web
+            navigator.vibrate([150, 100, 150]);
+        }
+    } catch (e) {
+        console.warn("Vibration triggered but failed or unsupported:", e);
+    }
+};
+
 export const playNotificationSound = () => {
+    // Also trigger vibration alongside notification sound
+    triggerVibration();
+
     const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
     if (!AudioContext) return;
     
@@ -31,3 +55,4 @@ export const playNotificationSound = () => {
         console.warn("Audio Context blocked or failed:", e);
     }
 };
+
