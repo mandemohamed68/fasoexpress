@@ -453,22 +453,27 @@ export default function PaymentModal({
         
         // On considère SUCCESS comme validé si success est true ET status est 200/SUCCESS
         // On exclut explicitement les cas où status ou message indiquent un échec malgré success: true
+        const gatewayCode = performData.response?.gateway_status_code;
+        const gatewayMsg = performData.response?.gateway_message?.toLowerCase() || "";
+        
         const isExplicitlyFailed = 
           performData.status === 400 || 
           performData.status === 'FAILED' || 
           performData.response?.status === 'FAILED' ||
           performData.message === "Transaction Failed" ||
-          (performData.response?.gateway_status_code !== undefined && performData.response.gateway_status_code < 0) ||
-          (performData.response?.gateway_message && (
-            performData.response.gateway_message.toLowerCase().includes("erron") || 
-            performData.response.gateway_message.toLowerCase().includes("fail") ||
-            performData.response.gateway_message.toLowerCase().includes("incorrect")
-          ));
+          (gatewayCode !== undefined && gatewayCode !== 0 && gatewayCode !== "0" && gatewayCode !== 1) ||
+          gatewayMsg.includes("erron") || 
+          gatewayMsg.includes("fail") ||
+          gatewayMsg.includes("incorrect") ||
+          gatewayMsg.includes("insuffisant") ||
+          gatewayMsg.includes("expire");
 
         const isSuccess = !isExplicitlyFailed && (
-          (performData.success === true && (performData.status === 200 || performData.status === 'SUCCESS')) ||
-          performData.response?.status === 'SUCCESS' ||
-          (performData.success === true && performData.message === "Transaction Successfull")
+          (gatewayCode !== undefined ? (gatewayCode === 0 || gatewayCode === "0") : true) && (
+            (performData.success === true && (performData.status === 200 || performData.status === 'SUCCESS')) ||
+            performData.response?.status === 'SUCCESS' ||
+            (performData.success === true && performData.message === "Transaction Successfull")
+          )
         );
 
         const isPending = !isSuccess && !isExplicitlyFailed && (
