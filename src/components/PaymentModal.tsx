@@ -218,6 +218,9 @@ export default function PaymentModal({
     if (lower.includes("otp invalid") || lower.includes("invalid otp") || lower.includes("wrong otp") || lower.includes("otp incorrect") || lower.includes("code otp incorrect")) {
       return "Le code OTP saisi est incorrect ou a expiré. Veuillez vérifier le SMS reçu et réessayer.";
     }
+    if (lower.includes("already processed") || lower.includes("déjà traité") || lower.includes("deja traite")) {
+      return "Cette transaction a déjà été traitée ou est en cours de validation. Veuillez consulter l'historique de vos commandes.";
+    }
     if (lower.includes("insufficient") || lower.includes("balance") || lower.includes("solde insuffisant") || lower.includes("fonds insuffisants") || lower.includes("not enough money")) {
       return "Votre solde est insuffisant pour effectuer cette transaction. Veuillez recharger votre compte de paiement mobile money et réessayer.";
     }
@@ -238,6 +241,12 @@ export default function PaymentModal({
     }
     if (lower.includes("declined") || lower.includes("refused") || lower.includes("refuse")) {
       return "La transaction a été déclinée ou refusée par l'opérateur mobile money.";
+    }
+    if (lower.includes("forbidden") || lower.includes("not allowed")) {
+      return "Action non autorisée. Veuillez contacter votre opérateur mobile money.";
+    }
+    if (lower.includes("service unavailable") || lower.includes("server error") || lower.includes("maintenance")) {
+      return "Le service de paiement est temporairement indisponible chez cet opérateur. Veuillez réessayer plus tard.";
     }
     if (lower.includes("failed") || lower.includes("echec") || lower.includes("échec")) {
       return "La transaction a échoué. Veuillez vérifier votre solde ou le code OTP saisi.";
@@ -439,22 +448,24 @@ export default function PaymentModal({
           throw new Error("Format de réponse de validation invalide.");
         }
         
-        // On considère SUCCESS comme validé sans admin, PENDING avec admin
-        const isSuccess = 
-          performData.success === true ||
-          performData.status === 'SUCCESS' ||
-          performData.status === 200 ||
-          performData.response?.status === 'SUCCESS' ||
-          performData.invoice_details?.status === 'SUCCESS' ||
-          performData.invoice_detail?.status === 'SUCCESS' ||
-          performData.response?.invoice_detail?.status === 'SUCCESS';
+        // On considère SUCCESS comme validé si success est true ET status est 200/SUCCESS
+        // On exclut explicitement les cas où status ou message indiquent un échec malgré success: true
+        const isExplicitlyFailed = 
+          performData.status === 400 || 
+          performData.status === 'FAILED' || 
+          performData.response?.status === 'FAILED' ||
+          performData.message === "Transaction Failed";
 
-        const isPending = 
-          performData.status === 'PENDING' ||
-          performData.response?.status === 'PENDING' ||
-          performData.invoice_details?.status === 'PENDING' ||
-          performData.invoice_detail?.status === 'PENDING' ||
-          performData.response?.invoice_detail?.status === 'PENDING';
+        const isSuccess = !isExplicitlyFailed && (
+          (performData.success === true && (performData.status === 200 || performData.status === 'SUCCESS')) ||
+          performData.response?.status === 'SUCCESS' ||
+          (performData.success === true && performData.message === "Transaction Successfull")
+        );
+
+        const isPending = !isSuccess && !isExplicitlyFailed && (
+          (performData.status === 'PENDING' || performData.response?.status === 'PENDING') && 
+          performData.success !== false
+        );
 
         if (isSuccess || isPending) {
           if (isSuccess) {
