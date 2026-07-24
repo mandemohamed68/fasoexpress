@@ -1269,7 +1269,7 @@ export default function AdminDashboard() {
       case 'Flash Info':
         return renderFlashInfo();
       case 'Validations Paiements':
-        const pendingPayments = deliveries.filter(d => d.paymentStatus === 'pending' || d.paymentStatus === 'pending_approval');
+        const pendingPayments = deliveries.filter(d => (d.paymentStatus === 'pending' || d.paymentStatus === 'pending_approval') && !['delivered', 'cancelled', 'paiement rejete'].includes(d.status));
         return (
           <div className="bg-white rounded-3xl p-6 lg:p-5 lg:p-6 shadow-sm border border-slate-100">
             <div className="flex items-center justify-between mb-8">
@@ -1608,92 +1608,119 @@ export default function AdminDashboard() {
           if (activeMenu === 'En cours') return d.status === 'picked_up';
           if (activeMenu === 'En attente') return d.status === 'pending';
           if (activeMenu === 'Programmees') return ['accepted', 'ready_for_pickup'].includes(d.status);
-          if (activeMenu === 'Historique') return ['delivered', 'cancelled'].includes(d.status);
+          if (activeMenu === 'Historique') return ['delivered', 'cancelled', 'paiement rejete'].includes(d.status as string);
           return false;
         });
         return (
           <div className="bg-white rounded-3xl p-6 lg:p-5 lg:p-6 shadow-sm border border-slate-100">
             <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter mb-8">{activeMenu} ({filteredDeliveries.length})</h3>
             <div className="grid grid-cols-1 gap-4">
-              {filteredDeliveries.map(d => (
-                <div key={d.id} onClick={() => navigate('/delivery/' + d.id)} className="p-6 bg-slate-50 rounded-3xl border border-slate-100 flex items-center justify-between cursor-pointer hover:bg-slate-100 hover:shadow-md transition-all active:scale-[0.99]">
-                  <div className="flex items-center gap-6">
-                    <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-orange-600 shadow-sm border border-slate-100">
-                      <Package className="w-6 h-6" />
-                    </div>
-                    <div>
-                      <p className="font-black text-slate-900">#{d.id?.slice(0, 8) || 'N/A'}</p>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{d.from?.address?.slice(0, 30) || 'Lieu inconnu'}... {'->'} {d.to?.address?.slice(0, 30) || 'Lieu inconnu'}...</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-6">
-                    <div className="text-right">
-                      <p className="font-black text-slate-900">{d.cost} FCFA</p>
-                      <div className="flex flex-col items-end gap-1">
-                        <span className="text-[8px] font-black uppercase bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full">{d.status}</span>
-                        {(d.paymentStatus === 'pending' || d.paymentStatus === 'pending_approval') && (
-                          <span className="text-[7px] font-black uppercase bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full animate-pulse">Paiement a Valider</span>
-                        )}
+              {filteredDeliveries.map(d => {
+                const isFinishedOrCancelled = ['delivered', 'cancelled', 'paiement rejete'].includes(d.status as string);
+                const showActionButtons = activeMenu !== 'Historique' && !isFinishedOrCancelled && (d.paymentStatus === 'pending' || d.paymentStatus === 'pending_approval');
+
+                let badgeColor = "bg-slate-100 text-slate-600";
+                let badgeLabel: string = d.status;
+                if (d.status === 'delivered') {
+                  badgeColor = "bg-emerald-100 text-emerald-700";
+                  badgeLabel = "LIVRÉ";
+                } else if (d.status === 'cancelled') {
+                  badgeColor = "bg-rose-100 text-rose-700";
+                  badgeLabel = "ANNULÉ";
+                } else if ((d.status as string) === 'paiement rejete') {
+                  badgeColor = "bg-rose-100 text-rose-700";
+                  badgeLabel = "REJETÉ";
+                } else if (d.status === 'pending') {
+                  badgeColor = "bg-amber-100 text-amber-700";
+                  badgeLabel = "EN ATTENTE";
+                } else if (d.status === 'picked_up') {
+                  badgeColor = "bg-indigo-100 text-indigo-700";
+                  badgeLabel = "EN COURS";
+                } else if (['accepted', 'ready_for_pickup'].includes(d.status)) {
+                  badgeColor = "bg-blue-100 text-blue-700";
+                  badgeLabel = "PROGRAMMÉE";
+                }
+
+                return (
+                  <div key={d.id} onClick={() => navigate('/delivery/' + d.id)} className="p-6 bg-slate-50 rounded-3xl border border-slate-100 flex items-center justify-between cursor-pointer hover:bg-slate-100 hover:shadow-md transition-all active:scale-[0.99]">
+                    <div className="flex items-center gap-6">
+                      <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-orange-600 shadow-sm border border-slate-100">
+                        <Package className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <p className="font-black text-slate-900">#{d.id?.slice(0, 8) || 'N/A'}</p>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{d.from?.address?.slice(0, 30) || 'Lieu inconnu'}... {'->'} {d.to?.address?.slice(0, 30) || 'Lieu inconnu'}...</p>
                       </div>
                     </div>
-                    {(d.paymentStatus === 'pending' || d.paymentStatus === 'pending_approval') && (
-                      <div className="flex gap-2" onClick={e => e.stopPropagation()}>
-                        <button 
-                          onClick={async (e) => {
-                            e.stopPropagation();
-                            try {
-                              const pickupCode = generateCode();
-                              const deliveryCode = generateCode();
-                              await api.deliveries.update(d.id, { 
-                                paymentStatus: 'confirmed', 
-                                isPaid: true,
-                                pickupCode,
-                                deliveryCode,
-                                updatedAt: new Date().toISOString() 
-                              });
-                              fetchData();
-                              if (d.driverId) {
-                                await sendNotification(d.driverId, "Paiement valide", `Le client a paye pour la course #${d.id.slice(-6)}.`, 'success', '/driver');
-                              }
-                              await sendNotification(d.clientId, "Paiement Confirme", `Votre paiement pour la course #${d.id.slice(-6)} a ete valide.`, 'success', '/client');
-                              toast.success('Paiement valide avec succes.');
-                            } catch(e) {
-                              console.error('Erreur lors de la validation:', e);
-                            }
-                          }}
-                          className="px-3 py-2 bg-emerald-500 text-white text-[9px] font-black uppercase rounded-xl hover:bg-emerald-600 shadow-lg shadow-emerald-500/20"
-                        >
-                          Valider
-                        </button>
-                        <button 
-                          onClick={async (e) => {
-                            e.stopPropagation();
-                            try {
-                              await api.deliveries.update(d.id, { 
-                                paymentStatus: 'rejected', 
-                                isPaid: false,
-                                status: 'paiement rejete',
-                                updatedAt: new Date().toISOString() 
-                              });
-                              fetchData();
-                              if (d.driverId) {
-                                await sendNotification(d.driverId, "Paiement Rejete", `La preuve de paiement de la course #${d.id.slice(-6)} a ete rejetee.`, 'error', '/driver');
-                              }
-                              await sendNotification(d.clientId, "Paiement Rejete", `La preuve de paiement de la course #${d.id.slice(-6)} a ete rejetee. Veuillez reessayer ou contacter le service clientele.`, 'error', '/client');
-                              toast('Paiement rejete et course mise a jour.');
-                            } catch(e) {
-                              console.error('Erreur lors du rejet:', e);
-                            }
-                          }}
-                          className="px-3 py-2 bg-rose-500 text-white text-[9px] font-black uppercase rounded-xl hover:bg-rose-600 shadow-lg shadow-rose-500/20"
-                        >
-                          Rejeter
-                        </button>
+                    <div className="flex items-center gap-6">
+                      <div className="text-right">
+                        <p className="font-black text-slate-900">{d.cost} FCFA</p>
+                        <div className="flex flex-col items-end gap-1">
+                          <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full ${badgeColor}`}>{badgeLabel}</span>
+                          {showActionButtons && (
+                            <span className="text-[7px] font-black uppercase bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full animate-pulse">Paiement a Valider</span>
+                          )}
+                        </div>
                       </div>
-                    )}
+                      {showActionButtons && (
+                        <div className="flex gap-2" onClick={e => e.stopPropagation()}>
+                          <button 
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              try {
+                                const pickupCode = generateCode();
+                                const deliveryCode = generateCode();
+                                await api.deliveries.update(d.id, { 
+                                  paymentStatus: 'confirmed', 
+                                  isPaid: true,
+                                  pickupCode,
+                                  deliveryCode,
+                                  updatedAt: new Date().toISOString() 
+                                });
+                                fetchData();
+                                if (d.driverId) {
+                                  await sendNotification(d.driverId, "Paiement valide", `Le client a paye pour la course #${d.id.slice(-6)}.`, 'success', '/driver');
+                                }
+                                await sendNotification(d.clientId, "Paiement Confirme", `Votre paiement pour la course #${d.id.slice(-6)} a ete valide.`, 'success', '/client');
+                                toast.success('Paiement valide avec succes.');
+                              } catch(e) {
+                                console.error('Erreur lors de la validation:', e);
+                              }
+                            }}
+                            className="px-3 py-2 bg-emerald-500 text-white text-[9px] font-black uppercase rounded-xl hover:bg-emerald-600 shadow-lg shadow-emerald-500/20"
+                          >
+                            Valider
+                          </button>
+                          <button 
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              try {
+                                await api.deliveries.update(d.id, { 
+                                  paymentStatus: 'rejected', 
+                                  isPaid: false,
+                                  status: 'paiement rejete',
+                                  updatedAt: new Date().toISOString() 
+                                });
+                                fetchData();
+                                if (d.driverId) {
+                                  await sendNotification(d.driverId, "Paiement Rejete", `La preuve de paiement de la course #${d.id.slice(-6)} a ete rejetee.`, 'error', '/driver');
+                                }
+                                await sendNotification(d.clientId, "Paiement Rejete", `La preuve de paiement de la course #${d.id.slice(-6)} a ete rejetee. Veuillez reessayer ou contacter le service clientele.`, 'error', '/client');
+                                toast('Paiement rejete et course mise a jour.');
+                              } catch(e) {
+                                console.error('Erreur lors du rejet:', e);
+                              }
+                            }}
+                            className="px-3 py-2 bg-rose-500 text-white text-[9px] font-black uppercase rounded-xl hover:bg-rose-600 shadow-lg shadow-rose-500/20"
+                          >
+                            Rejeter
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
               {filteredDeliveries.length === 0 && (
                 <div className="text-center py-20 text-slate-400 font-black uppercase text-xs tracking-[0.2em]">Pas de courses dans cette categorie</div>
               )}
