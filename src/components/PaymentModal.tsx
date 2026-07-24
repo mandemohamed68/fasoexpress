@@ -120,6 +120,29 @@ export default function PaymentModal({
     }
   }, [isOpen]);
 
+  // WebOTP API : Lecture automatique du code OTP reçu par SMS
+  useEffect(() => {
+    if (sappayStep === 'otp' && typeof window !== 'undefined' && 'OTPCredential' in window) {
+      const ac = new AbortController();
+      (navigator.credentials as any).get({
+        otp: { transport: ['sms'] },
+        signal: ac.signal
+      }).then((otp: any) => {
+        if (otp && otp.code) {
+          const cleanCode = otp.code.replace(/\D/g, '');
+          const maxLen = (selectedMethod === 'coris' || selectedMethod === 'telecel') ? 5 : 6;
+          setOtpCode(cleanCode.slice(0, maxLen));
+        }
+      }).catch(() => {
+        // Annulation ou expiration du timer d'écoute SMS
+      });
+
+      return () => {
+        ac.abort();
+      };
+    }
+  }, [sappayStep, selectedMethod]);
+
   const isDemo = false;
 
   const getUssdString = () => {
@@ -989,6 +1012,8 @@ export default function PaymentModal({
                               </div>
                               <input 
                                 type="text" 
+                                inputMode="numeric"
+                                autoComplete="one-time-code"
                                 placeholder={(selectedMethod === 'coris' || selectedMethod === 'telecel') ? "00000" : "000000"} 
                                 maxLength={(selectedMethod === 'coris' || selectedMethod === 'telecel') ? 5 : 6}
                                 value={otpCode}
