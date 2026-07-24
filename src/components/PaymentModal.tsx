@@ -218,6 +218,9 @@ export default function PaymentModal({
     if (lower.includes("otp invalid") || lower.includes("invalid otp") || lower.includes("wrong otp") || lower.includes("otp incorrect") || lower.includes("code otp incorrect")) {
       return "Le code OTP saisi est incorrect ou a expiré. Veuillez vérifier le SMS reçu et réessayer.";
     }
+    if (lower.includes("erron") || lower.includes("invalid parameter") || lower.includes("bad request")) {
+      return "Les paramètres de la transaction sont erronés. Veuillez vérifier les informations saisies (numéro, montant) et réessayer.";
+    }
     if (lower.includes("already processed") || lower.includes("déjà traité") || lower.includes("deja traite")) {
       return "Cette transaction a déjà été traitée ou est en cours de validation. Veuillez consulter l'historique de vos commandes.";
     }
@@ -454,7 +457,13 @@ export default function PaymentModal({
           performData.status === 400 || 
           performData.status === 'FAILED' || 
           performData.response?.status === 'FAILED' ||
-          performData.message === "Transaction Failed";
+          performData.message === "Transaction Failed" ||
+          (performData.response?.gateway_status_code !== undefined && performData.response.gateway_status_code < 0) ||
+          (performData.response?.gateway_message && (
+            performData.response.gateway_message.toLowerCase().includes("erron") || 
+            performData.response.gateway_message.toLowerCase().includes("fail") ||
+            performData.response.gateway_message.toLowerCase().includes("incorrect")
+          ));
 
         const isSuccess = !isExplicitlyFailed && (
           (performData.success === true && (performData.status === 200 || performData.status === 'SUCCESS')) ||
@@ -485,11 +494,8 @@ export default function PaymentModal({
             setStep(3);
           }
         } else {
-          let detailMsg = performData.message || performData.error_description || performData.error || performData.details?.message;
-          if (detailMsg === "Transaction Failed") {
-            detailMsg = "Échec de la transaction (Fonds insuffisants ou code invalide).";
-          }
-          throw new Error(detailMsg || "Le paiement a échoué. Veuillez réessayer.");
+          const detailMsg = extractSpecificError(performData, performData.message || "Échec de la transaction");
+          throw new Error(detailMsg);
         }
       } catch (err: any) {
         // Log as warning since it's typically a balance/code issue, not a technical bug
