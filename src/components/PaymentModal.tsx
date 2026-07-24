@@ -211,6 +211,41 @@ export default function PaymentModal({
     return cleaned;
   };
 
+  const translateGatewayMessage = (msg: string): string => {
+    if (!msg) return msg;
+    const lower = msg.toLowerCase();
+    
+    if (lower.includes("otp invalid") || lower.includes("invalid otp") || lower.includes("wrong otp") || lower.includes("otp incorrect") || lower.includes("code otp incorrect")) {
+      return "Le code OTP saisi est incorrect ou a expiré. Veuillez vérifier le SMS reçu et réessayer.";
+    }
+    if (lower.includes("insufficient") || lower.includes("balance") || lower.includes("solde insuffisant") || lower.includes("fonds insuffisants") || lower.includes("not enough money")) {
+      return "Votre solde est insuffisant pour effectuer cette transaction. Veuillez recharger votre compte de paiement mobile money et réessayer.";
+    }
+    if (lower.includes("expired") || lower.includes("expiration") || lower.includes("expire")) {
+      return "La session ou le code OTP de paiement a expiré. Veuillez relancer la transaction.";
+    }
+    if (lower.includes("cancel") || lower.includes("annul")) {
+      return "La transaction a été annulée par l'utilisateur ou l'opérateur.";
+    }
+    if (lower.includes("timeout") || lower.includes("temps d'attente depasse") || lower.includes("temps d'attente dépassé")) {
+      return "Le délai d'attente de validation de l'opérateur a expiré. Veuillez réessayer.";
+    }
+    if (lower.includes("limit") || lower.includes("plafond") || lower.includes("maximum limit reached")) {
+      return "La transaction dépasse les limites ou plafonds autorisés sur votre compte mobile money.";
+    }
+    if (lower.includes("not registered") || lower.includes("unregistered") || lower.includes("subscriber") || lower.includes("numéro non enregistré") || lower.includes("not found")) {
+      return "Ce numéro de téléphone n'est pas enregistré pour ce service de paiement mobile money chez cet opérateur.";
+    }
+    if (lower.includes("declined") || lower.includes("refused") || lower.includes("refuse")) {
+      return "La transaction a été déclinée ou refusée par l'opérateur mobile money.";
+    }
+    if (lower.includes("failed") || lower.includes("echec") || lower.includes("échec")) {
+      return "La transaction a échoué. Veuillez vérifier votre solde ou le code OTP saisi.";
+    }
+    
+    return msg;
+  };
+
   const extractSpecificError = (errorData: any, defaultMsg: string): string => {
     if (!errorData) return defaultMsg;
 
@@ -218,7 +253,7 @@ export default function PaymentModal({
     const isHtml = (str: any) => typeof str === 'string' && (str.trim().startsWith('<') || str.includes('<html') || str.includes('<h1>Oops') || str.includes('Ooops!!! 500'));
     
     if (isHtml(errorData)) {
-      return "Le serveur Sappay a retourné une erreur 500 (HTML). Cela indique généralement une surcharge ou un problème de configuration chez l'opérateur. Veuillez réessayer.";
+      return "Le serveur Sappay a retourné une erreur (500). Cela indique généralement une surcharge ou un problème de configuration chez l'opérateur. Veuillez réessayer.";
     }
 
     if (errorData.details) {
@@ -233,7 +268,7 @@ export default function PaymentModal({
           if (errorData.details.trim().startsWith('{') || errorData.details.trim().startsWith('[')) {
             // Keep going
           } else {
-            return errorData.details;
+            return translateGatewayMessage(errorData.details);
           }
         }
       } else if (typeof errorData.details === 'object') {
@@ -243,30 +278,30 @@ export default function PaymentModal({
 
     if (errorData.response?.gateway_message) {
       if (isHtml(errorData.response.gateway_message)) return "Erreur serveur partenaire (500)";
-      return errorData.response.gateway_message;
+      return translateGatewayMessage(errorData.response.gateway_message);
     }
     if (errorData.gateway_message) {
       if (isHtml(errorData.gateway_message)) return "Erreur serveur partenaire (500)";
-      return errorData.gateway_message;
+      return translateGatewayMessage(errorData.gateway_message);
     }
     if (errorData.message) {
       if (isHtml(errorData.message)) return "Le serveur de l'opérateur rencontre des perturbations (500).";
-      return errorData.message;
+      return translateGatewayMessage(errorData.message);
     }
     if (errorData.error_description) {
       if (isHtml(errorData.error_description)) return "Erreur de communication opérateur (500)";
-      return errorData.error_description;
+      return translateGatewayMessage(errorData.error_description);
     }
     if (errorData.error && typeof errorData.error === 'string') {
       if (isHtml(errorData.error)) {
         return "Le serveur Sappay rencontre des perturbations (Erreur interne 500). Veuillez réessayer dans quelques instants.";
       }
       if (errorData.error !== "Sappay OTP Error" && errorData.error !== "Sappay Perform Error") {
-        return errorData.error;
+        return translateGatewayMessage(errorData.error);
       }
     }
     
-    return defaultMsg;
+    return translateGatewayMessage(defaultMsg);
   };
 
   const handleSappayInit = async () => {
@@ -427,6 +462,7 @@ export default function PaymentModal({
             setIsProcessing(false);
             onConfirm(selectedMethod as any, sappayInvoiceId, true);
             setTimeout(() => {
+              window.location.href = "https://www.fasoexpress.net";
               onClose();
               setPaymentSuccess(false);
             }, 3000);
@@ -500,6 +536,7 @@ export default function PaymentModal({
           setPaymentSuccess(true);
           onConfirm(selectedMethod as any, transactionId, true);
           setTimeout(() => {
+            window.location.href = "https://www.fasoexpress.net";
             onClose();
             setPaymentSuccess(false);
           }, 3000);
@@ -1154,6 +1191,7 @@ export default function PaymentModal({
               ) : (
                 <button
                   onClick={() => {
+                    window.location.href = "https://www.fasoexpress.net";
                     onClose();
                   }}
                   className="w-full py-5 bg-slate-950 text-white text-[11px] font-black uppercase tracking-[0.3em] rounded-[24px] italic"
