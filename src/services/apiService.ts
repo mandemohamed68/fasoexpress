@@ -40,6 +40,15 @@ async function request(endpoint: string, method = 'GET', body?: any, retryCount 
       body: body ? JSON.stringify(body) : undefined,
     });
   } catch (err: any) {
+    if (
+      err?.name === 'AbortError' || 
+      err?.message?.includes('aborted') || 
+      err?.message?.includes('abort') || 
+      err?.message?.includes('signal is aborted')
+    ) {
+      // Silently ignore aborted requests to prevent showing "signal is aborted without reason" toasts
+      return new Promise(() => {});
+    }
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
       throw new Error("Vous êtes actuellement hors connexion. Veuillez vérifier votre réseau internet.");
     }
