@@ -256,6 +256,7 @@ export interface DeliveryRequest {
   rejectedBy?: string[]; // IDs of drivers who declined this mission
   bids?: DeliveryBid[];
   lastMessageAt?: string;
+  lastSenderId?: string;
   clientPhone?: string;
   notes?: string;
   cancelReason?: string;

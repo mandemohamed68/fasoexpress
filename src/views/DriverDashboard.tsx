@@ -8,6 +8,7 @@ import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-
 import { api } from '../services/apiService';
 import L from 'leaflet';
 import { cn, calculateDistance, compressImage, translateSize } from '../lib/utils';
+import { isChatUnread, markChatAsRead } from '../lib/chatUtils';
 import { playNotificationSound } from '../lib/audio';
 import LoadingScreen from '../components/LoadingScreen';
 import AnnouncementBanner from '../components/AnnouncementBanner';
@@ -163,22 +164,40 @@ export default function DriverDashboard() {
     }
   }, [activeJobs.length, profile?.status, commissionSettings]);
 
+  const [readTick, setReadTick] = useState(0);
+
+  useEffect(() => {
+    const handleReadUpdate = () => setReadTick(prev => prev + 1);
+    window.addEventListener('chat_read_updated', handleReadUpdate);
+    window.addEventListener('storage', handleReadUpdate);
+    return () => {
+      window.removeEventListener('chat_read_updated', handleReadUpdate);
+      window.removeEventListener('storage', handleReadUpdate);
+    };
+  }, []);
+
   useEffect(() => {
     // Check for new chat messages in active jobs
     activeJobs.forEach(job => {
-      const prevVal = prevDeliveriesRef.current[job.id];
-      if (job.lastMessageAt && prevVal !== undefined && job.lastMessageAt !== prevVal) {
+      if (isChatUnread(job, profile?.userId)) {
         if (!chatOpen || chatDeliveryId !== job.id) {
           setUnreadChats(prev => new Set(prev).add(job.id));
-          playNotificationSound();
         }
+      } else {
+        setUnreadChats(prev => {
+          if (!prev.has(job.id)) return prev;
+          const next = new Set(prev);
+          next.delete(job.id);
+          return next;
+        });
       }
       prevDeliveriesRef.current[job.id] = job.lastMessageAt || '';
     });
-  }, [activeJobs, chatOpen, chatDeliveryId]);
+  }, [activeJobs, chatOpen, chatDeliveryId, profile?.userId, readTick]);
 
   useEffect(() => {
     if (chatOpen && chatDeliveryId) {
+      markChatAsRead(chatDeliveryId);
       setUnreadChats(prev => {
         const next = new Set(prev);
         next.delete(chatDeliveryId);
@@ -2551,10 +2570,7 @@ export default function DriverDashboard() {
           
           {/* Unread badge logic */}
           {(() => {
-            const hasUnread = (supportChats || []).some((chat: any) => {
-              const lastRead = localStorage.getItem('last_read_' + chat.id);
-              return chat.lastMessageAt && (!lastRead || new Date(chat.lastMessageAt) > new Date(lastRead));
-            });
+            const hasUnread = (supportChats || []).some((chat: any) => isChatUnread(chat, profile?.userId));
             return hasUnread;
           })() && (
             <span className="absolute -top-1 -right-1 w-4.5 h-4.5 bg-rose-500 rounded-full border-2 border-white animate-pulse" />

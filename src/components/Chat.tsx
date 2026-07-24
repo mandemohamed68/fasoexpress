@@ -4,6 +4,7 @@ import { ChatMessage, UserProfile } from '../types';
 import { Send, User, Shield, MessageSquare, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../lib/utils';
+import { markChatAsRead } from '../lib/chatUtils';
 
 interface ChatProps {
   deliveryId: string;
@@ -21,11 +22,15 @@ export const Chat: React.FC<ChatProps> = ({ deliveryId, currentUser, isOpen, onC
   useEffect(() => {
     if (!deliveryId || !isOpen) return;
 
+    // Mark as read immediately when opening chat
+    markChatAsRead(deliveryId);
+
     const fetchMessages = async () => {
       try {
         const msgs = await api.deliveries.messages.list(deliveryId);
         setMessages(msgs);
         setIsLoading(false);
+        markChatAsRead(deliveryId);
         
         // Auto scroll to bottom
         setTimeout(() => {
@@ -61,15 +66,19 @@ export const Chat: React.FC<ChatProps> = ({ deliveryId, currentUser, isOpen, onC
         createdAt: now
       });
       
+      markChatAsRead(deliveryId);
+
       // Update delivery locally if needed, but the server handles lastMessageAt
       await api.deliveries.update(deliveryId, {
         lastMessageAt: now,
+        lastSenderId: currentUser.userId,
         updatedAt: now
       }).catch(() => {});
       
       // Refresh messages immediately for better UX
       const msgs = await api.deliveries.messages.list(deliveryId);
       setMessages(msgs);
+      markChatAsRead(deliveryId);
     } catch (error) {
       console.error("Error sending message:", error);
     }

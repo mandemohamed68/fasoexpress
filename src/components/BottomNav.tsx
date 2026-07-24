@@ -5,6 +5,7 @@ import { Home, Package, User, Wallet, ShieldCheck, HelpCircle, MessageSquare } f
 import { cn } from '../lib/utils';
 import { api } from '../services/apiService';
 import SupportModal from './SupportModal';
+import { isChatUnread } from '../lib/chatUtils';
 
 export default function BottomNav() {
   const { profile, isMasterAdmin } = useAuth();
@@ -20,14 +21,12 @@ export default function BottomNav() {
       try {
         const jobs = await api.deliveries.list();
         const supportChats = jobs.filter((d: any) => 
-          d.pickupCode === 'SUPPORT' && 
+          (d.pickupCode === 'SUPPORT' || d.status === 'accepted' || d.status === 'picked_up' || d.status === 'pending') && 
           (d.clientId === profile.userId || d.driverId === profile.userId)
         );
         let unread = 0;
         for (const chat of supportChats) {
-          const lastRead = localStorage.getItem('last_read_' + chat.id);
-          const hasUnread = chat.lastMessageAt && (!lastRead || new Date(chat.lastMessageAt) > new Date(lastRead));
-          if (hasUnread) {
+          if (isChatUnread(chat, profile.userId)) {
             unread++;
           }
         }
@@ -39,7 +38,16 @@ export default function BottomNav() {
 
     fetchUnreadChats();
     const interval = setInterval(fetchUnreadChats, 10000); // refresh every 10s
-    return () => clearInterval(interval);
+
+    const handleReadUpdate = () => fetchUnreadChats();
+    window.addEventListener('chat_read_updated', handleReadUpdate);
+    window.addEventListener('storage', handleReadUpdate);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('chat_read_updated', handleReadUpdate);
+      window.removeEventListener('storage', handleReadUpdate);
+    };
   }, [profile]);
 
   useEffect(() => {

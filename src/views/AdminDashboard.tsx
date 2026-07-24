@@ -13,6 +13,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import { playNotificationSound } from '../lib/audio';
 import { cn } from '../lib/utils';
+import { markChatAsRead, isChatUnread } from '../lib/chatUtils';
 import LoadingScreen from '../components/LoadingScreen';
 import { useAuth, ADMIN_EMAILS } from '../context/AuthContext';
 import { useNavigate, Navigate, useLocation } from 'react-router-dom';
@@ -1011,6 +1012,7 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     if (activeMenu === 'Support Chat' && selectedChatDeliveryId) {
+      markChatAsRead(selectedChatDeliveryId);
       setUnreadChats(prev => {
         const next = new Set(prev);
         next.delete(selectedChatDeliveryId);

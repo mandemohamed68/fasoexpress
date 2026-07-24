@@ -5,6 +5,7 @@ import { MessageSquare, ArrowRight, ArrowLeft, Headphones, Sparkles, MessageCirc
 import { Chat } from '../components/Chat';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { isChatUnread, markChatAsRead } from '../lib/chatUtils';
 
 export default function Messaging() {
   const { profile } = useAuth();
@@ -32,7 +33,15 @@ export default function Messaging() {
   useEffect(() => {
     fetchChats();
     const interval = setInterval(fetchChats, 8000);
-    return () => clearInterval(interval);
+    const handleReadUpdate = () => fetchChats();
+    window.addEventListener('chat_read_updated', handleReadUpdate);
+    window.addEventListener('storage', handleReadUpdate);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('chat_read_updated', handleReadUpdate);
+      window.removeEventListener('storage', handleReadUpdate);
+    };
   }, [profile]);
 
   if (!profile) return null;
@@ -106,13 +115,16 @@ export default function Messaging() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 key={chat.id}
-                onClick={() => setSelectedChatDeliveryId(chat.id)}
+                onClick={() => {
+                  markChatAsRead(chat.id);
+                  setSelectedChatDeliveryId(chat.id);
+                }}
                 className="w-full flex items-center justify-between p-6 bg-white rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl hover:scale-[1.01] hover:border-indigo-100 transition-all group text-left"
               >
                 <div className="flex items-center gap-5">
                   <div className="w-14 h-14 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center relative shadow-inner">
                     <MessageCircle className="w-7 h-7" />
-                    {chat.unreadCount > 0 && (
+                    {isChatUnread(chat, profile.userId) && (
                       <div className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 rounded-full border-2 border-white animate-bounce" />
                     )}
                   </div>

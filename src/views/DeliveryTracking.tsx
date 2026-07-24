@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Chat } from '../components/Chat';
 import PaymentModal from '../components/PaymentModal';
 import { cn, calculateDistance } from '../lib/utils';
+import { isChatUnread, markChatAsRead } from '../lib/chatUtils';
 import { playNotificationSound } from '../lib/audio';
 import LoadingScreen from '../components/LoadingScreen';
 import L from 'leaflet';
@@ -264,13 +265,20 @@ export default function DeliveryTracking() {
   const chatOpenRef = React.useRef(chatOpen);
   useEffect(() => {
     chatOpenRef.current = chatOpen;
-    if (chatOpen) {
+    if (chatOpen && deliveryId) {
+      markChatAsRead(deliveryId);
       setHasUnreadMessages(false);
       if (delivery?.lastMessageAt) {
         setLastMessageSeenAt(delivery.lastMessageAt);
       }
     }
-  }, [chatOpen, delivery?.lastMessageAt]);
+  }, [chatOpen, deliveryId, delivery?.lastMessageAt]);
+
+  useEffect(() => {
+    if (delivery && profile) {
+      setHasUnreadMessages(isChatUnread(delivery, profile.userId));
+    }
+  }, [delivery, profile]);
 
   const deliveryRef = React.useRef(delivery);
   useEffect(() => {

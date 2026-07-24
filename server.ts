@@ -1150,8 +1150,16 @@ const MASTER_ADMIN_EMAILS = ['mandemohamed68@gmail.com', 'mandemohamed6868@gmail
       const stmt = db.prepare("INSERT INTO messages (id, deliveryId, text, senderId, senderName, senderRole) VALUES (?, ?, ?, ?, ?, ?)");
       stmt.run(id, deliveryId, text, req.user.userId, senderName, senderRole);
       
-      // Update lastMessageAt on delivery
-      db.prepare("UPDATE deliveries SET lastMessageAt = CURRENT_TIMESTAMP WHERE id = ?").run(deliveryId);
+      // Ensure lastSenderId column exists on deliveries
+      try {
+        const pragma = db.prepare("PRAGMA table_info(deliveries)").all() as any[];
+        if (!pragma.some(col => col.name === 'lastSenderId')) {
+          db.prepare("ALTER TABLE deliveries ADD COLUMN lastSenderId TEXT").run();
+        }
+      } catch (colErr) {}
+
+      // Update lastMessageAt and lastSenderId on delivery
+      db.prepare("UPDATE deliveries SET lastMessageAt = CURRENT_TIMESTAMP, lastSenderId = ? WHERE id = ?").run(req.user.userId, deliveryId);
       
       // Send Native Push Notification
       try {

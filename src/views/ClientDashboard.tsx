@@ -7,6 +7,7 @@ import { Package, Clock, CheckCircle, Navigation, User, Home, Plus, ChevronRight
 import { motion, AnimatePresence } from 'framer-motion';
 import NotificationBell from '../components/NotificationBell';
 import { cn } from '../lib/utils';
+import { isChatUnread } from '../lib/chatUtils';
 import { MapContainer, TileLayer, Marker } from 'react-leaflet';
 import L from 'leaflet';
 import PaymentModal from '../components/PaymentModal';
@@ -79,6 +80,18 @@ export default function ClientDashboard() {
       }
     }
   };
+
+  const [readTick, setReadTick] = useState(0);
+
+  useEffect(() => {
+    const handleReadUpdate = () => setReadTick(prev => prev + 1);
+    window.addEventListener('chat_read_updated', handleReadUpdate);
+    window.addEventListener('storage', handleReadUpdate);
+    return () => {
+      window.removeEventListener('chat_read_updated', handleReadUpdate);
+      window.removeEventListener('storage', handleReadUpdate);
+    };
+  }, []);
 
   useEffect(() => {
     if (!profile) {
@@ -743,10 +756,7 @@ export default function ClientDashboard() {
           {/* Unread badge logic */}
           {(() => {
             const supportChats = (deliveries || []).filter((d: any) => d.pickupCode === 'SUPPORT');
-            const hasUnread = supportChats.some((chat: any) => {
-              const lastRead = localStorage.getItem('last_read_' + chat.id);
-              return chat.lastMessageAt && (!lastRead || new Date(chat.lastMessageAt) > new Date(lastRead));
-            });
+            const hasUnread = supportChats.some((chat: any) => isChatUnread(chat, profile?.userId));
             return hasUnread;
           })() && (
             <span className="absolute -top-1 -right-1 w-4.5 h-4.5 bg-rose-500 rounded-full border-2 border-white animate-pulse" />
