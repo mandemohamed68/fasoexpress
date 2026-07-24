@@ -226,9 +226,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await api.profile.update({ role });
       await refreshProfile();
-    } catch (e) {
+    } catch (e: any) {
       console.error("Failed to update role", e);
-      toast.error("Erreur lors de la mise à jour du rôle.");
+      const isOffline = (typeof navigator !== 'undefined' && !navigator.onLine) || 
+                        e?.message?.includes('hors connexion') || 
+                        e?.message?.includes('Failed to fetch');
+      const errorMsg = isOffline 
+        ? "Vous êtes actuellement hors connexion. Veuillez vérifier votre réseau internet." 
+        : (e?.message || "Erreur lors de la mise à jour du rôle.");
+      toast.error(errorMsg);
+      throw e;
     }
   };
 
@@ -236,9 +243,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await api.profile.update(data);
       await refreshProfile();
-    } catch (e) {
+    } catch (e: any) {
       console.error("Failed to update profile", e);
-      toast.error("Erreur lors de la mise à jour du profil.");
+      const isOffline = (typeof navigator !== 'undefined' && !navigator.onLine) || 
+                        e?.message?.includes('hors connexion') || 
+                        e?.message?.includes('Failed to fetch');
+      const errorMsg = isOffline 
+        ? "Vous êtes actuellement hors connexion. Veuillez vérifier votre réseau internet." 
+        : (e?.message || "Erreur lors de la mise à jour du profil.");
+      toast.error(errorMsg);
+      throw e;
     }
   };
 

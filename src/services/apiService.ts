@@ -19,6 +19,10 @@ export const getApiBase = () => {
 };
 
 async function request(endpoint: string, method = 'GET', body?: any, retryCount = 0): Promise<any> {
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    throw new Error("Vous êtes actuellement hors connexion. Veuillez vérifier votre réseau internet.");
+  }
+
   const token = localStorage.getItem('auth_token');
   const headers: any = {
     'Content-Type': 'application/json',
@@ -28,11 +32,22 @@ async function request(endpoint: string, method = 'GET', body?: any, retryCount 
   }
 
   const API_BASE = getApiBase();
-  const response = await fetch(`${API_BASE}${endpoint}`, {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : undefined,
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE}${endpoint}`, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+    });
+  } catch (err: any) {
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      throw new Error("Vous êtes actuellement hors connexion. Veuillez vérifier votre réseau internet.");
+    }
+    if (err?.name === 'TypeError' || err?.message?.includes('Failed to fetch') || err?.message?.includes('NetworkError')) {
+      throw new Error("Vous êtes actuellement hors connexion. Veuillez vérifier votre réseau internet.");
+    }
+    throw err;
+  }
 
   if (response.status === 429 && retryCount < 3) {
     const delay = Math.pow(2, retryCount) * 1000;
