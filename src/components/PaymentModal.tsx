@@ -427,7 +427,6 @@ export default function PaymentModal({
             setIsProcessing(false);
             onConfirm(selectedMethod as any, sappayInvoiceId, true);
             setTimeout(() => {
-              window.location.href = "http://167.172.39.172:1000/";
               onClose();
               setPaymentSuccess(false);
             }, 3000);
@@ -501,7 +500,6 @@ export default function PaymentModal({
           setPaymentSuccess(true);
           onConfirm(selectedMethod as any, transactionId, true);
           setTimeout(() => {
-            window.location.href = "http://167.172.39.172:1000/";
             onClose();
             setPaymentSuccess(false);
           }, 3000);
@@ -1156,12 +1154,11 @@ export default function PaymentModal({
               ) : (
                 <button
                   onClick={() => {
-                    window.location.href = "http://167.172.39.172:1000/";
                     onClose();
                   }}
                   className="w-full py-5 bg-slate-950 text-white text-[11px] font-black uppercase tracking-[0.3em] rounded-[24px] italic"
                 >
-                  TERMINE LA CONSULTATION
+                  FERMER ET SUIVRE MA COMMANDE
                 </button>
               )}
             </div>
