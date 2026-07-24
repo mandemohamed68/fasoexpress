@@ -23,66 +23,76 @@ export class GeolocationService {
   static async getCurrentPosition(): Promise<{ lat: number; lng: number }> {
     await this.requestPermissions();
 
-    // 1. Try Capacitor Native Geolocation plugin (High accuracy)
-    try {
-      const position = await Geolocation.getCurrentPosition({
-        enableHighAccuracy: true,
-        timeout: 15000,
-        maximumAge: 5000
+    const withTimeout = <T>(promise: Promise<T>, ms: number): Promise<T> => {
+      let timeoutId: any;
+      const timeoutPromise = new Promise<T>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error('Timeout')), ms);
       });
-      if (position?.coords) {
-        return {
-          lat: position.coords.latitude,
-          lng: position.coords.longitude
-        };
-      }
-    } catch (err1) {
-      console.warn("Capacitor high accuracy geolocation failed, trying low accuracy...", err1);
-      // 1b. Try Capacitor Native Geolocation plugin (Low accuracy / Coarse)
+      return Promise.race([promise, timeoutPromise]).finally(() => clearTimeout(timeoutId));
+    };
+
+    if (Capacitor.isNativePlatform()) {
+      // 1. Try Capacitor Native Geolocation plugin (High accuracy)
       try {
-        const position = await Geolocation.getCurrentPosition({
-          enableHighAccuracy: false,
-          timeout: 10000,
-          maximumAge: 30000
-        });
+        const position = await withTimeout(Geolocation.getCurrentPosition({
+          enableHighAccuracy: true,
+          timeout: 15000,
+          maximumAge: 5000
+        }), 16000);
         if (position?.coords) {
           return {
             lat: position.coords.latitude,
             lng: position.coords.longitude
           };
         }
-      } catch (err2) {
-        console.warn("Capacitor low accuracy geolocation failed...", err2);
+      } catch (err1) {
+        console.warn("Capacitor high accuracy geolocation failed, trying low accuracy...", err1);
+        // 1b. Try Capacitor Native Geolocation plugin (Low accuracy / Coarse)
+        try {
+          const position = await withTimeout(Geolocation.getCurrentPosition({
+            enableHighAccuracy: false,
+            timeout: 10000,
+            maximumAge: 30000
+          }), 11000);
+          if (position?.coords) {
+            return {
+              lat: position.coords.latitude,
+              lng: position.coords.longitude
+            };
+          }
+        } catch (err2) {
+          console.warn("Capacitor low accuracy geolocation failed...", err2);
+        }
       }
     }
 
     // 2. Fallback to HTML5 Browser Geolocation API
     if (typeof navigator !== 'undefined' && 'geolocation' in navigator) {
       try {
-        return await new Promise<{ lat: number; lng: number }>((resolve, reject) => {
+        return await withTimeout(new Promise<{ lat: number; lng: number }>((resolve, reject) => {
           navigator.geolocation.getCurrentPosition(
             (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
             (err) => reject(err),
             { enableHighAccuracy: true, timeout: 12000, maximumAge: 5000 }
           );
-        });
+        }), 13000);
       } catch (browserErr1) {
         console.warn("HTML5 Geolocation high accuracy failed, trying low accuracy...", browserErr1);
         try {
-          return await new Promise<{ lat: number; lng: number }>((resolve, reject) => {
+          return await withTimeout(new Promise<{ lat: number; lng: number }>((resolve, reject) => {
             navigator.geolocation.getCurrentPosition(
               (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
               (err) => reject(err),
               { enableHighAccuracy: false, timeout: 10000, maximumAge: 30000 }
             );
-          });
+          }), 11000);
         } catch (browserErr2) {
           console.warn("HTML5 Geolocation low accuracy failed:", browserErr2);
         }
       }
     }
 
-    throw new Error("Unable to obtain GPS location");
+    throw new Error("Impossible d'obtenir la position GPS (délai dépassé ou permission refusée).");
   }
 
   static async watchPosition(onUpdate: (coords: { lat: number; lng: number }) => void, onError: (err: any) => void) {
