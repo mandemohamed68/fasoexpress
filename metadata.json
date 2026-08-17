@@ -1,0 +1,10 @@
+{
+  "name": "Faso Express",
+  "description": "Plateforme de livraison de colis en temps réel au Burkina Faso.",
+  "requestFramePermissions": [
+    "geolocation"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

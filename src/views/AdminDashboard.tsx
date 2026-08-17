@@ -1,0 +1,6541 @@
+import React, { useEffect, useState, useRef, useCallback } from 'react';
+import { api } from '../services/apiService';
+import { DeliveryRequest, UserProfile, UserRole, UserPermission, CommissionSettings, AppConfig, DistancePricingRule, Sector, AppAnnouncement } from '../types';
+import { 
+  ShieldCheck, Package, Users, Truck, DollarSign, 
+  ArrowUpRight, Clock, LayoutDashboard, MessageSquare, 
+  ClipboardCheck, History, Store, Map as MapIcon, Globe, 
+  BadgePercent, CreditCard, Wallet, LogOut, Bell, Settings, Play, Mail, Facebook,
+  Plus, Navigation, UserCircle, Percent, Database, Download, Upload, Building2, X, Trash2, Zap, Smartphone, Menu,
+  CheckCircle, AlertCircle, Landmark, Info, Phone, Star, ChevronLeft, ChevronRight, Eye, EyeOff, Settings2, UserCheck, Shield, Search,
+  RefreshCw, Layers, HardDrive, CheckCircle2, AlertTriangle, XCircle, Sparkles, Megaphone, Tag, Gift, ArrowRight
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
+import { playNotificationSound } from '../lib/audio';
+import { cn, compressImage } from '../lib/utils';
+import { markChatAsRead, isChatUnread } from '../lib/chatUtils';
+import LoadingScreen from '../components/LoadingScreen';
+import { useAuth, ADMIN_EMAILS } from '../context/AuthContext';
+import { useNavigate, Navigate, useLocation } from 'react-router-dom';
+import LiveMap from '../components/LiveMap';
+import { sendNotification } from '../lib/notificationService';
+
+export const ALL_PERMISSIONS: { id: UserPermission; label: string; description: string }[] = [
+  { id: 'manage_deliveries', label: 'Gestion des Courses & Livraisons', description: 'Consulter, réattribuer et suivre les courses' },
+  { id: 'manage_drivers', label: 'Gestion Flotte & Livreurs', description: 'Valider dossiers, approuver, bloquer/débloquer livreurs' },
+  { id: 'manage_clients', label: 'Gestion des Clients', description: 'Consulter la liste et gérer les comptes clients' },
+  { id: 'manage_withdrawals', label: 'Validation Paiements & Retraits', description: 'Valider les rechargements et demandes de retrait' },
+  { id: 'manage_support', label: 'Support Chat & Assistance', description: 'Répondre au tchat et demandes d\'aide' },
+  { id: 'manage_announcements', label: 'Annonces & Flash Info', description: 'Diffuser des annonces et messages flash' },
+  { id: 'manage_settings', label: 'Configuration & Tarifs', description: 'Modifier commissions, prix et paramètres app' },
+  { id: 'manage_database', label: 'Gestion Équipe & Privilèges', description: 'Gérer les administrateurs, managers et la base de données' }
+];
+
+export const DEFAULT_ROLE_PERMISSIONS: Record<string, UserPermission[]> = {
+  manager: ['manage_deliveries', 'manage_drivers', 'manage_clients', 'manage_withdrawals', 'manage_support', 'manage_announcements'],
+  support: ['manage_deliveries', 'manage_drivers', 'manage_clients', 'manage_support'],
+  admin: ['manage_deliveries', 'manage_drivers', 'manage_clients', 'manage_withdrawals', 'manage_support', 'manage_announcements', 'manage_settings', 'manage_database'],
+  superadmin: ['manage_deliveries', 'manage_drivers', 'manage_clients', 'manage_withdrawals', 'manage_support', 'manage_announcements', 'manage_settings', 'manage_database'],
+  client: [],
+  driver: []
+};
+
+const chartData = [];
+
+export default function AdminDashboard() {
+  const { profile, logout, isMasterAdmin, updateRole, refreshAppConfig } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const queryParams = new URLSearchParams(location.search);
+  const queryTab = queryParams.get('tab');
+
+  // Dirty tracking refs to prevent background polling from overwriting unsaved user input
+  const isCommissionDirtyRef = useRef(false);
+  const isDefaultPricingDirtyRef = useRef(false);
+  const isConfigFormDirtyRef = useRef(false);
+
+  const [deliveries, setDeliveries] = useState<DeliveryRequest[]>([]);
+  const [users, setUsers] = useState<UserProfile[]>([]);
+  const [withdrawals, setWithdrawals] = useState<any[]>([]);
+  const [commission, setCommissionState] = useState<CommissionSettings | null>(null);
+  const [appConfig, setAppConfig] = useState<AppConfig | null>(null);
+  const [configForm, setConfigFormState] = useState<AppConfig | null>(null);
+
+  const setConfigForm = useCallback((val: AppConfig | null | ((prev: AppConfig | null) => AppConfig | null), markDirty = true) => {
+    if (markDirty) {
+      isConfigFormDirtyRef.current = true;
+    }
+    setConfigFormState(val);
+  }, []);
+
+  const setCommission = useCallback((val: CommissionSettings | null | ((prev: CommissionSettings | null) => CommissionSettings | null), markDirty = true) => {
+    if (markDirty) {
+      isCommissionDirtyRef.current = true;
+    }
+    setCommissionState(val);
+  }, []);
+  const [sectors, setSectors] = useState<Sector[]>([]);
+  const [announcements, setAnnouncements] = useState<AppAnnouncement[]>([]);
+  const [sqlQuery, setSqlQuery] = useState('SELECT * FROM users LIMIT 10;');
+  const [queryResult, setQueryResult] = useState<any[] | null>(null);
+  const [queryError, setQueryError] = useState<string | null>(null);
+  const [isExecutingSql, setIsExecutingSql] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [dbInfo, setDbInfo] = useState<{ engine: string; host: string; database: string } | null>(null);
+  const [partitionStatusData, setPartitionStatusData] = useState<any>(null);
+  const [isPartitioning, setIsPartitioning] = useState(false);
+  const [showPartitionLogs, setShowPartitionLogs] = useState(false);
+
+  const fetchPartitionStatus = async () => {
+    try {
+      const res = await fetch('/api/admin/system/partitions-status', {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setPartitionStatusData(data);
+      }
+    } catch (err) {
+      console.warn("Erreur chargement statut des partitions:", err);
+    }
+  };
+
+  const handleAutoPartition = async (retentionDays: number = 60) => {
+    setIsPartitioning(true);
+    try {
+      const res = await fetch('/api/admin/system/auto-partition', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ retentionDays })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        toast.success(data.message || "Partitionnement automatique effectué avec succès !");
+        fetchPartitionStatus();
+      } else {
+        toast.error(data.error || "Échec du partitionnement automatique des tables");
+        fetchPartitionStatus();
+      }
+    } catch (err: any) {
+      toast.error("Erreur réseau lors du partitionnement: " + (err?.message || "Inconnue"));
+      fetchPartitionStatus();
+    } finally {
+      setIsPartitioning(false);
+    }
+  };
+  const [activeMenu, setActiveMenu] = useState(queryTab || 'Vue d\'ensemble');
+  const [isSaving, setIsSaving] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [resetCode, setResetCode] = useState('');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [userSearchTerm, setUserSearchTerm] = useState('');
+  const [userRoleFilter, setUserRoleFilter] = useState<string>('all');
+  const [toastState, setToastState] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+
+  const toast = (arg: string | { type?: 'success' | 'error' | 'info'; message: string } | null) => {
+    if (arg === null) {
+      setToastState(null);
+    } else if (typeof arg === 'string') {
+      setToastState({ type: 'info', message: arg });
+    } else {
+      setToastState({ type: arg.type || 'info', message: arg.message });
+    }
+  };
+  toast.success = (message: string) => {
+    setToastState({ type: 'success', message });
+  };
+  toast.error = (message: string) => {
+    setToastState({ type: 'error', message });
+  };
+
+  const setToast = toast;
+
+  // Promo Code States
+  const [promoCodes, setPromoCodes] = useState<any[]>([]);
+  const [promoForm, setPromoForm] = useState({
+    code: '',
+    type: 'percentage' as 'percentage' | 'fixed',
+    value: 10,
+    start_date: '',
+    end_date: '',
+    max_uses: '',
+    max_per_user: 1
+  });
+  const [isCreatingPromo, setIsCreatingPromo] = useState(false);
+
+  // Pricing Rule States
+  const [pricingRules, setPricingRules] = useState<any[]>([]);
+  const [defaultPricing, setDefaultPricingState] = useState<any>({
+    motoBase10: 1000,
+    motoBase15: 1500,
+    motoCostPerKmAfter15: 150,
+    motoWeightCost: 100,
+    urgenceCost: 500
+  });
+
+  const setDefaultPricing = useCallback((val: any | ((prev: any) => any), markDirty = true) => {
+    if (markDirty) {
+      isDefaultPricingDirtyRef.current = true;
+    }
+    setDefaultPricingState(val);
+  }, []);
+  const [pricingForm, setPricingForm] = useState({
+    vehicleType: 'moto',
+    poidsMin: 0,
+    poidsMax: 10,
+    baseCost: 1000,
+    tarifKm: 150
+  });
+
+  const [activeTab, setActiveTab] = useState<'stats' | 'users' | 'deliveries' | 'withdrawals' | 'promo' | 'announcements' | 'sectors' | 'pricing' | 'commissions' | 'flashinfo'>('stats');
+
+  const COLOR_BANK = [
+    { name: 'Orange Express', code: '#f97316' },
+    { name: 'Indigo Premium', code: '#4f46e5' },
+    { name: 'Slate Dark', code: '#1e293b' },
+    { name: 'Emerald Success', code: '#10b981' },
+    { name: 'Rose Danger', code: '#f43f5e' },
+    { name: 'Amber Warning', code: '#f59e0b' },
+    { name: 'Violet Royal', code: '#8b5cf6' },
+    { name: 'Sky Info', code: '#0ea5e9' },
+  ];
+
+  const EMOJI_BANK = ['📢', '🚀', '🎁', '⚠️', '✅', '🔥', '📦', '🛵', '🕒', '✨', '💎', '🎉'];
+
+  const [newFlashMessage, setNewFlashMessage] = useState('');
+
+  const [showNewAnnonceForm, setShowNewAnnonceForm] = useState(false);
+  const [newAnnonce, setNewAnnonce] = useState<{
+    title: string;
+    message: string;
+    type: 'info' | 'warning' | 'success';
+    targetRole: 'all' | 'client' | 'driver';
+    backgroundColor: string;
+  }>({
+    title: '',
+    message: '',
+    type: 'info',
+    targetRole: 'all',
+    backgroundColor: ''
+  });
+
+  const renderAnnouncements = () => (
+    <div className="space-y-8">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tighter">Annonces Globales</h2>
+          <p className="text-slate-500 font-bold text-sm mt-1 uppercase tracking-widest">Communiquez avec tous les utilisateurs</p>
+        </div>
+        <button 
+          onClick={() => setShowNewAnnonceForm(!showNewAnnonceForm)}
+          className="flex items-center gap-3 px-6 py-4 bg-orange-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-orange-600 transition-all shadow-xl shadow-orange-100 active:scale-95"
+        >
+          {showNewAnnonceForm ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+          Nouvelle Annonce
+        </button>
+      </div>
+
+      <AnimatePresence>
+         {showNewAnnonceForm && (
+            <motion.div 
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden"
+            >
+               <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Titre de l'annonce</label>
+                    <input 
+                      type="text" 
+                      placeholder="Ex: Mise a jour importante" 
+                      value={newAnnonce.title}
+                      onChange={e => setNewAnnonce({...newAnnonce, title: e.target.value})}
+                      className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-4 text-sm font-bold focus:border-orange-500 outline-none shadow-sm"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Type de notification</label>
+                    <select 
+                      value={newAnnonce.type}
+                      onChange={e => setNewAnnonce({...newAnnonce, type: e.target.value as any})}
+                      className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-4 text-sm font-bold focus:border-orange-500 outline-none shadow-sm"
+                    >
+                      <option value="info">Notification Info</option>
+                      <option value="warning">Notification Alerte</option>
+                      <option value="success">Notification Succes</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Destination</label>
+                    <select 
+                      value={newAnnonce.targetRole}
+                      onChange={e => setNewAnnonce({...newAnnonce, targetRole: e.target.value as any})}
+                      className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-4 text-sm font-bold focus:border-orange-500 outline-none shadow-sm"
+                    >
+                      <option value="all">Tout le monde</option>
+                      <option value="client">Clients uniquement</option>
+                      <option value="driver">Livreurs uniquement</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Couleur Arrière-plan</label>
+                    <div className="space-y-3">
+                      <div className="flex flex-wrap gap-2">
+                        {COLOR_BANK.map(c => (
+                          <button 
+                            key={c.code}
+                            onClick={() => setNewAnnonce({...newAnnonce, backgroundColor: c.code})}
+                            className={cn(
+                              "w-8 h-8 rounded-lg border-2 transition-all",
+                              newAnnonce.backgroundColor === c.code ? "border-slate-900 scale-110 shadow-lg" : "border-transparent"
+                            )}
+                            style={{ backgroundColor: c.code }}
+                            title={c.name}
+                          />
+                        ))}
+                      </div>
+                      <div className="flex gap-2">
+                        <input 
+                          type="text" 
+                          placeholder="#000000" 
+                          value={newAnnonce.backgroundColor}
+                          onChange={e => setNewAnnonce({...newAnnonce, backgroundColor: e.target.value})}
+                          className="flex-1 bg-slate-50 border border-slate-100 rounded-2xl px-5 py-4 text-sm font-bold focus:border-orange-500 outline-none"
+                        />
+                        <div className="w-14 h-14 rounded-2xl border border-slate-200" style={{ backgroundColor: newAnnonce.backgroundColor || '#000000' }} />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="md:col-span-2 space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Message detaille</label>
+                    <div className="flex flex-wrap gap-2 mb-2">
+                      {EMOJI_BANK.map(emoji => (
+                        <button 
+                          key={emoji}
+                          onClick={() => setNewAnnonce({...newAnnonce, message: newAnnonce.message + emoji})}
+                          className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center hover:bg-slate-100 border border-slate-200 transition-colors"
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+                    <textarea 
+                      className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-4 text-sm font-bold focus:border-orange-500 outline-none h-32 shadow-sm"
+                      placeholder="Decrivez l'annonce aux utilisateurs..."
+                      value={newAnnonce.message}
+                      onChange={e => setNewAnnonce({...newAnnonce, message: e.target.value})}
+                    />
+                  </div>
+                  <div className="md:col-span-2 pt-4 border-t border-slate-50 flex justify-end">
+                      <button 
+                        onClick={async () => {
+                          if (!newAnnonce.title || !newAnnonce.message) return;
+                          await api.announcements.create({
+                            ...newAnnonce,
+                            activeUntil: new Date(Date.now() + 86400000 * 7).toISOString(),
+                            createdAt: new Date().toISOString()
+                          });
+                          setNewAnnonce({ title: '', message: '', type: 'info', targetRole: 'all', backgroundColor: '' });
+                          setShowNewAnnonceForm(false);
+                          fetchData();
+                        }}
+                        className="px-12 py-5 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-orange-600 transition-all shadow-xl active:scale-95"
+                      >
+                        Publier l'annonce
+                      </button>
+                  </div>
+               </div>
+            </motion.div>
+         )}
+
+         <div className="space-y-4">
+            {announcements.map(a => (
+              <div key={a.id} className="p-6 bg-slate-50 rounded-3xl border border-slate-100 flex items-center justify-between gap-6 hover:bg-white transiton-all group">
+                <div className="flex items-center gap-6">
+                   <div className={cn(
+                     "w-12 h-12 rounded-2xl flex items-center justify-center",
+                     a.type === 'warning' ? "bg-orange-100 text-orange-600" :
+                     a.type === 'success' ? "bg-emerald-100 text-emerald-600" : "bg-blue-100 text-blue-600"
+                   )}>
+                     <Bell className="w-6 h-6" />
+                   </div>
+                   <div>
+                     <h4 className="font-black text-slate-900 uppercase text-sm tracking-tight">{a.title}</h4>
+                     <p className="text-xs font-bold text-slate-500 mt-0.5">{a.message}</p>
+                     <div className="flex items-center gap-3 mt-2">
+                       <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mt-0">Expire le : {new Date(a.activeUntil).toLocaleDateString()}</p>
+                       <span className="text-slate-200">•</span>
+                       <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded-lg text-[8px] font-black uppercase tracking-widest">
+                          {a.targetRole === 'all' ? 'Tout le monde' : a.targetRole === 'client' ? 'Clients' : 'Livreurs'}
+                       </span>
+                       {a.backgroundColor && (
+                          <div className="flex items-center gap-1.5">
+                             <span className="text-slate-200">•</span>
+                             <div className="w-3 h-3 rounded-full border border-slate-200" style={{ backgroundColor: a.backgroundColor }} />
+                             <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{a.backgroundColor}</span>
+                          </div>
+                       )}
+                     </div>
+                   </div>
+                </div>
+                <button 
+                  onClick={async () => {
+                    await api.announcements.delete(a.id);
+                    fetchData();
+                  }}
+                  className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-rose-500 border border-slate-100 opacity-0 group-hover:opacity-100 transition-all hover:bg-rose-50"
+                >
+                   <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+            {announcements.length === 0 && (
+              <div className="py-20 text-center bg-slate-50 rounded-3xl border border-dashed border-slate-200">
+                <p className="text-slate-400 font-black uppercase text-[10px] tracking-widest leading-none">Aucune annonce active en ce moment</p>
+              </div>
+            )}
+         </div>
+      </AnimatePresence>
+    </div>
+  );
+
+  const handleAddFlashMessage = async () => {
+    if (!newFlashMessage || !configForm) return;
+    const currentMessages = configForm.flashInfoMessages || [];
+    if (currentMessages.length >= 10) {
+      toast.error("Maximum 10 messages");
+      return;
+    }
+    const newList = [...currentMessages, newFlashMessage];
+    const updated = { ...configForm, flashInfoMessages: newList };
+    setConfigForm(updated);
+    setNewFlashMessage('');
+    await api.config.update('app_config', updated);
+    await refreshAppConfig();
+    toast.success("Message ajouté");
+  };
+
+  const handleDeleteFlashMessage = async (idx: number) => {
+    if (!configForm) return;
+    const newList = (configForm.flashInfoMessages || []).filter((_, i) => i !== idx);
+    const updated = { ...configForm, flashInfoMessages: newList };
+    setConfigForm(updated);
+    await api.config.update('app_config', updated);
+    await refreshAppConfig();
+    toast.success("Message supprimé");
+  };
+
+  const renderFlashInfo = () => {
+    const messages = configForm?.flashInfoMessages || [];
+    const active = configForm?.flashInfoActive || false;
+    const audience = configForm?.flashInfoAudience || 'all';
+    const color = configForm?.flashInfoColor || '#f97316';
+
+    return (
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tighter">Flash Info Défilant</h2>
+            <p className="text-slate-500 font-bold text-sm mt-1 uppercase tracking-widest">Gérez le ticker de news en temps réel</p>
+          </div>
+          <div className="flex items-center gap-4 bg-white p-3 rounded-2xl border border-slate-100 shadow-sm">
+             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Statut Ticker</span>
+             <label className="relative inline-flex items-center cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  checked={active}
+                  onChange={async (e) => {
+                    if (!configForm) return;
+                    const updated = { ...configForm, flashInfoActive: e.target.checked };
+                    setConfigForm(updated);
+                    await api.config.update('app_config', updated);
+                    await refreshAppConfig();
+                    toast.success(e.target.checked ? "Ticker activé" : "Ticker désactivé");
+                  }}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:bg-orange-500 after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+              </label>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-1 space-y-6">
+            <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-6">
+              <h3 className="font-black text-slate-900 uppercase text-xs tracking-widest border-b border-slate-50 pb-4">Style & Audience</h3>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Destination</label>
+                <select 
+                  value={audience}
+                  onChange={async (e) => {
+                    if (!configForm) return;
+                    const val = e.target.value as any;
+                    const updated = { ...configForm, flashInfoAudience: val };
+                    setConfigForm(updated);
+                    await api.config.update('app_config', updated);
+                    await refreshAppConfig();
+                  }}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-sm font-bold focus:border-orange-500 outline-none"
+                >
+                  <option value="all">Tout le monde</option>
+                  <option value="client">Clients uniquement</option>
+                  <option value="driver">Livreurs uniquement</option>
+                </select>
+              </div>
+              <div className="space-y-4">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Banque de Couleurs</label>
+                <div className="grid grid-cols-4 gap-2">
+                  {COLOR_BANK.map(c => (
+                    <button 
+                      key={c.code}
+                      onClick={async () => {
+                        if (!configForm) return;
+                        const updated = { ...configForm, flashInfoColor: c.code };
+                        setConfigForm(updated);
+                        await api.config.update('app_config', updated);
+                        await refreshAppConfig();
+                      }}
+                      className={cn(
+                        "aspect-square rounded-xl border-2 transition-all",
+                        color === c.code ? "border-slate-900 scale-105 shadow-md" : "border-transparent"
+                      )}
+                      style={{ backgroundColor: c.code }}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="lg:col-span-2 space-y-6">
+            <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+              <h3 className="font-black text-slate-900 uppercase text-xs tracking-widest mb-6 flex items-center gap-2">
+                 <Bell className="w-4 h-4 text-orange-500" /> Gestion des Messages ({messages.length}/10)
+              </h3>
+              <div className="flex flex-col gap-4">
+                <div className="space-y-4">
+                  <div className="flex flex-wrap gap-2">
+                    {EMOJI_BANK.map(emoji => (
+                      <button key={emoji} onClick={() => setNewFlashMessage(prev => prev + emoji)} className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center border border-slate-200 hover:bg-slate-100 transition-colors">{emoji}</button>
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <input 
+                      type="text" 
+                      placeholder="Message court..." 
+                      value={newFlashMessage}
+                      onChange={e => setNewFlashMessage(e.target.value)}
+                      className="flex-1 bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-sm font-bold focus:border-orange-500 outline-none"
+                    />
+                    <button onClick={handleAddFlashMessage} className="px-6 bg-orange-500 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-orange-600 transition-all shadow-lg active:scale-95">Ajouter</button>
+                  </div>
+                </div>
+                <div className="space-y-2 mt-4">
+                  {messages.map((msg: string, idx: number) => (
+                    <div key={idx} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100 group">
+                      <p className="text-sm font-bold text-slate-700">{msg}</p>
+                      <button onClick={() => handleDeleteFlashMessage(idx)} className="text-rose-500 hover:bg-rose-50 p-2 rounded-xl transition-colors"><Trash2 className="w-4 h-4" /></button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+    );
+  };
+
+  const [confirmingDeleteRuleId, setConfirmingDeleteRuleId] = useState<string | null>(null);
+  const [confirmingDeletePromoCode, setConfirmingDeletePromoCode] = useState<string | null>(null);
+  const [confirmingDeleteUserId, setConfirmingDeleteUserId] = useState<string | null>(null);
+  const [newSectorName, setNewSectorName] = useState("");
+  const [confirmingDeleteSectorId, setConfirmingDeleteSectorId] = useState<string | null>(null);
+  const [isCreatingSector, setIsCreatingSector] = useState(false);
+
+  const processChartData = () => {
+    const last7Days = Array.from({ length: 7 }).map((_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      return d.toISOString().split('T')[0];
+    }).reverse();
+
+    return last7Days.map(date => {
+      const dayDeliveries = deliveries.filter(d => (d.createdAt || d.id || '').toString().includes(date) || (d.createdAt && d.createdAt.startsWith(date)));
+      const volume = dayDeliveries.length;
+      const revenue = dayDeliveries.reduce((sum, d) => sum + (d.cost || d.clientProposedPrice || 0), 0);
+      return { 
+        name: date.slice(5), // MM-DD
+        Volume: volume, 
+        Revenus: revenue 
+      };
+    });
+  };
+
+  const dynamicChartData = React.useMemo(() => processChartData(), [deliveries]);
+
+  useEffect(() => {
+    if (toastState) {
+      const timer = setTimeout(() => setToastState(null), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [toastState]);
+
+  useEffect(() => {
+    if (queryTab && queryTab !== activeMenu) {
+      setActiveMenu(queryTab);
+    }
+  }, [queryTab]);
+
+  useEffect(() => {
+    if (appConfig && !configForm && !isConfigFormDirtyRef.current) {
+      setConfigFormState(appConfig);
+    }
+  }, [appConfig, configForm]);
+
+  useEffect(() => {
+    // Reset dirty flags and configForm when activeMenu tab changes, to force loading fresh appConfig on next render
+    isConfigFormDirtyRef.current = false;
+    isCommissionDirtyRef.current = false;
+    isDefaultPricingDirtyRef.current = false;
+    setConfigFormState(null);
+    setCurrentPage(1);
+  }, [activeMenu]);
+
+  const handleUpdateConfig = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!configForm) return;
+    setIsSaving(true);
+    try {
+      const updatedConfig = {
+        ...configForm,
+        updatedAt: new Date().toISOString()
+      };
+      await api.config.update('app_config', updatedConfig);
+      isConfigFormDirtyRef.current = false;
+      
+      const ussdStatus = updatedConfig.isUssdActive !== false ? "ACTIF (Modifications appliquees)" : "DESACTIVE (Option masquee de l'interface client)";
+      const otpStatus = updatedConfig.isOtpActive !== false ? 'ACTIF' : 'DESACTIVE';
+      const modeStr = updatedConfig.mode === 'prod' ? 'PRODUCTION' : 'TEST';
+
+      setToast({
+        type: 'success',
+        message: `Verification reussie : Configuration enregistree ! Paiements USSD: ${ussdStatus}, OTP: ${otpStatus}, Mode: ${modeStr}. Synchronise sur toute la plateforme.`
+      });
+
+      setAppConfig(updatedConfig);
+      setConfigFormState(updatedConfig);
+      localStorage.setItem('app_config', JSON.stringify(updatedConfig));
+      window.dispatchEvent(new CustomEvent('app_config_updated', { detail: updatedConfig }));
+      await refreshAppConfig(); // Refresh global app config
+      await fetchData();
+    } catch (err) {
+      console.error(err);
+      setToast({
+        type: 'error',
+        message: 'Erreur lors de l\'enregistrement : ' + (err instanceof Error ? err.message : 'Une erreur inconnue est survenue')
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleExecuteSql = async (queryText?: string) => {
+    const queryToRun = queryText || sqlQuery;
+    if (!queryToRun.trim()) {
+      setQueryError("Veuillez saisir une requete SQL.");
+      return;
+    }
+    setIsExecutingSql(true);
+    setQueryError(null);
+    setQueryResult(null);
+    try {
+      const res = await api.admin.querySql(queryToRun);
+      if (res.success) {
+        setQueryResult(res.rows || res.result || []);
+      } else {
+        setQueryError(res.error || "Erreur de syntaxe SQLite.");
+      }
+    } catch (err: any) {
+      setQueryError(err.message || "Erreur de communication.");
+    } finally {
+      setIsExecutingSql(false);
+    }
+  };
+
+  const handleMenuChange = (menuName: string) => {
+    setActiveMenu(menuName);
+    setIsSidebarOpen(false);
+    navigate(`/admin?tab=${menuName}`, { replace: true });
+  };
+  const [paymentFilter, setPaymentFilter] = useState<'all' | 'freelance' | 'company'>('all');
+  const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
+  const [isProcessingAction, setIsProcessingAction] = useState(false);
+  const [driverMissionHistory, setDriverMissionHistory] = useState<any[]>([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+
+  useEffect(() => {
+    if (selectedUser && selectedUser.role === 'driver') {
+      setIsLoadingHistory(true);
+      api.drivers.getMissionHistory(selectedUser.userId)
+        .then(data => {
+          setDriverMissionHistory(data || []);
+        })
+        .catch(err => {
+          console.error(err);
+        })
+        .finally(() => {
+          setIsLoadingHistory(false);
+        });
+    } else {
+      setDriverMissionHistory([]);
+    }
+  }, [selectedUser]);
+
+  const getDriverStatsAndRank = (driverId: string) => {
+    const driverDeliveries = deliveries.filter(d => d.driverId === driverId && d.status === 'delivered');
+    const ratings = driverDeliveries.map(d => d.rating).filter(r => typeof r === 'number' && r > 0) as number[];
+    const avgRating = ratings.length > 0 ? (ratings.reduce((sum, r) => sum + r, 0) / ratings.length) : 0;
+    
+    // Sort all drivers to find rank
+    const allDriversStats = users
+      .filter(u => u.role === 'driver')
+      .map(u => {
+        const dDeliveries = deliveries.filter(d => d.driverId === u.userId && d.status === 'delivered');
+        const dRatings = dDeliveries.map(d => d.rating).filter(r => typeof r === 'number' && r > 0) as number[];
+        const dAvgRating = dRatings.length > 0 ? (dRatings.reduce((sum, r) => sum + r, 0) / dRatings.length) : 0;
+        return {
+          userId: u.userId,
+          avgRating: dAvgRating,
+          completedCount: dDeliveries.length
+        };
+      })
+      .sort((a, b) => {
+        if (b.avgRating !== a.avgRating) return b.avgRating - a.avgRating;
+        return b.completedCount - a.completedCount;
+      });
+    
+    const rankIndex = allDriversStats.findIndex(s => s.userId === driverId);
+    const rank = rankIndex !== -1 ? rankIndex + 1 : null;
+    
+    return {
+      avgRating,
+      completedCount: driverDeliveries.length,
+      rank,
+      totalDrivers: allDriversStats.length
+    };
+  };
+  const generateCode = () => Math.random().toString(36).substring(2, 6).toUpperCase();
+
+  const prevPendingCount = useRef(0);
+
+  useEffect(() => {
+    // Check if there are new validations waiting (payments or withdrawals)
+    const currentPendingPayments = deliveries.filter(d => d.paymentStatus === 'pending' || d.paymentStatus === 'pending_approval').length;
+    const currentPendingWithdrawals = withdrawals.filter(w => w.status === 'en_attente').length;
+    
+    const totalPendingCount = currentPendingPayments + currentPendingWithdrawals;
+
+    if (totalPendingCount > prevPendingCount.current) {
+      // Something new needs validation, play a beep
+      try {
+        const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const oscillator = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        
+        oscillator.type = 'triangle';
+        oscillator.frequency.setValueAtTime(800, audioCtx.currentTime); // 800 Hz
+        oscillator.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.1);
+        
+        gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+        gainNode.gain.linearRampToValueAtTime(0.3, audioCtx.currentTime + 0.05); // quick fade in
+        gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3); // fade out
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        
+        oscillator.start();
+        oscillator.stop(audioCtx.currentTime + 0.3);
+      } catch (e) {
+        console.warn("Audio notification suppressed or unsupported:", e);
+      }
+    }
+    prevPendingCount.current = totalPendingCount;
+  }, [deliveries, withdrawals]);
+
+  const fetchData = async () => {
+    try {
+      const dbResponse = await fetch('/api/admin/system/db-info', {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
+      });
+      if (dbResponse.ok) {
+        const dbData = await dbResponse.json();
+        setDbInfo(dbData);
+      }
+    } catch (err) {
+      console.warn("Could not fetch DB info", err);
+    }
+
+    fetchPartitionStatus();
+
+    try {
+      const [usersList, deliveriesList, configData, commissionsData, sectorsData, announcementsData, withdrawalsList, promoList, rulesList, defaultPricingData] = await Promise.all([
+        api.admin.users.list().then(res => res || []).catch(() => []),
+        api.deliveries.list().then(res => res || []).catch(() => []),
+        api.config.get('app_config').then(res => res || { mode: 'prod' }).catch(() => ({ mode: 'prod' })),
+        api.config.get('commissions').then(res => res || null).catch(() => null),
+        api.sectors.list().then(res => res || []).catch(() => []),
+        api.announcements.list().then(res => res || []).catch(() => []),
+        api.admin.withdrawals.list().then(res => res || []).catch(() => []),
+        api.promo.list().then(res => res || []).catch(() => []),
+        api.config.get('pricing_rules').then(res => res || []).catch(() => []),
+        api.config.get('default_pricing').then(res => res || null).catch(() => null)
+      ]);
+
+      setUsers(prev => JSON.stringify(prev) === JSON.stringify(usersList) ? prev : usersList);
+      setDeliveries(prev => JSON.stringify(prev) === JSON.stringify(deliveriesList) ? prev : deliveriesList);
+      if (configData) setAppConfig(prev => JSON.stringify(prev) === JSON.stringify(configData) ? prev : configData);
+      if (commissionsData && !isCommissionDirtyRef.current) {
+        setCommissionState(prev => prev ? prev : commissionsData);
+      }
+      if (defaultPricingData && !isDefaultPricingDirtyRef.current) {
+        setDefaultPricingState(prev => prev ? prev : defaultPricingData);
+      }
+      setSectors(prev => JSON.stringify(prev) === JSON.stringify(sectorsData) ? prev : sectorsData);
+      setAnnouncements(prev => JSON.stringify(prev) === JSON.stringify(announcementsData) ? prev : announcementsData);
+      setWithdrawals(prev => JSON.stringify(prev) === JSON.stringify(withdrawalsList) ? prev : withdrawalsList);
+      setPromoCodes(prev => JSON.stringify(prev) === JSON.stringify(promoList) ? prev : promoList);
+      setPricingRules(prev => {
+        const rules = Array.isArray(rulesList) ? rulesList : [];
+        return JSON.stringify(prev) === JSON.stringify(rules) ? prev : rules;
+      });
+
+      // Config Form Init - only update if configForm is null and not dirty
+      if (configData && !configForm && !isConfigFormDirtyRef.current) {
+        setConfigFormState(configData);
+      }
+    } catch (err) {
+      console.error("Error polling local API:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    // Only subscribe if we have a valid admin/staff profile
+    const isAdmin = isMasterAdmin || profile?.role === 'admin' || profile?.role === 'superadmin' || profile?.role === 'manager' || profile?.role === 'support';
+    if (!isAdmin) {
+      setLoading(false);
+      return;
+    }
+
+    fetchData();
+    const interval = setInterval(fetchData, 10000); // Poll every 10s
+
+    return () => clearInterval(interval);
+  }, [profile, isMasterAdmin]);
+
+  const handleAddDistanceRule = () => {
+    if (!commission) return;
+    const newRule: DistancePricingRule = {
+      id: `rule-${Date.now()}`,
+      minKm: 0,
+      maxKm: 0,
+      price: 0
+    };
+    setCommission({
+      ...commission,
+      distancePricingRules: [...(commission.distancePricingRules || []), newRule]
+    });
+  };
+
+  const handleRemoveDistanceRule = (id: string) => {
+    if (!commission || !commission.distancePricingRules) return;
+    setCommission({
+      ...commission,
+      distancePricingRules: commission.distancePricingRules.filter(r => r.id !== id)
+    });
+  };
+
+  const handleUpdateDistanceRule = (id: string, updates: Partial<DistancePricingRule>) => {
+    if (!commission || !commission.distancePricingRules) return;
+    setCommission({
+      ...commission,
+      distancePricingRules: commission.distancePricingRules.map(r => r.id === id ? { ...r, ...updates } : r)
+    });
+  };
+
+  const handleUpdateCommission = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!commission) return;
+    setIsSaving(true);
+    try {
+      await api.config.update('commissions', {
+        ...commission,
+        updatedAt: new Date().toISOString(),
+        updatedBy: profile?.userId || 'admin'
+      });
+      isCommissionDirtyRef.current = false;
+      toast.success('Parametres de commission locaux mis a jour !');
+      await fetchData();
+    } catch (err) {
+      console.error(err);
+      toast.error('Erreur lors de la mise a jour des commissions.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleToggleMode = async () => {
+    if (!appConfig) return;
+    const newMode: 'test' | 'prod' = appConfig.mode === 'test' ? 'prod' : 'test';
+    setIsProcessingAction(true);
+    try {
+      const updated = {
+        ...appConfig,
+        mode: newMode,
+        updatedAt: new Date().toISOString()
+      };
+      await api.config.update('app_config', updated);
+      
+      setToast({
+        type: 'success',
+        message: `Mode systeme bascule sur : ${newMode === 'test' ? 'TEST (Simulateur)' : 'PRODUCTION'}. Les parametres de paiement s'adaptent instantanement.`
+      });
+      
+      setAppConfig(updated);
+      setConfigForm(updated);
+      await refreshAppConfig();
+      fetchData();
+    } catch (err) {
+      console.error(err);
+      setToast({
+        type: 'error',
+        message: 'Erreur lors du basculement de mode de la plateforme.'
+      });
+    } finally {
+      setIsProcessingAction(false);
+    }
+  };
+
+  const isSuperAdmin = profile?.role === 'superadmin' || isMasterAdmin;
+
+  const userPermissions = React.useMemo<UserPermission[]>(() => {
+    if (profile?.role === 'admin' || profile?.role === 'superadmin' || isMasterAdmin) {
+      return ['manage_deliveries', 'manage_drivers', 'manage_clients', 'manage_withdrawals', 'manage_support', 'manage_announcements', 'manage_settings', 'manage_database'];
+    }
+    if (profile?.permissions && Array.isArray(profile.permissions)) {
+      return profile.permissions;
+    }
+    if (profile?.permissionsList && Array.isArray(profile.permissionsList)) {
+      return profile.permissionsList as UserPermission[];
+    }
+    if (typeof (profile as any)?.permissions === 'string') {
+      try {
+        const parsed = JSON.parse((profile as any).permissions);
+        if (Array.isArray(parsed)) return parsed;
+      } catch (e) {}
+    }
+    return DEFAULT_ROLE_PERMISSIONS[profile?.role || ''] || [];
+  }, [profile, isMasterAdmin]);
+
+  const hasPerm = (perm: UserPermission) => {
+    if (isMasterAdmin || profile?.role === 'admin' || profile?.role === 'superadmin') return true;
+    return userPermissions.includes(perm);
+  };
+
+  const handleSeedData = async () => {
+    if (!window.confirm('Voulez-vous injecter des donnees de test locales ?')) return;
+    setIsSaving(true);
+    try {
+      await api.admin.seed();
+      toast('Donnees de test injectees sur le serveur local !');
+      fetchData();
+    } catch (err) {
+      console.error(err);
+      toast.error('Erreur lors de l\'injection locale.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const executeHardReset = async () => {
+    if (resetCode.trim().toUpperCase() !== 'RESET') {
+      toast("Veuillez taper exactement 'RESET' pour confirmer.");
+      return;
+    }
+    
+    try {
+      setIsSaving(true);
+      await api.admin.reset();
+      toast("Application reinitialisee localement (Donnees supprimees); !");
+      setShowResetConfirm(false);
+      setResetCode('');
+      fetchData();
+    } catch (err) {
+      console.error(err);
+      toast.error("Erreur lors de la reinitialisation locale.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const [payoutModalData, setPayoutModalData] = useState<{ id: string, amount: number, driverName: string, phone?: string, info?: string } | null>(null);
+  const [payoutForm, setPayoutForm] = useState<{ mode: 'manual' | 'auto' | 'force', txId: string }>({ mode: 'manual', txId: '' });
+
+  const handleValidateWithdrawal = async (withdrawalId: string, mode: 'manual'|'auto'|'force' = 'manual', txId: string = '') => {
+    setIsProcessingAction(true);
+    try {
+      await api.admin.withdrawals.validate(withdrawalId, { mode, txId });
+      toast.success('Paiement enregistré avec succès.');
+      fetchData();
+      setPayoutModalData(null);
+      setPayoutForm({ mode: 'manual', txId: '' });
+    } catch (e: any) {
+      console.error(e);
+      toast.error(`Erreur lors de la validation: ${e.message || 'Erreur inconnue'}`);
+    } finally {
+      setIsProcessingAction(false);
+    }
+  };
+
+  const handleRejectWithdrawal = async (withdrawalId: string) => {
+    const reason = window.prompt("Raison du rejet (facultatif) :");
+    if (reason === null) return; // Cancelled
+    
+    setIsProcessingAction(true);
+    try {
+      await api.admin.withdrawals.reject(withdrawalId, reason);
+      toast.success('Retrait rejete.');
+      fetchData();
+    } catch (e: any) {
+      console.error(e);
+      toast.error(`Erreur lors du rejet: ${e.message || 'Erreur inconnue'}`);
+    } finally {
+      setIsProcessingAction(false);
+    }
+  };
+
+  const togglePayoutMode = async (mode: 'manual' | 'auto') => {
+    setGlobalPayoutMode(mode);
+    toast.success(`Mode de traitement passé en ${mode === 'manual' ? 'Manuel' : 'Automatique'}`);
+  };
+
+  const allSidebarItems = [
+    { group: 'GENERAL', items: [
+      { name: 'Vue d\'ensemble', icon: LayoutDashboard },
+    ]},
+    { group: 'COMMUNICATION', items: [
+      ...(hasPerm('manage_support') ? [{ name: 'Support Chat', icon: MessageSquare }] : []),
+      ...(hasPerm('manage_announcements') ? [
+        { name: 'Annonces Globales', icon: Bell },
+        { name: 'Flash Info', icon: Zap }
+      ] : []),
+    ]},
+    { group: 'LOGISTIQUE', items: [
+      ...(hasPerm('manage_deliveries') ? [
+        { name: 'En cours', icon: Navigation },
+        { name: 'En attente', icon: Clock },
+        { name: 'Programmees', icon: History },
+        { name: 'Historique', icon: ClipboardCheck }
+      ] : []),
+    ]},
+    { group: 'FLOTTE & RESEAU', items: [
+      ...(hasPerm('manage_deliveries') ? [{ name: 'Carte Live (GPS)', icon: MapIcon }] : []),
+      ...(hasPerm('manage_drivers') ? [{ name: 'Livreurs (Zems)', icon: Truck }] : []),
+      ...(hasPerm('manage_clients') ? [{ name: 'Clients', icon: Users }] : []),
+      ...(hasPerm('manage_database') ? [{ name: 'Équipe & Support', icon: UserCheck }] : []),
+      ...(isSuperAdmin || hasPerm('manage_database') ? [{ name: 'Administrateurs', icon: ShieldCheck }] : []),
+      ...(isSuperAdmin || hasPerm('manage_settings') ? [{ name: 'Secteurs d\'Ouaga', icon: Globe }] : []),
+    ]},
+    { group: 'FINANCES', items: [
+      ...(hasPerm('manage_settings') ? [{ name: 'Modele Eco', icon: BadgePercent }] : []),
+      ...(hasPerm('manage_withdrawals') ? [
+        { name: 'Validations Paiements', icon: CreditCard },
+        { name: 'Paiements Livreurs', icon: Wallet }
+      ] : []),
+      ...(hasPerm('manage_settings') ? [
+        { name: 'Commissions', icon: Percent },
+        { name: 'Tarification', icon: Settings }
+      ] : []),
+      ...(hasPerm('manage_withdrawals') || hasPerm('manage_settings') ? [{ name: 'Codes Promo', icon: BadgePercent }] : []),
+    ]},
+    ...((isSuperAdmin || hasPerm('manage_settings') || hasPerm('manage_database')) ? [{
+      group: 'SYSTEME & DATA', items: [
+        ...(hasPerm('manage_settings') ? [{ name: 'Parametres App', icon: Settings }] : []),
+        ...(isSuperAdmin || hasPerm('manage_database') ? [
+          { name: 'Base de Donnees', icon: Database },
+          { name: 'Partitions DB', icon: Layers },
+          { name: 'Logs Systeme', icon: ClipboardCheck },
+        ] : []),
+      ]
+    }] : []),
+  ];
+
+  const sidebarItems = allSidebarItems.filter(group => group.items.length > 0);
+
+  const [selectedChatDeliveryId, setSelectedChatDeliveryId] = useState<string | null>(null);
+  const [unreadChats, setUnreadChats] = useState<Set<string>>(new Set());
+  const prevDeliveriesRef = useRef<Record<string, string>>({});
+
+  useEffect(() => {
+    // Check for new chat messages
+    deliveries.forEach(d => {
+      const prevVal = prevDeliveriesRef.current[d.id];
+      if (d.lastMessageAt && prevVal !== undefined && d.lastMessageAt !== prevVal) {
+        if (activeMenu !== 'Support Chat' || selectedChatDeliveryId !== d.id) {
+          setUnreadChats(prev => new Set(prev).add(d.id));
+          playNotificationSound();
+        }
+      }
+      prevDeliveriesRef.current[d.id] = d.lastMessageAt || '';
+    });
+  }, [deliveries, activeMenu, selectedChatDeliveryId]);
+
+  useEffect(() => {
+    if (activeMenu === 'Support Chat' && selectedChatDeliveryId) {
+      markChatAsRead(selectedChatDeliveryId);
+      setUnreadChats(prev => {
+        const next = new Set(prev);
+        next.delete(selectedChatDeliveryId);
+        return next;
+      });
+    }
+  }, [activeMenu, selectedChatDeliveryId]);
+  const [chatMessages, setChatMessages] = useState<any[]>([]);
+  const [adminMessage, setAdminMessage] = useState('');
+  
+  const [showCreateUserModal, setShowCreateUserModal] = useState(false);
+  const [showUserPassword, setShowUserPassword] = useState(false);
+  const [showSmtpPassword, setShowSmtpPassword] = useState(false);
+  const [showSappaySecret, setShowSappaySecret] = useState(false);
+  const [showSappayPassword, setShowSappayPassword] = useState(false);
+  const [isSubmittingNewUser, setIsSubmittingNewUser] = useState(false);
+  const [newUserData, setNewUserData] = useState<any>({
+    role: 'client',
+    name: '', email: '', phone: '', password: '', photoURL: '',
+    permissions: [],
+    // driver specific defaults
+    vehicleType: 'Moto',
+    licensePlate: '',
+    driverType: 'freelance',
+    sectors: [],
+    withdrawalPhone: '',
+    rib: '',
+    idCardFront: '',
+    idCardBack: '',
+    guarantorName: '',
+    guarantorPhone: '',
+    guarantorCniUrl: ''
+  });
+
+  const handleCreateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newUserData.email || !newUserData.password || !newUserData.name) {
+      toast("Veuillez remplir les informations obligatoires (Nom, Email, Mot de passe).");
+      return;
+    }
+    
+    setIsSubmittingNewUser(true);
+    try {
+      const newUserProfile: any = {
+        name: newUserData.name,
+        email: newUserData.email,
+        password: newUserData.password,
+        phone: newUserData.phone || '',
+        photoURL: newUserData.photoURL || '',
+        role: newUserData.role,
+        accountStatus: 'active',
+      };
+
+      if (newUserData.role === 'admin' || newUserData.role === 'manager' || newUserData.role === 'support' || newUserData.role === 'superadmin') {
+        const perms = newUserData.permissions && newUserData.permissions.length > 0 
+          ? newUserData.permissions 
+          : (DEFAULT_ROLE_PERMISSIONS[newUserData.role] || []);
+        newUserProfile.permissions = JSON.stringify(perms);
+        newUserProfile.permissionsList = JSON.stringify(perms);
+      }
+
+      if (newUserData.role === 'driver') {
+        newUserProfile.vehicleType = newUserData.vehicleType;
+        newUserProfile.licensePlate = newUserData.licensePlate;
+        newUserProfile.driverType = newUserData.driverType;
+        newUserProfile.sectors = JSON.stringify(newUserData.sectors);
+        newUserProfile.withdrawalPhone = newUserData.withdrawalPhone;
+        newUserProfile.rib = newUserData.rib;
+        newUserProfile.idCardFront = newUserData.idCardFront;
+        newUserProfile.idCardBack = newUserData.idCardBack;
+        newUserProfile.guarantorName = newUserData.guarantorName;
+        newUserProfile.guarantorPhone = newUserData.guarantorPhone;
+        newUserProfile.guarantorCniUrl = newUserData.guarantorCniUrl;
+      }
+
+      await api.admin.users.create(newUserProfile);
+      
+      const targetMenu = newUserProfile.role === 'client' ? 'Clients' :
+        newUserProfile.role === 'driver' ? 'Livreurs (Zems)' :
+        (newUserProfile.role === 'admin' || newUserProfile.role === 'superadmin') ? 'Administrateurs' :
+        'Équipe & Support';
+
+      setShowCreateUserModal(false);
+      setNewUserData({
+        role: 'client',
+        name: '', email: '', phone: '', password: '', photoURL: '',
+        permissions: [],
+        vehicleType: 'Moto', licensePlate: '', driverType: 'freelance', sectors: [],
+        withdrawalPhone: '', rib: '', idCardFront: '', idCardBack: '',
+        guarantorName: '', guarantorPhone: '', guarantorCniUrl: ''
+      });
+      await fetchData();
+      handleMenuChange(targetMenu);
+      toast.success(`Compte "${newUserData.name}" (${newUserProfile.role.toUpperCase()}) créé ! Redirection vers le menu "${targetMenu}".`);
+    } catch (err: any) {
+      console.error(err);
+      toast.error("Erreur lors de la création : " + (err.message || 'Erreur inconnue'));
+    } finally {
+      setIsSubmittingNewUser(false);
+    }
+  };
+
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [globalPayoutMode, setGlobalPayoutMode] = useState<'manual' | 'auto'>('manual');
+  const handleDeleteUser = async (userId: string) => {
+    if (!isSuperAdmin || isDeleting) return;
+    setIsDeleting(true);
+    try {
+      await api.admin.users.delete(userId);
+      toast('Utilisateur supprime.');
+      setConfirmingDeleteUserId(null);
+      setSelectedUser(null);
+      await fetchData();
+    } catch (err: any) {
+      console.error("Delete user error:", err);
+      const detail = err.response?.data?.error || err.response?.data?.details || err.message || 'Erreur inconnue';
+      toast.error(`Erreur lors de la suppression : ${detail}`);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  // Fetch all active chats by checking deliveries that have lastMessageAt
+  const chatDeliveries = deliveries
+    .filter(d => Boolean(d.lastMessageAt))
+    .sort((a, b) => (b.lastMessageAt || '').localeCompare(a.lastMessageAt || ''));
+
+  useEffect(() => {
+    if (!selectedChatDeliveryId) return;
+    
+    const fetchMessages = async () => {
+      try {
+        const msgs = await api.deliveries.messages.list(selectedChatDeliveryId);
+        setChatMessages(msgs);
+      } catch (err) {
+        console.error("Error fetching chat messages:", err);
+      }
+    };
+
+    fetchMessages();
+    const interval = setInterval(fetchMessages, 3000); // Polling chat every 3s
+    return () => clearInterval(interval);
+  }, [selectedChatDeliveryId]);
+
+  const handleSendAdminMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!adminMessage.trim() || !selectedChatDeliveryId || !profile) return;
+    try {
+      await api.deliveries.messages.send(selectedChatDeliveryId, {
+        text: adminMessage,
+        senderId: profile.userId,
+        senderName: profile.name,
+        senderRole: 'admin'
+      });
+      setAdminMessage('');
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleOpenUserSupportChat = async (u: any) => {
+    toast(`Ouverture du support chat avec ${u.name}...`);
+    
+    // Find if there is an existing delivery/course for this user
+    const userDeliveries = deliveries.filter(d => 
+      u.role === 'client' ? (d.clientId === u.userId) : (d.driverId === u.userId)
+    );
+    
+    // Sort by latest createdAt to find the most recent one
+    userDeliveries.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+    let d = userDeliveries[0];
+
+    if (d) {
+      if (!d.lastMessageAt) {
+        try {
+          // Send an initial system message to start the support discussion
+          await api.deliveries.messages.send(d.id, {
+            text: `Support de discussion ouvert par l'administration.`,
+            senderId: profile?.userId || 'admin',
+            senderName: profile?.name || 'Administrateur',
+            senderRole: 'admin'
+          });
+          // Refresh data so we have the lastMessageAt updated in deliveries list
+          await fetchData();
+        } catch (err) {
+          console.warn("Failed to send system message:", err);
+        }
+      }
+      setSelectedChatDeliveryId(d.id);
+      handleMenuChange('Support Chat');
+      toast.success(`Discussion de support ouverte avec ${u.name} (Course #${d.id.slice(0, 8)})`);
+    } else {
+      try {
+        toast(`Création d'un canal de support pour ${u.name}...`);
+        
+        const newDeliveryData = {
+          clientName: u.role === 'client' ? u.name : 'Support Client',
+          from: { address: 'Faso Express HQ', lat: 12.3714, lng: -1.5197 },
+          to: { address: 'Centre de Support', lat: 12.3714, lng: -1.5197 },
+          cost: 0,
+          status: 'pending',
+          packageDetails: 'Canal de support administratif',
+          pickupCode: 'SUPPORT',
+          deliveryCode: 'SUPPORT',
+        };
+
+        const res = await api.deliveries.create(newDeliveryData);
+        const newId = res.id;
+
+        if (u.role === 'client') {
+          // Update the clientId to point to the client user
+          await api.deliveries.update(newId, { clientId: u.userId });
+        } else if (u.role === 'driver') {
+          // Update the driverId and driverName using standard patch
+          await api.deliveries.update(newId, {
+            driverId: u.userId,
+            driverName: u.name,
+            status: 'accepted'
+          });
+        }
+
+        // Send welcome support message
+        await api.deliveries.messages.send(newId, {
+          text: `Bonjour ${u.name}, comment pouvons-nous vous aider ? (Support Faso Express)`,
+          senderId: profile?.userId || 'admin',
+          senderName: profile?.name || 'Administrateur',
+          senderRole: 'admin'
+        });
+
+        // Refresh deliveries list
+        await fetchData();
+
+        setSelectedChatDeliveryId(newId);
+        handleMenuChange('Support Chat');
+        toast.success(`Canal de support créé pour ${u.name}`);
+      } catch (err: any) {
+        toast.error(`Échec lors du démarrage du chat: ${err.message || err}`);
+      }
+    }
+  };
+
+  const getPaymentLogo = (method?: string | null) => {
+    if (!method) return null;
+    const lower = method.toLowerCase();
+    if (lower.includes('orange')) return '/payments/orange.png';
+    if (lower.includes('moov')) return '/payments/moov.png';
+    if (lower.includes('telecel')) return '/payments/telecel.png';
+    if (lower.includes('coris')) return '/payments/coris.png';
+    return null;
+  };
+
+  const renderContent = () => {
+    switch (activeMenu) {
+      case 'Annonces Globales':
+        return renderAnnouncements();
+      case 'Flash Info':
+        return renderFlashInfo();
+      case 'Validations Paiements':
+        const pendingPayments = deliveries.filter(d => (d.paymentStatus === 'pending' || d.paymentStatus === 'pending_approval') && !['delivered', 'cancelled', 'paiement rejete'].includes(d.status));
+        return (
+          <div className="bg-white rounded-3xl p-6 lg:p-5 lg:p-6 shadow-sm border border-slate-100">
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Validations de Paiements</h3>
+                <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-1">Approbation des transactions USSD et Agregateurs</p>
+              </div>
+              <div className="w-12 h-12 bg-orange-50 text-orange-600 rounded-2xl flex items-center justify-center">
+                <CreditCard className="w-6 h-6" />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4">
+              {pendingPayments.map(d => {
+                const logo = getPaymentLogo(d.paymentMethod);
+                return (
+                  <div key={d.id} className="p-6 bg-slate-50 rounded-3xl border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-6 hover:bg-white transition-all shadow-sm">
+                    <div className="flex items-center gap-6">
+                      <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-indigo-600 shadow-sm border border-slate-100 relative overflow-hidden">
+                        {logo ? (
+                          <img src={logo} alt={d.paymentMethod || ''} className="w-full h-full object-contain" />
+                        ) : (
+                          <Wallet className="w-7 h-7" />
+                        )}
+                        <div className="absolute -top-1 -right-1 w-4 h-4 bg-orange-500 rounded-full border-2 border-white animate-pulse" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="font-black text-slate-900 truncate">Course #{d.id?.slice(0, 8)}</p>
+                          <span className={cn(
+                            "text-[7px] font-black uppercase px-2 py-0.5 rounded-full",
+                            logo ? "bg-slate-900 text-white" :
+                            d.paymentMethod?.includes('ussd') ? "bg-orange-100 text-orange-600" :
+                            d.paymentMethod === 'aggregator' ? "bg-indigo-100 text-indigo-600" : "bg-blue-100 text-blue-600"
+                          )}>
+                            {d.paymentMethod}
+                          </span>
+                        </div>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">Client: {d.clientName} * {d.cost} FCFA</p>
+                        {d.paymentReference && (
+                          <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest mt-2 border-l-2 border-indigo-500 pl-2">
+                             REF: {d.paymentReference}
+                          </p>
+                        )}
+                        <p className="text-[8px] font-black text-orange-500 uppercase tracking-widest mt-1 italic">Attend confirmation manuelle</p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex gap-2">
+                      <button 
+                        onClick={async () => {
+                          try {
+                             const pickupCode = generateCode();
+                             const deliveryCode = generateCode();
+                             await api.deliveries.update(d.id, {
+                               paymentStatus: 'confirmed',
+                               isPaid: true,
+                               pickupCode,
+                               deliveryCode,
+                               updatedAt: new Date().toISOString()
+                             });
+                             if (d.driverId) {
+                               await sendNotification(d.driverId, "Paiement valide", `Le client a paye pour la course #${d.id.slice(-6)}.`, 'success', '/driver');
+                             }
+                             await sendNotification(d.clientId, "Paiement Confirme", `Votre paiement pour la course #${d.id.slice(-6)} a ete valide. Les codes sont disponibles.`, 'success', '/client');
+                             toast.success('Paiement valide avec succes.');
+                             fetchData();
+                          } catch(e) { console.error('Error confirming payment:', e); toast.error('Erreur lors de la confirmation.'); }
+                        }}
+                        className="px-6 py-3 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20"
+                      >
+                        Valider (Paye)
+                      </button>
+                      <button 
+                        onClick={async () => {
+                          try {
+                             await api.deliveries.update(d.id, {
+                               paymentStatus: 'rejected',
+                               isPaid: false,
+                               status: 'paiement rejete',
+                               updatedAt: new Date().toISOString()
+                             });
+                             if (d.driverId) {
+                               await sendNotification(d.driverId, "Paiement Rejete", `La preuve de paiement pour la course #${d.id.slice(-6)} a ete rejetee.`, 'error', '/driver');
+                             }
+                             await sendNotification(d.clientId, "Paiement Rejete", `Votre preuve de paiement pour la course #${d.id.slice(-6)} a ete rejetee. Veuillez reessayer ou contacter le service clientele.`, 'error', '/client');
+                             toast.success('Paiement rejete avec succes. Statut de la course mis a jour.');
+                             fetchData();
+                          } catch(e) { console.error('Error rejecting payment:', e); toast.error('Erreur lors du rejet.'); }
+                        }}
+                        className="px-4 py-3 bg-white text-rose-500 border border-red-100 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-rose-50 transition-all shadow-lg shadow-rose-100"
+                      >
+                        Rejeter (Rejete)
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+              {pendingPayments.length === 0 && (
+                <div className="py-20 text-center bg-slate-50 rounded-3xl border border-dashed border-slate-200">
+                  <ClipboardCheck className="w-16 h-16 text-slate-200 mx-auto mb-4" />
+                  <p className="text-slate-400 font-black uppercase text-xs tracking-widest">Aucun paiement en attente d'approbation</p>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      case 'Vue d\'ensemble':
+        return (
+          <div className="space-y-8">
+            {/* Watchtower Alerts Section */}
+            {deliveries.filter(d => d.sosAlert || d.isWeatherPaused).length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {deliveries.filter(d => d.sosAlert).map(alert => (
+                  <div key={`sos-${alert.id}`} className="bg-red-500 rounded-3xl p-6 text-white shadow-xl shadow-red-500/20 flex flex-col gap-4 animate-pulse">
+                     <div className="flex justify-between items-start">
+                        <span className="text-[10px] font-black uppercase tracking-widest bg-white/20 px-3 py-1 rounded-lg">SOS URGENCE</span>
+                        <span className="font-bold">Course {alert.id.slice(0,4)}</span>
+                     </div>
+                     <p className="font-medium text-sm leading-tight">Le livreur a declenche une alerte. Merci de le contacter immediatement.</p>
+                     <div className="flex gap-2 mt-2">
+                        {(() => {
+                           const driver = users.find(u => u.userId === alert.driverId);
+                           return (
+                             <a 
+                               href={`tel:${driver?.phone || ''}`} 
+                               onClick={(e) => !driver?.phone && e.preventDefault()}
+                               className={cn(
+                                 "px-4 py-2 bg-white text-red-600 rounded-xl text-xs font-black uppercase tracking-widest text-center flex-1",
+                                 !driver?.phone && "opacity-50 cursor-not-allowed"
+                               )}
+                             >
+                                {driver?.phone ? `Appeler Livreur (${driver.phone})` : "Tel. Livreur Inconnu"}
+                             </a>
+                           );
+                        })()}
+                     </div>
+                  </div>
+                ))}
+                {deliveries.filter(d => d.isWeatherPaused).map(alert => (
+                  <div key={`weather-${alert.id}`} className="bg-blue-600 rounded-3xl p-6 text-white shadow-xl shadow-blue-500/20 flex flex-col gap-4">
+                     <div className="flex justify-between items-start">
+                        <span className="text-[10px] font-black uppercase tracking-widest bg-white/20 px-3 py-1 rounded-lg">PAUSE METEO</span>
+                        <span className="font-bold">Course {alert.id.slice(0,4)}</span>
+                     </div>
+                     <p className="font-medium text-sm leading-tight">Le livreur s'est abrite en raison de la pluie. L'expediteur a ete notifie.</p>
+                     <div className="flex gap-2 mt-2">
+                        <a 
+                          href={`tel:${alert.senderPhone || ''}`}
+                          onClick={(e) => !alert.senderPhone && e.preventDefault()}
+                          className={cn(
+                            "px-4 py-2 bg-white text-blue-600 rounded-xl text-xs font-black uppercase tracking-widest text-center flex-1",
+                            !alert.senderPhone && "opacity-50 cursor-not-allowed"
+                          )}
+                        >
+                           {alert.senderPhone ? `Appeler Expediteur (${alert.senderPhone})` : "Tel. Expediteur Inconnu"}
+                        </a>
+                     </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+              {[
+                { label: 'CLIENTS ACTIFS', value: users.filter(u => u.role === 'client').length, icon: Users, color: 'text-blue-500', trend: '+12%' },
+                { label: 'COURSES TOTALES', value: deliveries.filter(d => d.status !== 'cancelled').length, icon: Package, color: 'text-orange-500', trend: '+5%' },
+                { label: 'VOLUME D\'AFFAIRES', value: `${deliveries.filter(d => d.status === 'delivered' || d.isPaid).reduce((acc, curr) => acc + (curr.clientProposedPrice || curr.cost || 0), 0).toLocaleString()} FCFA`, icon: DollarSign, color: 'text-emerald-500', trend: '+18%' },
+                { label: 'ZEMS EN SERVICE', value: users.filter(u => u.role === 'driver' && u.status === 'online').length, icon: Truck, color: 'text-indigo-500', trend: 'LIVE' },
+              ].map((stat) => (
+                <div key={stat.label} className="bg-white rounded-xl sm:rounded-2xl p-5 sm:p-7 shadow-sm border border-slate-100 flex flex-col justify-between relative overflow-hidden group hover:shadow-xl transition-all">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className={cn("w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-110", stat.color)}>
+                      <stat.icon className="w-6 h-6" />
+                    </div>
+                    <span className={cn("text-[9px] font-black px-2 py-1 rounded-md", 
+                      stat.trend === 'LIVE' ? "bg-emerald-100 text-emerald-600 animate-pulse" : "bg-slate-100 text-slate-500"
+                    )}>{stat.trend}</span>
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-2 truncate opacity-70">{stat.label}</p>
+                    <p className="text-xl sm:text-2xl font-black text-slate-900 tracking-tighter truncate leading-tight">{stat.value}</p>
+                  </div>
+                  <div className="absolute -bottom-2 -right-2 opacity-[0.03] group-hover:opacity-[0.06] transition-opacity">
+                    <stat.icon className="w-24 h-24 rotate-12" />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 lg:p-6">
+              <div className="lg:col-span-8 bg-white rounded-2xl sm:rounded-3xl p-6 sm:p-6 lg:p-5 lg:p-6 shadow-sm border border-slate-100 relative overflow-hidden">
+                <div className="flex items-center justify-between mb-8 pb-4 border-b border-slate-50">
+                  <div className="flex items-center gap-3">
+                    <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse" />
+                    <h3 className="text-xl font-black text-slate-900 tracking-tighter uppercase whitespace-nowrap">Derniers Mouvements</h3>
+                  </div>
+                  <button onClick={() => setActiveMenu('Historique')} className="text-[10px] font-black text-orange-600 uppercase tracking-widest hover:underline px-4 py-2 bg-orange-50 rounded-xl">Voir tout</button>
+                </div>
+
+                <div className="space-y-4">
+                  {deliveries.slice(0, 5).map((delivery) => (
+                    <div key={delivery.id} className="p-4 sm:p-5 bg-slate-50/50 rounded-xl sm:rounded-3xl border border-slate-100 flex items-center justify-between gap-4 group hover:bg-white hover:shadow-xl transition-all">
+                      <div className="flex items-center gap-3 sm:gap-5">
+                        <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-orange-600 shadow-sm border border-slate-100 shrink-0 overflow-hidden">
+                          {getPaymentLogo(delivery.paymentMethod) ? (
+                            <img src={getPaymentLogo(delivery.paymentMethod)!} alt={delivery.paymentMethod || ''} className="w-full h-full object-contain" />
+                          ) : (
+                            <Package className="w-5 h-5" />
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 mb-0.5">
+                            <h4 className="font-black text-slate-900 text-[11px] sm:text-xs truncate">Course #{delivery.id?.slice(0, 8) || 'N/A'}</h4>
+                            <span className="text-[7px] font-black uppercase text-slate-300">| {delivery.clientName || 'Anonyme'}</span>
+                          </div>
+                          <p className="text-[8px] sm:text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+                            {delivery.createdAt ? new Date(delivery.createdAt).toLocaleDateString('fr-FR') : 'Date inconnue'} - <span className="text-orange-600 font-black">{delivery.cost || 0} FCFA</span>
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4 shrink-0">
+                        <span className={cn(
+                          "px-3 py-1 rounded-lg text-[7px] sm:text-[9px] font-black uppercase tracking-widest",
+                          delivery.status === 'delivered' ? "bg-emerald-100 text-emerald-600" :
+                          delivery.status === 'pending' ? "bg-amber-100 text-amber-600" : "bg-blue-100 text-blue-600 shadow-[0_0_15px_rgba(59,130,246,0.1)]"
+                        )}>
+                          {delivery.status}
+                        </span>
+                        <ArrowUpRight className="w-4 h-4 text-slate-200 group-hover:text-orange-500 transition-all opacity-0 group-hover:opacity-100" />
+                      </div>
+                    </div>
+                  ))}
+                  {deliveries.length === 0 && (
+                    <div className="flex flex-col items-center justify-center py-20 opacity-30 grayscale">
+                      <Package className="w-16 h-16 mb-4" />
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em]">Aucune activite detectee</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="lg:col-span-4 space-y-8">
+                <div className="bg-white rounded-3xl p-6 lg:p-5 lg:p-6 shadow-sm border border-slate-100">
+                  <h3 className="text-xl font-black text-slate-900 tracking-tighter uppercase mb-8">Utilisateurs</h3>
+                  <div className="space-y-6">
+                    {[
+                      { label: 'Administrateurs', count: users.filter(u => u.role === 'admin' || u.role === 'superadmin').length, color: 'bg-orange-500' },
+                      { label: 'Clients', count: users.filter(u => u.role === 'client').length, color: 'bg-emerald-500' },
+                      { label: 'Livreurs (Zems)', count: users.filter(u => u.role === 'driver').length, color: 'bg-blue-500' },
+                    ].map((p) => {
+                      const total = users.length || 1;
+                      return (
+                        <div key={p.label}>
+                          <div className="flex justify-between items-center mb-2">
+                            <span className="text-xs font-black text-slate-700">{p.label}</span>
+                            <span className="text-xs font-black text-slate-900">{p.count}</span>
+                          </div>
+                          <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                            <motion.div 
+                              initial={{ width: 0 }}
+                              animate={{ width: `${(p.count / total) * 100}%` }}
+                              className={cn("h-full", p.color)}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="bg-[#111827] rounded-3xl p-5 lg:p-6 text-white relative overflow-hidden shadow-2xl">
+                  <div className="absolute top-5 lg:p-6 right-8 w-12 h-12 bg-orange-500/20 rounded-2xl flex items-center justify-center text-orange-400 border border-orange-500/30">
+                    <ArrowUpRight className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <div className="w-10 h-10 bg-orange-500/20 rounded-xl flex items-center justify-center text-orange-400 mb-6">
+                      <Wallet className="w-5 h-5 rotate-45" />
+                    </div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">GAINS PLATEFORME (GLOBAL)</p>
+                    <p className="text-4xl font-black tracking-tighter mb-2">
+                      {Math.floor(deliveries.reduce((acc, curr) => acc + (curr.clientProposedPrice || curr.cost || 0), 0) * (commission?.platformFeePercent || 15) / 100).toLocaleString()} <span className="text-lg opacity-60">FCFA</span>
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-2xl sm:rounded-3xl p-6 sm:p-6 lg:p-5 lg:p-6 shadow-sm border border-slate-100">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-10">
+                <h3 className="text-xl font-black text-slate-900 tracking-tighter uppercase">Analyse des Courses</h3>
+                <div className="flex gap-4 sm:gap-6">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2.5 h-2.5 bg-orange-500 rounded-full" />
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">VOLUME (Nb)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-2.5 h-2.5 bg-blue-500 rounded-full" />
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">REVENUS (F)</span>
+                  </div>
+                </div>
+              </div>
+              <div className="w-full min-h-[300px]" style={{ minWidth: 0 }}>
+                <div style={{ width: '100%', height: '300px', minWidth: 0, minHeight: 0 }}>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <AreaChart data={dynamicChartData}>
+                    <defs>
+                      <linearGradient id="colorVolume" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#f97316" stopOpacity={0.2}/>
+                        <stop offset="95%" stopColor="#f97316" stopOpacity={0}/>
+                      </linearGradient>
+                      <linearGradient id="colorRevenus" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2}/>
+                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 900, fill: '#94a3b8' }} dy={10} />
+                    <YAxis yAxisId="left" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 900, fill: '#f97316' }} dx={-10} />
+                    <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 900, fill: '#3b82f6' }} dx={10} />
+                    <Tooltip contentStyle={{ border: 'none', borderRadius: '16px', boxShadow: '0 10px 15px -3px rgb(0 0 0/0.1)' }} />
+                    <Area yAxisId="left" type="monotone" dataKey="Volume" stroke="#f97316" strokeWidth={4} fill="url(#colorVolume)" />
+                    <Area yAxisId="right" type="monotone" dataKey="Revenus" stroke="#3b82f6" strokeWidth={4} fill="url(#colorRevenus)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+          </div>
+        );
+      case 'En cours':
+      case 'En attente':
+      case 'Programmees':
+      case 'Historique':
+        const filteredDeliveries = deliveries.filter(d => {
+          if (activeMenu === 'En cours') return d.status === 'picked_up';
+          if (activeMenu === 'En attente') return d.status === 'pending';
+          if (activeMenu === 'Programmees') return ['accepted', 'ready_for_pickup'].includes(d.status);
+          if (activeMenu === 'Historique') return ['delivered', 'cancelled', 'paiement rejete'].includes(d.status as string);
+          return false;
+        });
+        return (
+          <div className="bg-white rounded-3xl p-6 lg:p-5 lg:p-6 shadow-sm border border-slate-100">
+            <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter mb-8">{activeMenu} ({filteredDeliveries.length})</h3>
+            <div className="grid grid-cols-1 gap-4">
+              {filteredDeliveries.map(d => {
+                const isFinishedOrCancelled = ['delivered', 'cancelled', 'paiement rejete'].includes(d.status as string);
+                const showActionButtons = activeMenu !== 'Historique' && !isFinishedOrCancelled && (d.paymentStatus === 'pending' || d.paymentStatus === 'pending_approval');
+
+                let badgeColor = "bg-slate-100 text-slate-600";
+                let badgeLabel: string = d.status;
+                if (d.status === 'delivered') {
+                  badgeColor = "bg-emerald-100 text-emerald-700";
+                  badgeLabel = "LIVRÉ";
+                } else if (d.status === 'cancelled') {
+                  badgeColor = "bg-rose-100 text-rose-700";
+                  badgeLabel = "ANNULÉ";
+                } else if ((d.status as string) === 'paiement rejete') {
+                  badgeColor = "bg-rose-100 text-rose-700";
+                  badgeLabel = "REJETÉ";
+                } else if (d.status === 'pending') {
+                  badgeColor = "bg-amber-100 text-amber-700";
+                  badgeLabel = "EN ATTENTE";
+                } else if (d.status === 'picked_up') {
+                  badgeColor = "bg-indigo-100 text-indigo-700";
+                  badgeLabel = "EN COURS";
+                } else if (['accepted', 'ready_for_pickup'].includes(d.status)) {
+                  badgeColor = "bg-blue-100 text-blue-700";
+                  badgeLabel = "PROGRAMMÉE";
+                }
+
+                return (
+                  <div key={d.id} onClick={() => navigate('/delivery/' + d.id)} className="p-6 bg-slate-50 rounded-3xl border border-slate-100 flex items-center justify-between cursor-pointer hover:bg-slate-100 hover:shadow-md transition-all active:scale-[0.99]">
+                    <div className="flex items-center gap-6">
+                      <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-orange-600 shadow-sm border border-slate-100">
+                        <Package className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <p className="font-black text-slate-900">#{d.id?.slice(0, 8) || 'N/A'}</p>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{d.from?.address?.slice(0, 30) || 'Lieu inconnu'}... {'->'} {d.to?.address?.slice(0, 30) || 'Lieu inconnu'}...</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-6">
+                      <div className="text-right">
+                        <p className="font-black text-slate-900">{d.cost} FCFA</p>
+                        <div className="flex flex-col items-end gap-1">
+                          <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full ${badgeColor}`}>{badgeLabel}</span>
+                          {showActionButtons && (
+                            <span className="text-[7px] font-black uppercase bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full animate-pulse">Paiement a Valider</span>
+                          )}
+                        </div>
+                      </div>
+                      {showActionButtons && (
+                        <div className="flex gap-2" onClick={e => e.stopPropagation()}>
+                          <button 
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              try {
+                                const pickupCode = generateCode();
+                                const deliveryCode = generateCode();
+                                await api.deliveries.update(d.id, { 
+                                  paymentStatus: 'confirmed', 
+                                  isPaid: true,
+                                  pickupCode,
+                                  deliveryCode,
+                                  updatedAt: new Date().toISOString() 
+                                });
+                                fetchData();
+                                if (d.driverId) {
+                                  await sendNotification(d.driverId, "Paiement valide", `Le client a paye pour la course #${d.id.slice(-6)}.`, 'success', '/driver');
+                                }
+                                await sendNotification(d.clientId, "Paiement Confirme", `Votre paiement pour la course #${d.id.slice(-6)} a ete valide.`, 'success', '/client');
+                                toast.success('Paiement valide avec succes.');
+                              } catch(e) {
+                                console.error('Erreur lors de la validation:', e);
+                              }
+                            }}
+                            className="px-3 py-2 bg-emerald-500 text-white text-[9px] font-black uppercase rounded-xl hover:bg-emerald-600 shadow-lg shadow-emerald-500/20"
+                          >
+                            Valider
+                          </button>
+                          <button 
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              try {
+                                await api.deliveries.update(d.id, { 
+                                  paymentStatus: 'rejected', 
+                                  isPaid: false,
+                                  status: 'paiement rejete',
+                                  updatedAt: new Date().toISOString() 
+                                });
+                                fetchData();
+                                if (d.driverId) {
+                                  await sendNotification(d.driverId, "Paiement Rejete", `La preuve de paiement de la course #${d.id.slice(-6)} a ete rejetee.`, 'error', '/driver');
+                                }
+                                await sendNotification(d.clientId, "Paiement Rejete", `La preuve de paiement de la course #${d.id.slice(-6)} a ete rejetee. Veuillez reessayer ou contacter le service clientele.`, 'error', '/client');
+                                toast('Paiement rejete et course mise a jour.');
+                              } catch(e) {
+                                console.error('Erreur lors du rejet:', e);
+                              }
+                            }}
+                            className="px-3 py-2 bg-rose-500 text-white text-[9px] font-black uppercase rounded-xl hover:bg-rose-600 shadow-lg shadow-rose-500/20"
+                          >
+                            Rejeter
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+              {filteredDeliveries.length === 0 && (
+                <div className="text-center py-20 text-slate-400 font-black uppercase text-xs tracking-[0.2em]">Pas de courses dans cette categorie</div>
+              )}
+            </div>
+          </div>
+        );
+      case 'Équipe & Support':
+      case 'Administrateurs':
+      case 'Livreurs (Zems)':
+      case 'Clients':
+        const filteredUsers = users.filter(u => {
+          let roleMatches = false;
+          if (activeMenu === 'Livreurs (Zems)') {
+            roleMatches = u.role === 'driver';
+          } else if (activeMenu === 'Clients') {
+            roleMatches = u.role === 'client';
+          } else if (activeMenu === 'Administrateurs' || activeMenu === 'Équipe & Support') {
+            roleMatches = u.role === 'admin' || u.role === 'superadmin' || u.role === 'manager' || u.role === 'support';
+          }
+
+          if (!roleMatches) return false;
+
+          if (userRoleFilter !== 'all') {
+            if (userRoleFilter === 'admin') {
+              if (u.role !== 'admin' && u.role !== 'superadmin') return false;
+            } else if (u.role !== userRoleFilter) {
+              return false;
+            }
+          }
+
+          if (userSearchTerm.trim()) {
+            const term = userSearchTerm.toLowerCase();
+            const nameMatch = u.name?.toLowerCase().includes(term);
+            const emailMatch = u.email?.toLowerCase().includes(term);
+            const phoneMatch = u.phone?.toLowerCase().includes(term);
+            const roleMatch = u.role?.toLowerCase().includes(term);
+            const idMatch = u.userId?.toLowerCase().includes(term);
+            return nameMatch || emailMatch || phoneMatch || roleMatch || idMatch;
+          }
+
+          return true;
+        });
+
+        // Pagination calculations (50 per page)
+        const itemsPerPage = 50;
+        const totalItems = filteredUsers.length;
+        const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
+        const activePage = Math.min(currentPage, totalPages);
+        const startIndex = (activePage - 1) * itemsPerPage;
+        const paginatedUsers = filteredUsers.slice(startIndex, startIndex + itemsPerPage);
+
+        return (
+          <div className="bg-white rounded-3xl p-6 lg:p-8 shadow-sm border border-slate-100 flex flex-col h-full min-h-0">
+            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6">
+              <div>
+                <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">
+                  {activeMenu} ({totalItems})
+                </h3>
+                <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-1">
+                  Gestion et vue d'ensemble des utilisateurs ({activePage} / {totalPages})
+                </p>
+              </div>
+              <button 
+                onClick={() => {
+                  const defaultRole = activeMenu === 'Clients' ? 'client' : (activeMenu === 'Administrateurs' ? 'admin' : (activeMenu === 'Équipe & Support' ? 'manager' : 'driver'));
+                  setNewUserData(prev => ({ 
+                    ...prev, 
+                    role: defaultRole,
+                    permissions: DEFAULT_ROLE_PERMISSIONS[defaultRole] || []
+                  }));
+                  setShowCreateUserModal(true);
+                }}
+                className="bg-indigo-600 text-white px-6 py-3.5 rounded-2xl text-[10px] uppercase font-black tracking-widest hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-600/20 flex items-center justify-center gap-2 self-start sm:self-auto"
+              >
+                <Plus className="w-4 h-4" /> Nouvel Utilisateur
+              </button>
+            </div>
+
+            {/* Filter & Search Bar */}
+            <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 mb-6 p-3 bg-slate-50 rounded-2xl border border-slate-100">
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Rechercher par nom, email, téléphone, ID..."
+                  value={userSearchTerm}
+                  onChange={(e) => {
+                    setUserSearchTerm(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="w-full pl-10 pr-4 py-2 bg-white rounded-xl border border-slate-200 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                />
+                {userSearchTerm && (
+                  <button 
+                    onClick={() => setUserSearchTerm('')} 
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {(activeMenu === 'Administrateurs' || activeMenu === 'Équipe & Support') && (
+                <div className="flex items-center gap-1 overflow-x-auto pb-1 md:pb-0">
+                  <button
+                    onClick={() => { setUserRoleFilter('all'); setCurrentPage(1); }}
+                    className={cn(
+                      "px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all whitespace-nowrap",
+                      userRoleFilter === 'all' ? "bg-slate-900 text-white shadow-sm" : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
+                    )}
+                  >
+                    Tous Staff ({users.filter(u => ['admin','superadmin','manager','support'].includes(u.role)).length})
+                  </button>
+                  <button
+                    onClick={() => { setUserRoleFilter('admin'); setCurrentPage(1); }}
+                    className={cn(
+                      "px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all whitespace-nowrap",
+                      userRoleFilter === 'admin' ? "bg-orange-600 text-white shadow-sm" : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
+                    )}
+                  >
+                    Admins ({users.filter(u => u.role === 'admin' || u.role === 'superadmin').length})
+                  </button>
+                  <button
+                    onClick={() => { setUserRoleFilter('manager'); setCurrentPage(1); }}
+                    className={cn(
+                      "px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all whitespace-nowrap",
+                      userRoleFilter === 'manager' ? "bg-purple-600 text-white shadow-sm" : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
+                    )}
+                  >
+                    Managers ({users.filter(u => u.role === 'manager').length})
+                  </button>
+                  <button
+                    onClick={() => { setUserRoleFilter('support'); setCurrentPage(1); }}
+                    className={cn(
+                      "px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all whitespace-nowrap",
+                      userRoleFilter === 'support' ? "bg-teal-600 text-white shadow-sm" : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
+                    )}
+                  >
+                    Support ({users.filter(u => u.role === 'support').length})
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="overflow-x-auto rounded-2xl border border-slate-100">
+              <table className="w-full text-left border-collapse min-w-[900px]">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-100">
+                    <th className="py-4 px-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Utilisateur</th>
+                    <th className="py-4 px-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Contact & Ville</th>
+                    <th className="py-4 px-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Statuts & Dossiers</th>
+                    <th className="py-4 px-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Activité & Véhicule</th>
+                    <th className="py-4 px-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {paginatedUsers.map(u => {
+                    const stats = u.role === 'driver' ? getDriverStatsAndRank(u.userId) : null;
+                    return (
+                      <tr 
+                        key={u.userId} 
+                        className={cn(
+                          "hover:bg-slate-50/50 transition-colors group",
+                          u.accountStatus === 'suspended' && "bg-red-50/20"
+                        )}
+                      >
+                        {/* 1. User block */}
+                        <td className="py-4 px-6">
+                          <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-orange-600 border border-slate-200 shrink-0 relative overflow-hidden">
+                              {u.photoURL ? (
+                                <img src={u.photoURL} className="w-full h-full object-cover" />
+                              ) : (
+                                <UserCircle className="w-6 h-6" />
+                              )}
+                              {u.accountStatus === 'suspended' && (
+                                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full ring-2 ring-white animate-pulse" title="Compte suspendu" />
+                              )}
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <h4 className="font-black text-slate-900 uppercase tracking-tight text-sm">{u.name}</h4>
+                                  {u.isVerified ? (
+                                    <CheckCircle className="w-4 h-4 text-emerald-500" />
+                                  ) : null}
+                              </div>
+                              <p className="text-xs font-medium text-slate-400 tracking-tight">{u.email}</p>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* 2. Contact & City */}
+                        <td className="py-4 px-6">
+                          <div className="flex flex-col">
+                            <span className="text-xs font-bold text-slate-800 flex items-center gap-1">
+                              <Phone className="w-3 h-3 text-slate-400" /> {u.phone || "Non renseigné"}
+                            </span>
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">
+                              {u.city ? `${u.city} - ${u.neighborhood || ""}` : "Aucune zone"}
+                            </span>
+                          </div>
+                        </td>
+
+                        {/* 3. Statuses */}
+                        <td className="py-4 px-6">
+                          <div className="flex flex-wrap gap-1.5 max-w-[220px]">
+                            {u.role === 'driver' && (
+                              <span className={cn(
+                                "px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest flex items-center gap-1 border",
+                                u.status === 'online' ? "bg-emerald-50 text-emerald-600 border-emerald-100" :
+                                u.status === 'busy' ? "bg-amber-50 text-amber-600 border-amber-100" :
+                                "bg-slate-50 text-slate-400 border-slate-150"
+                              )}>
+                                <span className={cn("w-1 h-1 rounded-full", u.status === 'online' ? "bg-emerald-500" : u.status === 'busy' ? "bg-amber-500" : "bg-slate-300")} />
+                                {u.status === 'online' ? 'Disponible' : u.status === 'busy' ? 'Occupé' : 'Hors Ligne'}
+                              </span>
+                            )}
+                            
+                            {u.accountStatus === 'pending_approval' && (
+                              <span className="px-2 py-0.5 bg-amber-100 text-amber-700 border border-amber-200 rounded-full text-[8px] font-black uppercase tracking-widest animate-pulse">
+                                Attente Approbation
+                              </span>
+                            )}
+
+                            {u.role === 'driver' && u.verificationStatus === 'pending' && (
+                              <span className="px-2 py-0.5 bg-blue-100 text-blue-700 border border-blue-200 rounded-full text-[8px] font-black uppercase tracking-widest animate-pulse">
+                                Dossier à vérifier
+                              </span>
+                            )}
+
+                            {u.role === 'driver' && (!u.idCardFront || !u.idCardBack || !u.guarantorName) && (
+                              <span className="px-2 py-0.5 bg-rose-50 text-rose-600 border border-rose-100 rounded-full text-[8px] font-black uppercase tracking-widest">
+                                Dossier Incomplet
+                              </span>
+                            )}
+
+                            {u.accountStatus === 'suspended' && (
+                              <span className="px-2 py-0.5 bg-red-100 text-red-700 border border-red-200 rounded-full text-[8px] font-black uppercase tracking-widest">
+                                Suspendu
+                              </span>
+                            )}
+
+                            {u.accountStatus === 'active' && (
+                              <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-full text-[8px] font-black uppercase tracking-widest">
+                                Actif
+                              </span>
+                            )}
+                          </div>
+                        </td>
+
+                        {/* 4. Activity / Vehicle */}
+                        <td className="py-4 px-6">
+                          {u.role === 'driver' && stats ? (
+                            <div className="flex flex-col gap-1">
+                              <div className="flex items-center gap-1.5">
+                                <span className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded-full text-[8px] font-black uppercase tracking-widest border border-blue-100/50">
+                                  {u.vehicleType || 'Moto'} • {u.licensePlate || 'Nouveau'}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2 mt-0.5 text-[10px] font-bold text-slate-500">
+                                <span className="flex items-center gap-0.5 text-amber-500">
+                                  <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                                  {stats.avgRating > 0 ? stats.avgRating.toFixed(1) : "N/A"}
+                                </span>
+                                <span>• Rang #{stats.rank || "-"}</span>
+                                <span>• {stats.completedCount} courses</span>
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Client classique</span>
+                          )}
+                        </td>
+
+                        {/* 5. Actions row */}
+                        <td className="py-4 px-6 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <button 
+                              onClick={() => handleOpenUserSupportChat(u)} 
+                              className="p-2 text-slate-400 hover:text-orange-500 hover:bg-slate-100 transition-all rounded-xl cursor-pointer"
+                              title="Discuter"
+                            >
+                              <MessageSquare className="w-4 h-4" />
+                            </button>
+
+                            <button 
+                              onClick={() => setSelectedUser(u)}
+                              className="bg-white border border-slate-200 px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-orange-50 hover:border-orange-200 transition-all text-slate-700 cursor-pointer"
+                            >
+                              Détails
+                            </button>
+
+                            {(u.accountStatus === 'pending_approval' || u.verificationStatus === 'pending') && u.role === 'driver' && (
+                              <button 
+                                onClick={async () => {
+                                  try {
+                                    const updates = { 
+                                      accountStatus: 'active',
+                                      verificationStatus: 'verified',
+                                      isVerified: true,
+                                      updatedAt: new Date().toISOString()
+                                    };
+                                    await api.admin.users.update(u.userId, updates);
+                                    fetchData();
+                                    
+                                    await sendNotification(
+                                      u.userId, 
+                                      "Dossier Approuvé !", 
+                                      "Bienvenue chez FASO EXPRESS ! Votre compte est activé et vos documents sont validés.", 
+                                      'success'
+                                    );
+                                  } catch(err) {
+                                    console.error(err);
+                                  }
+                                }}
+                                className="bg-emerald-500 text-white px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-emerald-600 transition-all shadow-md shadow-emerald-500/20 cursor-pointer"
+                              >
+                                Valider
+                              </button>
+                            )}
+
+                            {isSuperAdmin && (
+                              <button 
+                                onClick={async () => {
+                                  const action = u.accountStatus === 'suspended' ? 'active' : 'suspended';
+                                  try {
+                                    await api.admin.users.update(u.userId, { 
+                                      accountStatus: action,
+                                      updatedAt: new Date().toISOString()
+                                    });
+                                    fetchData();
+                                  } catch(err) {
+                                    console.error('Erreur lors de la modification');
+                                  }
+                                }}
+                                className={cn(
+                                  "px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border shadow-sm cursor-pointer",
+                                  u.accountStatus === 'suspended' 
+                                    ? "bg-emerald-50 text-emerald-600 border-emerald-100 hover:bg-emerald-100" 
+                                    : "bg-red-50 text-red-600 border-red-100 hover:bg-red-100"
+                                )}
+                              >
+                                {u.accountStatus === 'suspended' ? 'Activer' : 'Suspendre'}
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {totalItems === 0 && (
+                    <tr>
+                      <td colSpan={5} className="py-20 text-center">
+                        <p className="text-slate-400 font-black uppercase text-xs tracking-widest">Aucun utilisateur trouvé</p>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between border-t border-slate-100 pt-6 mt-6 flex-wrap gap-4">
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                  Affichage de <span className="text-slate-900 font-black">{startIndex + 1}</span> à{" "}
+                  <span className="text-slate-900 font-black">{Math.min(startIndex + itemsPerPage, totalItems)}</span> sur{" "}
+                  <span className="text-slate-900 font-black">{totalItems}</span> utilisateurs
+                </p>
+                <div className="flex items-center gap-1">
+                  <button
+                    disabled={activePage === 1}
+                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    className="p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                    title="Page précédente"
+                  >
+                    <ChevronLeft className="w-4 h-4 text-slate-600" />
+                  </button>
+                  {Array.from({ length: totalPages }).map((_, i) => {
+                    const pageNum = i + 1;
+                    if (
+                      pageNum === 1 ||
+                      pageNum === totalPages ||
+                      Math.abs(pageNum - activePage) <= 1
+                    ) {
+                      return (
+                        <button
+                          key={pageNum}
+                          onClick={() => setCurrentPage(pageNum)}
+                          className={cn(
+                            "w-8 h-8 rounded-xl font-black text-xs transition-all border cursor-pointer",
+                            activePage === pageNum
+                              ? "bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-600/25"
+                              : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                          )}
+                        >
+                          {pageNum}
+                        </button>
+                      );
+                    } else if (
+                      pageNum === 2 ||
+                      pageNum === totalPages - 1
+                    ) {
+                      return (
+                        <span key={pageNum} className="px-1 text-slate-400 font-bold text-xs select-none">
+                          ...
+                        </span>
+                      );
+                    }
+                    return null;
+                  })}
+                  <button
+                    disabled={activePage === totalPages}
+                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                    className="p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                    title="Page suivante"
+                  >
+                    <ChevronRight className="w-4 h-4 text-slate-600" />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      case 'Commissions':
+        return (
+           <div className="bg-white rounded-3xl p-6 lg:p-5 lg:p-6 shadow-sm border border-slate-100">
+             <div className="flex items-center justify-between mb-10">
+               <div>
+                 <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Journal des Commissions</h3>
+                 <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-1">Revenus generes par la plateforme</p>
+               </div>
+               <div className="bg-emerald-50 text-emerald-600 p-6 rounded-3xl border border-emerald-100 flex flex-col items-end">
+                 <p className="text-[10px] font-black uppercase tracking-widest opacity-60">TOTAL PLATFORME</p>
+                 <p className="text-2xl font-black tracking-tighter">
+                   {Math.floor(deliveries.reduce((acc, curr) => acc + (curr.clientProposedPrice || curr.cost || 0), 0) * (commission?.platformFeePercent || 15) / 100).toLocaleString()} FCFA
+                 </p>
+               </div>
+             </div>
+             <div className="space-y-4">
+                {deliveries.filter(d => d.status === 'delivered').map(d => (
+                  <div key={d.id} className="p-6 bg-slate-50 rounded-3xl border border-slate-100 flex items-center justify-between group hover:bg-white hover:shadow-xl transition-all">
+                    <div className="flex items-center gap-6">
+                      <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-emerald-500 shadow-sm">
+                        <DollarSign className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <p className="font-black text-slate-900 text-sm">Course #{d.id?.slice(0, 8) || 'N/A'}</p>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                          Montant: {d.cost || 0} FCFA * Commission: {Math.floor((d.cost || 0) * (commission?.platformFeePercent || 15) / 100)} FCFA
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                       <p className="text-[10px] font-black text-slate-900 uppercase tracking-widest">{d.createdAt ? new Date(d.createdAt).toLocaleDateString() : '-'}</p>
+                       <span className="text-[8px] font-black uppercase text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">Encaisse</span>
+                    </div>
+                  </div>
+                ))}
+             </div>
+           </div>
+        );
+      case 'Paiements Livreurs': {
+        const pendingWithdrawals = withdrawals.filter(w => w.status === 'en_attente');
+
+        return (
+          <div className="space-y-6">
+            <div className="flex flex-col gap-2">
+              <h3 className="text-3xl font-black text-slate-900 uppercase tracking-tighter">Demandes de Retrait</h3>
+              <p className="text-slate-500 font-medium text-sm">Gérez les demandes de virement des gains des livreurs.</p>
+            </div>
+
+            {/* Global Payout Mode Banner */}
+            <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 to-slate-800 rounded-[32px] p-8 lg:p-10 shadow-2xl border border-slate-700">
+               <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 blur-[100px] -mr-32 -mt-32" />
+               <div className="absolute bottom-0 left-0 w-64 h-64 bg-emerald-500/10 blur-[100px] -ml-32 -mb-32" />
+               
+               <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-8">
+                  <div className="max-w-2xl">
+                     <div className="flex items-center gap-2 mb-4">
+                        <div className="w-2 h-2 rounded-full bg-orange-400 animate-pulse" />
+                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Mode de traitement actuel</span>
+                     </div>
+                     
+                     <div className="flex items-center gap-4 mb-4">
+                        <h4 className="text-2xl lg:text-3xl font-black text-white uppercase tracking-tight">
+                           {globalPayoutMode === 'manual' ? 'Traitement Manuel (Hors-Plateforme)' : 'Traitement Automatique (Virement Mobile)'}
+                        </h4>
+                        <span className="bg-orange-500/20 text-orange-400 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest border border-orange-500/30">Actif</span>
+                     </div>
+                     
+                     <p className="text-slate-400 text-sm leading-relaxed font-medium">
+                        {globalPayoutMode === 'manual' 
+                          ? "Règlement hors-plateforme : L'administrateur procède manuellement au virement ou paiement physique par ses propres moyens (espèces, virement direct, etc.) puis valide la demande pour en notifier les intervenants."
+                          : "Enclenchement : Dès la validation, le mécanisme de calcul s'exécute et initie immédiatement une transaction de payout (virement) via l'API SapPay vers le numéro mobile du livreur."
+                        }
+                     </p>
+                  </div>
+
+                  <div className="flex bg-slate-950/50 p-1.5 rounded-2xl border border-slate-700/50 backdrop-blur-md">
+                     <button 
+                        onClick={() => togglePayoutMode('manual')}
+                        className={cn(
+                          "flex items-center gap-3 px-8 py-4 rounded-xl transition-all duration-300",
+                          globalPayoutMode === 'manual' 
+                            ? "bg-white text-slate-900 shadow-xl scale-105" 
+                            : "text-slate-500 hover:text-slate-300"
+                        )}
+                     >
+                        <span className="text-lg">👋</span>
+                        <span className="text-[11px] font-black uppercase tracking-[0.2em]">Manuel</span>
+                     </button>
+                     <button 
+                        onClick={() => togglePayoutMode('auto')}
+                        className={cn(
+                          "flex items-center gap-3 px-8 py-4 rounded-xl transition-all duration-300",
+                          globalPayoutMode === 'auto' 
+                            ? "bg-indigo-600 text-white shadow-xl shadow-indigo-500/20 scale-105" 
+                            : "text-slate-500 hover:text-slate-300"
+                        )}
+                     >
+                        <Zap className={cn("w-4 h-4", globalPayoutMode === 'auto' ? "fill-current" : "")} />
+                        <span className="text-[11px] font-black uppercase tracking-[0.2em]">Automatique</span>
+                     </button>
+                  </div>
+               </div>
+            </div>
+
+            <div className="bg-white rounded-[32px] p-8 lg:p-10 shadow-sm border border-slate-100">
+               {pendingWithdrawals.length === 0 ? (
+               <div className="text-center py-10 bg-slate-50 rounded-3xl border border-slate-100">
+                 <Wallet className="w-12 h-12 text-slate-300 mx-auto mb-4" />
+                 <p className="text-slate-500 font-medium">Aucun paiement en attente pour le moment.</p>
+               </div>
+             ) : (
+               <div className="space-y-6">
+                 {/* Table Headers */}
+                 <div className="hidden md:grid grid-cols-6 gap-4 px-6 py-4 bg-slate-50 rounded-2xl border border-slate-100 mb-4 items-center">
+                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Hôte / Demandeur</div>
+                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Montant (FCFA)</div>
+                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Méthode</div>
+                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Date Demande</div>
+                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 text-center">Statut</div>
+                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Actions</div>
+                 </div>
+
+                 <div className="grid grid-cols-1 gap-6">
+                  {pendingWithdrawals.map((withdrawal) => {
+                    const driver = users.find(u => u.userId === withdrawal.driverId);
+                    return (
+                      <div key={withdrawal.id} className="px-6 py-5 bg-slate-50 rounded-2xl border border-slate-100 grid grid-cols-1 md:grid-cols-6 items-center gap-4 group hover:bg-white hover:shadow-2xl transition-all">
+                         {/* Hôte / Demandeur */}
+                         <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-blue-600 shadow-sm border border-slate-100 relative shrink-0">
+                              <Truck className="w-5 h-5" />
+                            </div>
+                            <div className="min-w-0">
+                               <h4 className="font-black text-slate-900 uppercase text-[11px] truncate">
+                                 {withdrawal.driverName}
+                               </h4>
+                               <p className="text-[10px] font-bold text-indigo-600 truncate">
+                                 {withdrawal.withdrawalInfo || withdrawal.phone || driver?.phone || 'Non renseigné'}
+                               </p>
+                            </div>
+                         </div>
+
+                         {/* Montant */}
+                         <div>
+                            <p className="text-sm font-black text-slate-900">
+                               {withdrawal.amount?.toLocaleString()} F
+                            </p>
+                         </div>
+
+                         {/* Méthode */}
+                         <div>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 bg-slate-100 px-2 py-1 rounded-lg">
+                               {withdrawal.method === 'mobile_money' ? 'Mobile' : (withdrawal.method || 'Cash')}
+                            </span>
+                         </div>
+
+                         {/* Date */}
+                         <div>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                               {new Date(withdrawal.createdAt).toLocaleDateString('fr-FR')}
+                            </p>
+                         </div>
+
+                         {/* Statut */}
+                         <div className="text-center">
+                            <span className="text-[8px] font-black text-amber-600 uppercase tracking-widest bg-amber-50 px-2 py-1 rounded-full border border-amber-100">
+                               En attente
+                            </span>
+                         </div>
+
+                         {/* Actions */}
+                         <div className="flex items-center justify-end gap-2">
+                            <button 
+                               onClick={() => setPayoutModalData({ ...withdrawal, phone: withdrawal.phone, info: withdrawal.withdrawalInfo })}
+                               disabled={isProcessingAction}
+                               className="bg-slate-900 text-white px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-emerald-600 transition-all disabled:opacity-50 flex items-center gap-2"
+                            >
+                               <Settings2 className="w-3 h-3" />
+                               Valider
+                            </button>
+                            <button 
+                               onClick={() => handleRejectWithdrawal(withdrawal.id)}
+                               disabled={isProcessingAction}
+                               className="bg-white text-rose-500 border border-rose-100 px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-rose-50 transition-all disabled:opacity-50"
+                            >
+                               Rejeter
+                            </button>
+                         </div>
+                      </div>
+                    );
+                  })}
+               </div>
+             </div>
+             )}
+            </div>
+
+             {withdrawals.filter(w => w.status !== 'en_attente').length > 0 && (
+               <div className="mt-12 pt-8 border-t border-slate-100">
+                 <h3 className="text-xl font-black text-slate-900 uppercase tracking-tighter mb-6">Historique des paiements traites</h3>
+                 <div className="grid grid-cols-1 gap-4">
+                   {withdrawals.filter(w => w.status !== 'en_attente').map((wd) => (
+                     <div key={wd.id} className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between">
+                       <div className="flex items-center gap-4">
+                         <div className="w-10 h-10 bg-indigo-50 text-indigo-500 rounded-xl flex items-center justify-center">
+                           <DollarSign className="w-5 h-5" />
+                         </div>
+                         <div>
+                           <p className="font-black text-slate-900">{wd.driverName}</p>
+                           <p className="text-[10px] uppercase font-bold text-slate-400 mt-0.5">{new Date(wd.processedAt || wd.createdAt).toLocaleString('fr-FR')}</p>
+                         </div>
+                       </div>
+                       <div className="flex items-center gap-4 text-right">
+                         <div>
+                           <p className="text-lg font-black text-slate-900">{wd.amount} F</p>
+                           <span className={cn("text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full mt-1 inline-block", wd.status === 'valide' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600')}>{wd.status}</span>
+                         </div>
+                         {wd.status !== 'valide' && (
+                           <button
+                             onClick={() => setPayoutModalData({ ...wd, phone: wd.phone, info: wd.withdrawalInfo })}
+                             className="ml-4 p-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-600 transition-colors cursor-pointer"
+                             title="Forcer le statut (Force Update)"
+                           >
+                             <Settings2 className="w-5 h-5" />
+                           </button>
+                         )}
+                       </div>
+                     </div>
+                   ))}
+                 </div>
+               </div>
+             )}
+          </div>
+        );
+      }
+      case 'Modele Eco':
+        return (
+          <div className="max-w-4xl bg-white rounded-3xl p-6 lg:p-5 lg:p-6 shadow-sm border border-slate-100">
+            <div className="flex items-center gap-6 mb-10">
+              <div className="w-16 h-16 bg-orange-100 text-orange-600 rounded-3xl flex items-center justify-center">
+                <BadgePercent className="w-8 h-8" />
+              </div>
+              <div>
+                <h3 className="text-2xl font-black text-slate-900 tracking-tighter uppercase">Configuration du Modele Economique</h3>
+                <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-1">Definissez vos commissions et frais de plateforme</p>
+              </div>
+            </div>
+
+            {commission && (
+              <form onSubmit={handleUpdateCommission} className="grid grid-cols-1 md:grid-cols-2 gap-5 lg:p-6">
+                <div className="space-y-6">
+                  <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 px-2">Commission Plateforme (%)</label>
+                    <div className="relative">
+                      <Percent className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <input 
+                        type="number" 
+                        value={commission.platformFeePercent}
+                        onChange={e => setCommission({ ...commission, platformFeePercent: Number(e.target.value) })}
+                        className="w-full bg-white border-none rounded-xl pl-12 py-3 text-sm font-black focus:ring-4 focus:ring-orange-100 transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 px-2">Part des Livreurs (%)</label>
+                    <div className="relative">
+                      <Percent className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <input 
+                        type="number" 
+                        value={commission.driverSharePercent}
+                        onChange={e => setCommission({ ...commission, driverSharePercent: Number(e.target.value) })}
+                        className="w-full bg-white border-none rounded-xl pl-12 py-3 text-sm font-black focus:ring-4 focus:ring-orange-100 transition-all"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-6">
+                  <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 flex items-center justify-between">
+                    <div>
+                      <label className="block text-xs font-black text-slate-800 uppercase tracking-wider">Activer le Prix Minimal Obligatoire</label>
+                      <p className="text-[11px] font-bold text-slate-500 mt-1">Si activé, aucun client ne pourra proposer ou passer de commande en dessous du prix minimal ({commission.minDeliveryCost || 500} FCFA).</p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer ml-4">
+                      <input 
+                        type="checkbox" 
+                        checked={commission.enableMinPriceConstraint !== false}
+                        onChange={e => setCommission({ ...commission, enableMinPriceConstraint: e.target.checked })}
+                        className="sr-only peer"
+                      />
+                      <div className="w-12 h-7 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-orange-500"></div>
+                    </label>
+                  </div>
+
+                  <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 px-2">Course Minimum (FCFA)</label>
+                    <div className="relative">
+                      <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <input 
+                        type="number" 
+                        value={commission.minDeliveryCost}
+                        onChange={e => setCommission({ ...commission, minDeliveryCost: Number(e.target.value) })}
+                        className="w-full bg-white border-none rounded-xl pl-12 py-3 text-sm font-black focus:ring-4 focus:ring-orange-100 transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 px-2">Missions Simultanees Max</label>
+                    <div className="relative">
+                      <Package className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <input 
+                        type="number" 
+                        value={commission.maxSimultaneousDeliveries || 2}
+                        onChange={e => setCommission({ ...commission, maxSimultaneousDeliveries: Number(e.target.value) })}
+                        className="w-full bg-white border-none rounded-xl pl-12 py-3 text-sm font-black focus:ring-4 focus:ring-orange-100 transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 px-2">Assurance (%)</label>
+                    <div className="relative">
+                      <ShieldCheck className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <input 
+                        type="number" 
+                        value={commission.insuranceFeePercent}
+                        onChange={e => setCommission({ ...commission, insuranceFeePercent: Number(e.target.value) })}
+                        className="w-full bg-white border-none rounded-xl pl-12 py-3 text-sm font-black focus:ring-4 focus:ring-orange-100 transition-all"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-6">
+                  <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-2 mb-4">Parametres de Negociation</h4>
+                  <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 px-2">Tarif par KM (FCFA)</label>
+                    <div className="relative">
+                      <Navigation className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <input 
+                        type="number" 
+                        value={commission.tarifKm}
+                        onChange={e => setCommission({ ...commission, tarifKm: Number(e.target.value) })}
+                        className="w-full bg-white border-none rounded-xl pl-12 py-3 text-sm font-black focus:ring-4 focus:ring-orange-100 transition-all"
+                      />
+                    </div>
+                  </div>
+                  <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 px-2">Tarif par KG (FCFA)</label>
+                    <div className="relative">
+                      <Package className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <input 
+                        type="number" 
+                        value={commission.tarifPoids}
+                        onChange={e => setCommission({ ...commission, tarifPoids: Number(e.target.value) })}
+                        className="w-full bg-white border-none rounded-xl pl-12 py-3 text-sm font-black focus:ring-4 focus:ring-orange-100 transition-all"
+                      />
+                    </div>
+                  </div>
+                  <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 px-2">Frais Fixes (FCFA)</label>
+                    <div className="relative">
+                      <Plus className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <input 
+                        type="number" 
+                        value={commission.fraisFixes}
+                        onChange={e => setCommission({ ...commission, fraisFixes: Number(e.target.value) })}
+                        className="w-full bg-white border-none rounded-xl pl-12 py-3 text-sm font-black focus:ring-4 focus:ring-orange-100 transition-all"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-6">
+                  <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-2 mb-4">Limites de Negociation</h4>
+                  <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 px-2">Ratio Min Client (ex: 0.7 = 70%)</label>
+                    <div className="relative">
+                      <Percent className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <input 
+                        type="number" 
+                        step="0.1"
+                        value={commission.minRatioClient}
+                        onChange={e => setCommission({ ...commission, minRatioClient: Number(e.target.value) })}
+                        className="w-full bg-white border-none rounded-xl pl-12 py-3 text-sm font-black focus:ring-4 focus:ring-orange-100 transition-all"
+                      />
+                    </div>
+                  </div>
+                  <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 px-2">Ratio Max Livreur (ex: 2.0 = 200%)</label>
+                    <div className="relative">
+                      <Percent className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <input 
+                        type="number" 
+                        step="0.1"
+                        value={commission.maxRatioLivreur}
+                        onChange={e => setCommission({ ...commission, maxRatioLivreur: Number(e.target.value) })}
+                        className="w-full bg-white border-none rounded-xl pl-12 py-3 text-sm font-black focus:ring-4 focus:ring-orange-100 transition-all"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="md:col-span-2 mt-8 space-y-6">
+                  <div className="flex items-center justify-between px-2 mb-4 bg-orange-50 p-6 rounded-3xl border border-orange-100">
+                    <div>
+                      <h4 className="text-[12px] font-black text-orange-600 uppercase tracking-widest flex items-center gap-2">
+                        <BadgePercent className="w-5 h-5" />
+                        Activer la Promo (Tarifs Reduits)
+                      </h4>
+                      <p className="text-[10px] text-orange-500/80 mt-1 font-bold">Applique les tarifs promotionnels definis ci-dessous.</p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        value="" 
+                        className="sr-only peer"
+                        checked={commission.promoEnabled ?? false}
+                        onChange={(e) => setCommission({ ...commission, promoEnabled: e.target.checked })}
+                      />
+                      <div className="w-14 h-7 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-orange-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-orange-500"></div>
+                    </label>
+                  </div>
+                  <div className="flex items-center justify-between px-2">
+                    <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Tarification Promo & Intervalles de Distance</h4>
+                    <button 
+                      type="button"
+                      onClick={handleAddDistanceRule}
+                      className="text-[10px] font-black text-orange-600 uppercase tracking-widest flex items-center gap-2 hover:text-orange-700 transition-colors"
+                    >
+                      <Plus className="w-4 h-4" /> Ajouter un Intervalle
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-4">
+                    {(commission.distancePricingRules || []).map((rule) => (
+                      <div key={rule.id} className="bg-slate-50 p-6 rounded-3xl border border-slate-100 grid grid-cols-1 sm:grid-cols-4 gap-4 items-end">
+                        <div className="sm:col-span-1">
+                          <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">Min (KM)</label>
+                          <input 
+                            type="number"
+                            value={rule.minKm}
+                            onChange={(e) => handleUpdateDistanceRule(rule.id, { minKm: Number(e.target.value) })}
+                            className="w-full bg-white border-none rounded-xl px-4 py-2 text-xs font-black focus:ring-2 focus:ring-orange-100"
+                          />
+                        </div>
+                        <div className="sm:col-span-1">
+                          <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">Max (KM)</label>
+                          <input 
+                            type="number"
+                            value={rule.maxKm}
+                            onChange={(e) => handleUpdateDistanceRule(rule.id, { maxKm: Number(e.target.value) })}
+                            className="w-full bg-white border-none rounded-xl px-4 py-2 text-xs font-black focus:ring-2 focus:ring-orange-100"
+                          />
+                        </div>
+                        <div className="sm:col-span-1">
+                          <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">Prix (FCFA)</label>
+                          <input 
+                            type="number"
+                            value={rule.price}
+                            onChange={(e) => handleUpdateDistanceRule(rule.id, { price: Number(e.target.value) })}
+                            className="w-full bg-white border-none rounded-xl px-4 py-2 text-xs font-black focus:ring-2 focus:ring-orange-100"
+                          />
+                        </div>
+                        <div className="flex justify-end">
+                          <button 
+                            type="button"
+                            onClick={() => handleRemoveDistanceRule(rule.id)}
+                            className="w-10 h-10 bg-white text-red-500 rounded-xl flex items-center justify-center border border-slate-100 hover:bg-red-50 transition-colors shadow-sm"
+                          >
+                            <X className="w-5 h-5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+
+                    {(commission.distancePricingRules || []).length === 0 && (
+                      <div className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-3xl p-6 lg:p-5 lg:p-6 text-center">
+                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Aucun intervalle defini. Le tarif par KM standard sera utilise.</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="md:col-span-2 pt-8 flex items-center justify-between border-t border-slate-100 mt-4">
+                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-tight">
+                    Derniere modif par : {commission.updatedBy}<br/>
+                    {new Date(commission.updatedAt).toLocaleString()}
+                  </div>
+                  <button 
+                    disabled={isSaving}
+                    type="submit"
+                    className="flex items-center gap-3 px-10 py-5 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-orange-600 transition-all shadow-2xl shadow-slate-200 disabled:opacity-50"
+                  >
+                    {isSaving ? <Clock className="w-5 h-5 animate-spin" /> : <Settings className="w-5 h-5" />}
+                    Mettre a jour la politique tarifaire
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        );
+      case 'Carte Live (GPS)':
+        const activeDrivers = users.filter(u => u.role === 'driver');
+        return (
+          <div className="bg-white rounded-3xl p-6 sm:p-6 lg:p-5 lg:p-6 shadow-sm border border-slate-100 overflow-hidden flex flex-col h-[600px] lg:h-full">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+              <div>
+                <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Carte en Temps Reel</h3>
+                <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest mt-1">Suivi en direct de la flotte et des colis</p>
+              </div>
+              <div className="flex gap-4">
+                <div className="flex items-center gap-2 bg-blue-50 px-3 py-1.5 rounded-full border border-blue-100">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
+                  <span className="text-[9px] font-black uppercase text-blue-600 tracking-wider">Flux Live Actif</span>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex-1 min-h-0">
+               <LiveMap 
+                 drivers={activeDrivers} 
+                 deliveries={deliveries} 
+               />
+            </div>
+          </div>
+        );
+      case 'Secteurs d\'Ouaga': {
+        const handleCreateSector = async (e: React.FormEvent) => {
+          e.preventDefault();
+          if (!newSectorName.trim()) {
+            setToast({ type: 'error', message: 'Veuillez saisir un nom de secteur.' });
+            return;
+          }
+          setIsCreatingSector(true);
+          try {
+            await api.sectors.create({ name: newSectorName.trim(), city: 'Ouagadougou', isActive: true });
+            setNewSectorName("");
+            setToast({ type: 'success', message: 'Secteur ajoute avec succes !' });
+            await fetchData();
+          } catch (err: any) {
+            setToast({ type: 'error', message: 'Erreur: ' + (err.message || err) });
+          } finally {
+            setIsCreatingSector(false);
+          }
+        };
+
+        const handleDeleteSector = async (id: string) => {
+          try {
+            await api.sectors.delete(id);
+            setToast({ type: 'success', message: 'Secteur supprime avec succes !' });
+            setConfirmingDeleteSectorId(null);
+            await fetchData();
+          } catch (err: any) {
+            setToast({ type: 'error', message: 'Erreur de suppression: ' + (err.message || err) });
+          }
+        };
+
+        const handleInitializeDefaults = async () => {
+          setIsCreatingSector(true);
+          setToast({ type: 'info', message: 'Initialisation en cours...' });
+          try {
+            for (const n of ['Paspanga', 'Koulouba', 'Gounghin', 'Dassasgho', 'Ouaga 2000']) {
+              await api.sectors.create({ name: n, city: 'Ouagadougou', isActive: true });
+            }
+            setToast({ type: 'success', message: 'Secteurs initialises avec succes !' });
+            await fetchData();
+          } catch (err: any) {
+            setToast({ type: 'error', message: "Erreur d'initialisation: " + (err.message || err) });
+          } finally {
+            setIsCreatingSector(false);
+          }
+        };
+
+        return (
+          <div className="bg-white rounded-[32px] p-8 border border-slate-100 shadow-sm">
+             <div className="flex justify-between items-center mb-8">
+               <div>
+                  <h3 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Maillage Territorial</h3>
+                  <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-1">Secteurs actifs et couverture reseau</p>
+               </div>
+               <div className="w-12 h-12 bg-orange-50 text-orange-600 rounded-2xl flex items-center justify-center">
+                  <Globe className="w-6 h-6" />
+               </div>
+             </div>
+
+             <form onSubmit={handleCreateSector} className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-slate-50 p-6 rounded-2xl border border-slate-100 mb-8 items-end">
+               <div className="md:col-span-3">
+                 <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1 pl-2">Nom du nouveau secteur (ex: Wayalghin, Dassasgho...)</label>
+                 <input 
+                   type="text" 
+                   placeholder="Creer un nouveau secteur..."
+                   value={newSectorName}
+                   onChange={e => setNewSectorName(e.target.value)}
+                   className="w-full bg-white border border-slate-200 text-slate-900 p-3 rounded-xl focus:outline-none focus:border-indigo-500 font-bold text-xs"
+                   disabled={isCreatingSector}
+                 />
+               </div>
+               <div>
+                 <button 
+                   type="submit"
+                   disabled={isCreatingSector}
+                   className="w-full py-3 bg-slate-900 hover:bg-orange-600 text-white font-extrabold uppercase tracking-widest text-[9px] rounded-xl transition-all"
+                 >
+                   {isCreatingSector ? "Ajout..." : "Enregistrer"}
+                 </button>
+               </div>
+             </form>
+
+             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {sectors.map(s => {
+                  const activityCount = deliveries.filter(d => 
+                    d.from?.address?.toLowerCase().includes(s.name.toLowerCase()) || 
+                    d.to?.address?.toLowerCase().includes(s.name.toLowerCase())
+                  ).length;
+                  return (
+                    <div 
+                      key={s.id} 
+                      className="p-6 bg-slate-50 rounded-3xl border border-slate-100 group transition-all relative"
+                    >
+                      <div className="absolute top-4 right-4">
+                        {confirmingDeleteSectorId === s.id ? (
+                          <div className="flex items-center gap-1 bg-white border border-red-100 p-1.5 rounded-xl shadow-md z-10">
+                            <span className="text-[8px] font-black uppercase text-red-500 mr-1 animate-pulse">Sur?</span>
+                            <button
+                              onClick={() => handleDeleteSector(s.id)}
+                              className="bg-red-600 hover:bg-red-700 text-white font-extrabold px-2 py-1 rounded-lg text-[8px] uppercase tracking-wider transition-all"
+                            >
+                              Oui
+                            </button>
+                            <button
+                              onClick={() => setConfirmingDeleteSectorId(null)}
+                              className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-extrabold px-2 py-1 rounded-lg text-[8px] uppercase tracking-wider transition-all"
+                            >
+                              Non
+                            </button>
+                          </div>
+                        ) : (
+                          <button 
+                            onClick={() => setConfirmingDeleteSectorId(s.id)}
+                            className="w-8 h-8 bg-white text-rose-500 rounded-xl flex items-center justify-center border border-rose-100 hover:bg-rose-50 transition-all shadow-sm"
+                            title="Supprimer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                      <Globe className="w-6 h-6 text-slate-300 mb-4 group-hover:text-orange-500 transition-all" />
+                      <div className="flex justify-between items-end">
+                        <span className="font-black text-slate-900 text-sm uppercase">{s.name}</span>
+                        <span className={cn(
+                          "text-[10px] font-black px-2 py-1 rounded-lg",
+                          activityCount > 0 ? "text-emerald-500 bg-emerald-50" : "text-slate-400 bg-white border border-slate-100"
+                        )}>
+                          {activityCount} Flux
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+                {sectors.length === 0 && (
+                  <div className="col-span-full py-20 text-center bg-slate-50 rounded-3xl border border-dashed border-slate-200">
+                    <p className="text-slate-400 font-black uppercase text-[10px] tracking-widest leading-none">Aucun secteur defini dans la base de donnees</p>
+                    <p className="text-slate-300 font-bold text-[9px] uppercase tracking-widest mt-2 leading-none cursor-pointer hover:text-indigo-600" onClick={handleInitializeDefaults}>
+                      Initialiser avec les secteurs par defaut
+                    </p>
+                  </div>
+                )}
+             </div>
+          </div>
+        );
+      }
+      case 'Parametres App': {
+        return (
+          <form onSubmit={handleUpdateConfig} className="bg-white rounded-3xl p-6 lg:p-5 lg:p-6 shadow-sm border border-slate-100">
+             <div className="flex justify-between items-center mb-8">
+               <div>
+                  <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Configuration Systeme</h3>
+                  <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-1">Modes de fonctionnement et maintenance</p>
+               </div>
+               <button 
+                 disabled={isSaving}
+                 type="submit"
+                 className="flex items-center gap-3 px-6 py-3 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-orange-600 transition-all shadow-xl shadow-slate-200 disabled:opacity-50"
+               >
+                 {isSaving ? <Clock className="w-4 h-4 animate-spin" /> : <Settings className="w-4 h-4" />}
+                 Enregistrer
+               </button>
+             </div>
+
+               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 lg:p-6">
+                   {isMasterAdmin && (
+                      <div className="p-5 lg:p-6 bg-rose-50 rounded-2xl border border-rose-100 flex flex-col justify-between">
+                         <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-4">
+                               <div className="w-10 h-10 bg-white text-rose-600 rounded-xl flex items-center justify-center shadow-sm">
+                                  <ShieldCheck className="w-5 h-5" />
+                               </div>
+                               <h4 className="font-black text-slate-900 uppercase text-sm tracking-tight">Maintenance</h4>
+                            </div>
+                         </div>
+                         <div className="flex flex-col gap-2">
+                            <button 
+                              type="button"
+                              onClick={handleSeedData}
+                              className="w-full py-3 bg-white text-emerald-600 border border-emerald-100 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-emerald-50 transition-all font-black"
+                            >
+                               Generer Donnees
+                            </button>
+                            <button 
+                              type="button"
+                              onClick={() => setShowResetConfirm(true)}
+                              className="w-full py-3 bg-rose-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-rose-700 transition-all shadow-lg shadow-rose-200"
+                            >
+                               Hard Reset
+                            </button>
+                         </div>
+                      </div>
+                   )}
+                  <div className="p-5 lg:p-6 bg-slate-50 rounded-2xl border border-slate-100">
+                     <div className="flex justify-between items-center mb-6">
+                        <div className="flex items-center gap-4">
+                           <div className="w-10 h-10 bg-indigo-100 text-indigo-600 rounded-xl flex items-center justify-center">
+                              <Zap className="w-5 h-5" />
+                           </div>
+                           <h4 className="font-black text-slate-900 uppercase text-sm tracking-tight">Mode de Production</h4>
+                        </div>
+                        <span className={cn(
+                          "text-[9px] font-black uppercase px-2 py-1 rounded-lg",
+                          configForm?.mode === 'prod' ? "bg-emerald-100 text-emerald-600" : "bg-orange-100 text-orange-600"
+                        )}>
+                          {configForm?.mode || 'TEST'}
+                        </span>
+                     </div>
+                     <div className="flex gap-2">
+                        <button 
+                          type="button"
+                          onClick={() => setConfigForm({ ...configForm!, mode: 'test' })}
+                          className={cn("flex-1 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all", configForm?.mode === 'test' ? "bg-orange-500 text-white shadow-lg shadow-orange-200" : "bg-white border border-slate-200 text-slate-400 hover:bg-white")}
+                        >
+                          Mode Test
+                        </button>
+                        <button 
+                          type="button"
+                          onClick={() => setConfigForm({ ...configForm!, mode: 'prod' })}
+                          className={cn("flex-1 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all", configForm?.mode === 'prod' ? "bg-emerald-500 text-white shadow-lg shadow-emerald-200" : "bg-white border border-slate-200 text-slate-400 hover:bg-white")}
+                        >
+                          Production
+                        </button>
+                     </div>
+                     <p className="text-[10px] text-slate-400 font-bold mt-4 leading-relaxed uppercase tracking-tight">Le mode test désactive les vrais paiements et utilise les simulateurs des opérateurs.</p>
+                  </div>
+
+                  <div className="p-5 lg:p-6 bg-slate-50 rounded-2xl border border-slate-100">
+                     <div className="flex justify-between items-center mb-6">
+                        <div className="flex items-center gap-4">
+                           <div className="w-10 h-10 bg-rose-100 text-rose-600 rounded-xl flex items-center justify-center">
+                              <ShieldCheck className="w-5 h-5" />
+                           </div>
+                           <h4 className="font-black text-slate-900 uppercase text-sm tracking-tight">Mode Maintenance</h4>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input 
+                            type="checkbox" 
+                            checked={configForm?.isMaintenanceMode || false}
+                            onChange={(e) => setConfigForm({ ...configForm!, isMaintenanceMode: e.target.checked })}
+                            className="sr-only peer"
+                          />
+                          <div className="w-11 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:bg-rose-500 after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+                        </label>
+                     </div>
+                     <input 
+                        type="text"
+                        placeholder="Message de maintenance..."
+                        value={configForm?.maintenanceMessage || ''}
+                        onChange={(e) => setConfigForm({ ...configForm!, maintenanceMessage: e.target.value })}
+                        className="w-full bg-white border-none rounded-xl px-4 py-3 text-xs font-bold focus:ring-4 focus:ring-rose-100"
+                     />
+                     <p className="text-[10px] text-slate-400 font-bold mt-4 leading-relaxed uppercase tracking-tight">Une fois actif, bloquera tout acces aux clients et drivers avec le message ci-dessus.</p>
+                  </div>
+
+                  <div className="p-5 lg:p-6 bg-slate-50 rounded-2xl border border-slate-100">
+                     <div className="flex justify-between items-center mb-6">
+                        <div className="flex items-center gap-4">
+                           <div className="w-10 h-10 bg-indigo-100 text-indigo-600 rounded-xl flex items-center justify-center">
+                              <Users className="w-5 h-5" />
+                           </div>
+                           <div>
+                             <h4 className="font-black text-slate-900 uppercase text-sm tracking-tight leading-tight">Approbation des Livreurs</h4>
+                             <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Workflow de creation de compte</p>
+                           </div>
+                        </div>
+                     </div>
+                     <div className="flex flex-col gap-2">
+                        <button 
+                          type="button"
+                          onClick={() => setConfigForm({ ...configForm!, driverApprovalMode: 'manual' })}
+                          className={cn("w-full py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all text-center", (configForm?.driverApprovalMode || 'manual') === 'manual' ? "bg-indigo-600 text-white shadow-lg shadow-indigo-100" : "bg-white border border-slate-200 text-slate-400 hover:bg-slate-50")}
+                        >
+                          Approbation Manuelle
+                        </button>
+                        <button 
+                          type="button"
+                          onClick={() => setConfigForm({ ...configForm!, driverApprovalMode: 'automatic' })}
+                          className={cn("w-full py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all text-center", configForm?.driverApprovalMode === 'automatic' ? "bg-emerald-600 text-white shadow-lg shadow-emerald-100" : "bg-white border border-slate-200 text-slate-400 hover:bg-slate-50")}
+                        >
+                          Approbation Automatique
+                        </button>
+                        <button 
+                          type="button"
+                          onClick={() => setConfigForm({ ...configForm!, driverApprovalMode: 'disabled' })}
+                          className={cn("w-full py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all text-center", configForm?.driverApprovalMode === 'disabled' ? "bg-amber-600 text-white shadow-lg shadow-amber-100" : "bg-white border border-slate-200 text-slate-400 hover:bg-slate-50")}
+                        >
+                          Desactivee (Tous actifs)
+                        </button>
+                     </div>
+                     <p className="text-[10px] text-slate-400 font-bold mt-4 leading-relaxed uppercase tracking-tight">Configure le mode d'approbation et d'activation des nouveaux comptes livreurs inscrits.</p>
+                  </div>
+
+                  <div className="p-5 lg:p-6 bg-slate-50 rounded-2xl border border-slate-100">
+                     <div className="flex justify-between items-center mb-6">
+                        <div className="flex items-center gap-4">
+                           <div className="w-10 h-10 bg-orange-100 text-orange-600 rounded-xl flex items-center justify-center">
+                              <Truck className="w-5 h-5" />
+                           </div>
+                           <div>
+                             <h4 className="font-black text-slate-900 uppercase text-sm tracking-tight leading-tight">Reaffectation de Mission</h4>
+                             <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Algorithme de dispatch automatique</p>
+                           </div>
+                        </div>
+                     </div>
+                     <div className="flex gap-2">
+                        <button 
+                          type="button"
+                          onClick={() => setConfigForm({ ...configForm!, reassignmentMode: 'manual' })}
+                          className={cn("flex-1 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all", (configForm?.reassignmentMode || 'manual') === 'manual' ? "bg-slate-900 text-white shadow-lg shadow-slate-200" : "bg-white border border-slate-200 text-slate-400 hover:bg-slate-50")}
+                        >
+                          Manuelle
+                        </button>
+                        <button 
+                          type="button"
+                          onClick={() => setConfigForm({ ...configForm!, reassignmentMode: 'automatic' })}
+                          className={cn("flex-1 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all", configForm?.reassignmentMode === 'automatic' ? "bg-orange-500 text-white shadow-lg shadow-orange-200" : "bg-white border border-slate-200 text-slate-400 hover:bg-slate-50")}
+                        >
+                          Automatique
+                        </button>
+                     </div>
+                     <p className="text-[10px] text-slate-400 font-bold mt-4 leading-relaxed uppercase tracking-tight">Si automatique, le systeme recherche immediatement un autre livreur lorsqu'un refus survient.</p>
+
+                     {configForm?.reassignmentMode === 'automatic' && (
+                        <div className="mt-4 border-t border-slate-200/60 pt-4">
+                           <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1.5 text-left">Délai de réaffectation automatique (secondes)</label>
+                           <input 
+                             type="number"
+                             min="10"
+                             value={configForm?.autoReassignmentDelay !== undefined ? String(configForm.autoReassignmentDelay) : '60'}
+                             onChange={(e) => setConfigForm({ ...configForm!, autoReassignmentDelay: e.target.value ? parseInt(e.target.value) || 0 : 0 })}
+                             className="w-full bg-white border border-slate-200 px-4 py-2.5 rounded-xl font-bold text-xs focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-all text-slate-800"
+                             placeholder="Ex: 60"
+                           />
+                           <p className="text-[9px] text-slate-400 font-bold mt-1 uppercase tracking-tight">Temps d'attente d'acceptation de la mission avant désassignation automatique.</p>
+                        </div>
+                     )}
+
+                     <div className="mt-4 border-t border-slate-200/60 pt-4">
+                        <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1.5 text-left">Limite de missions d'essai (Dossier Incomplet)</label>
+                        <input 
+                          type="number"
+                          min="0"
+                          value={configForm?.maxMissionsBeforeRestriction !== undefined ? String(configForm.maxMissionsBeforeRestriction) : '3'}
+                          onChange={(e) => setConfigForm({ ...configForm!, maxMissionsBeforeRestriction: e.target.value ? parseInt(e.target.value) || 0 : 0 })}
+                          className="w-full bg-white border border-slate-200 px-4 py-2.5 rounded-xl font-bold text-xs focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-all text-slate-800"
+                          placeholder="Ex: 3"
+                        />
+                        <p className="text-[9px] text-slate-400 font-bold mt-1 uppercase tracking-tight">Nombre maximum de missions d'essai autorisées avant restriction automatique du livreur.</p>
+                     </div>
+                  </div>
+
+                  {/* Moyens de Paiement Actifs */}
+                  <div className="p-5 lg:p-6 bg-slate-50 rounded-2xl border border-slate-100 col-span-1 md:col-span-2 mt-4">
+                     <div className="flex items-center gap-4 mb-6">
+                        <div className="w-10 h-10 bg-emerald-100 text-emerald-600 rounded-xl flex items-center justify-center">
+                           <CreditCard className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h4 className="font-black text-slate-900 uppercase text-sm tracking-tight">Moyens de Paiement Actives</h4>
+                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-none mt-1">Configurez les canaux de facturation de l'application</p>
+                        </div>
+                     </div>
+                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        <div className="bg-white p-5 rounded-xl border border-slate-200 flex items-center justify-between shadow-sm">
+                           <div>
+                              <p className="text-xs font-black text-slate-900 uppercase">Paiement direct (OTP)</p>
+                              <p className="text-[9px] font-bold text-slate-400 uppercase mt-1 leading-relaxed">Declenchement automatique par push SMS et saisie de code direct.</p>
+                           </div>
+                           <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                             <input 
+                               type="checkbox" 
+                               checked={configForm?.isOtpActive !== false}
+                               onChange={(e) => setConfigForm({ ...configForm!, isOtpActive: e.target.checked })}
+                               className="sr-only peer"
+                             />
+                             <div className="w-11 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:bg-emerald-500 after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+                           </label>
+                        </div>
+
+                        <div className="bg-white p-5 rounded-xl border border-slate-200 flex items-center justify-between shadow-sm">
+                           <div>
+                              <p className="text-xs font-black text-slate-900 uppercase">Paiement manuel (USSD)</p>
+                              <p className="text-[9px] font-bold text-slate-400 uppercase mt-1 leading-relaxed">Generation de syntaxes et saisie manuelle de reference de recu.</p>
+                           </div>
+                           <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                             <input 
+                               type="checkbox" 
+                               checked={configForm?.isUssdActive !== false}
+                               onChange={(e) => setConfigForm({ ...configForm!, isUssdActive: e.target.checked })}
+                               className="sr-only peer"
+                             />
+                             <div className="w-11 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:bg-emerald-500 after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+                           </label>
+                        </div>
+
+                        <div className="bg-white p-5 rounded-xl border border-slate-200 flex items-center justify-between shadow-sm opacity-60">
+                           <div>
+                              <p className="text-xs font-black text-slate-900 uppercase">Paiement Cash (BETA)</p>
+                              <p className="text-[9px] font-bold text-slate-400 uppercase mt-1 leading-relaxed">Directement au livreur (Risque de securite augmente).</p>
+                           </div>
+                           <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                             <input 
+                               type="checkbox" 
+                               checked={configForm?.isCashActive || false}
+                               onChange={(e) => setConfigForm({ ...configForm!, isCashActive: e.target.checked })}
+                               className="sr-only peer"
+                             />
+                             <div className="w-11 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:bg-emerald-500 after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+                           </label>
+                        </div>
+
+                        <div className="bg-white p-5 rounded-xl border border-slate-200 flex items-center justify-between shadow-sm opacity-60">
+                           <div>
+                              <p className="text-xs font-black text-slate-900 uppercase">Carte Bancaire (BETA)</p>
+                              <p className="text-[9px] font-bold text-slate-400 uppercase mt-1 leading-relaxed">Via Stripe ou passerelle internationale (BETA).</p>
+                           </div>
+                           <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                             <input 
+                               type="checkbox" 
+                               checked={configForm?.isCardActive || false}
+                               onChange={(e) => setConfigForm({ ...configForm!, isCardActive: e.target.checked })}
+                               className="sr-only peer"
+                             />
+                             <div className="w-11 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:bg-emerald-500 after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+                           </label>
+                        </div>
+                     </div>
+                  </div>
+               </div>
+
+                {/* Configuration de la Passerelle Sappay */}
+                <div className="mt-8 p-6 lg:p-8 bg-slate-50 rounded-[32px] border border-slate-100">
+                   <div className="flex items-center gap-5 mb-8">
+                      <div className="w-12 h-12 bg-emerald-500 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-200">
+                         <CreditCard className="w-6 h-6" />
+                      </div>
+                      <div>
+                         <h4 className="font-black text-slate-900 uppercase text-lg tracking-tight">Identifiants Sappay (Paiement Direct/OTP)</h4>
+                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Configurez l'API de paiement automatique Moov/Orange/Telecel</p>
+                      </div>
+                   </div>
+
+                   <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 mb-8 flex gap-4 items-start">
+                     <div className="w-8 h-8 bg-emerald-100 text-emerald-600 rounded-lg flex items-center justify-center shrink-0">
+                       <Zap className="w-4 h-4" />
+                     </div>
+                     <div>
+                       <h5 className="text-[10px] font-black text-emerald-900 uppercase tracking-widest mb-1">Priorite des Identifiants</h5>
+                       <p className="text-xs text-emerald-800 font-medium leading-relaxed">
+                         Les valeurs definies dans votre fichier <span className="font-bold">.env</span> local sont utilisees en priorite. Si elles sont absentes ou vides, l'application utilisera les valeurs saisies ci-dessous.
+                       </p>
+                     </div>
+                   </div>
+
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                         <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider block mb-2">Sappay Client ID</label>
+                         <input 
+                            type="text"
+                            placeholder="Entrez votre Sappay Client ID..."
+                            value={configForm?.sappayClientId || ''}
+                            onChange={(e) => setConfigForm({ ...configForm!, sappayClientId: e.target.value })}
+                            className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold focus:ring-4 focus:ring-emerald-100 focus:border-emerald-500"
+                         />
+                      </div>
+                      <div>
+                         <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider block mb-2">Sappay Client Secret</label>
+                         <div className="relative">
+                            <input 
+                               type={showSappaySecret ? "text" : "password"}
+                               placeholder="Entrez votre Sappay Client Secret..."
+                               value={configForm?.sappayClientSecret || ''}
+                               onChange={(e) => setConfigForm({ ...configForm!, sappayClientSecret: e.target.value })}
+                               className="w-full bg-white border border-slate-200 rounded-xl px-4 pr-12 py-3 text-xs font-bold focus:ring-4 focus:ring-emerald-100 focus:border-emerald-500"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowSappaySecret(!showSappaySecret)}
+                              className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                            >
+                              {showSappaySecret ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                            </button>
+                         </div>
+                      </div>
+                      <div>
+                         <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider block mb-2">Identifiant de Connexion (Username)</label>
+                         <input 
+                            type="text"
+                            placeholder="Entrez l'identifiant pour Sappay..."
+                            value={configForm?.sappayUsername || ''}
+                            onChange={(e) => setConfigForm({ ...configForm!, sappayUsername: e.target.value })}
+                            className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold focus:ring-4 focus:ring-emerald-100 focus:border-emerald-500"
+                         />
+                      </div>
+                      <div>
+                         <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider block mb-2">Mot de Passe (Password)</label>
+                         <div className="relative">
+                            <input 
+                               type={showSappayPassword ? "text" : "password"}
+                               placeholder="Entrez le mot de passe pour Sappay..."
+                               value={configForm?.sappayPassword || ''}
+                               onChange={(e) => setConfigForm({ ...configForm!, sappayPassword: e.target.value })}
+                               className="w-full bg-white border border-slate-200 rounded-xl px-4 pr-12 py-3 text-xs font-bold focus:ring-4 focus:ring-emerald-100 focus:border-emerald-500"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowSappayPassword(!showSappayPassword)}
+                              className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                            >
+                              {showSappayPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                            </button>
+                         </div>
+                      </div>
+                   </div>
+                </div>
+
+               <div className="mt-8 p-6 lg:p-8 bg-slate-50 rounded-[32px] border border-slate-100">
+                  <div className="flex items-center gap-5 mb-8">
+                     <div className="w-12 h-12 bg-indigo-500 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-200">
+                        <Smartphone className="w-6 h-6" />
+                     </div>
+                     <div>
+                        <h4 className="font-black text-slate-900 uppercase text-lg tracking-tight">Syntaxes USSD (Paiement Manuel)</h4>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Configurez les codes que les clients composeront sur leur telephone</p>
+                     </div>
+                  </div>
+
+                  <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 mb-8 flex gap-4 items-start">
+                    <div className="w-8 h-8 bg-amber-100 text-amber-600 rounded-lg flex items-center justify-center shrink-0">
+                      <Zap className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h5 className="text-[10px] font-black text-amber-900 uppercase tracking-widest mb-1">Instruction Importante</h5>
+                      <p className="text-xs text-amber-800 font-medium leading-relaxed">
+                        Utilisez le mot-cle <span className="font-black bg-amber-200 px-1.5 py-0.5 rounded text-amber-950">{"{amount}"}</span> n'importe ou dans la syntaxe. L'application le remplacera automatiquement par le prix de la course avant d'afficher le code au client.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                     {/* Orange Money */}
+                     <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 hover:shadow-xl transition-all group">
+                        <div className="flex items-center justify-between mb-4">
+                           <div className="flex items-center gap-4">
+                              <div className="w-10 h-10 bg-orange-50 rounded-xl flex items-center justify-center overflow-hidden border border-orange-100">
+                                 <img src="/payments/orange.png" alt="Orange" className="w-full h-full object-contain" onError={(e) => { (e.target as HTMLImageElement).src = '//placehold.co/40?text=O' }}/>
+                              </div>
+                              <label className="text-[11px] font-black uppercase tracking-[0.1em] text-slate-800">Orange Money</label>
+                           </div>
+                           <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                               <input 
+                                 type="checkbox" 
+                                 checked={configForm?.isOrangeActive !== false}
+                                 onChange={(e) => setConfigForm({ ...configForm!, isOrangeActive: e.target.checked })}
+                                 className="sr-only peer"
+                               />
+                               <div className="w-11 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:bg-orange-500 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+                           </label>
+                        </div>
+                        <div className="mt-4">
+                        <input 
+                           type="text"
+                           placeholder="Ex: *144*4*6*{amount}#"
+                           value={configForm?.ussdSyntaxOrange || ''}
+                           onChange={(e) => setConfigForm({ ...configForm!, ussdSyntaxOrange: e.target.value })}
+                           className="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl px-5 py-4 text-sm font-black text-slate-900 focus:outline-none focus:border-orange-500 focus:bg-white transition-all outline-none"
+                        />
+                        <p className="text-[9px] text-slate-400 font-bold mt-3 leading-relaxed italic">Exemple: *144*4*6*{"{amount}"}#</p>
+                     </div>
+                  </div>
+
+                     {/* Moov Money */}
+                     <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 hover:shadow-xl transition-all group">
+                        <div className="flex items-center justify-between mb-4">
+                           <div className="flex items-center gap-4">
+                              <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center overflow-hidden border border-blue-100">
+                                 <img src="/payments/moov.png" alt="Moov" className="w-full h-full object-contain" onError={(e) => { (e.target as HTMLImageElement).src = '//placehold.co/40?text=M' }}/>
+                              </div>
+                              <label className="text-[11px] font-black uppercase tracking-[0.1em] text-slate-800">Moov Money</label>
+                           </div>
+                           <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                               <input 
+                                 type="checkbox" 
+                                 checked={configForm?.isMoovActive !== false}
+                                 onChange={(e) => setConfigForm({ ...configForm!, isMoovActive: e.target.checked })}
+                                 className="sr-only peer"
+                               />
+                               <div className="w-11 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:bg-blue-500 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+                           </label>
+                        </div>
+                        <div className="mt-4">
+                        <input 
+                           type="text"
+                           placeholder="Ex: *155*4*1*{amount}#"
+                           value={configForm?.ussdSyntaxMoov || ''}
+                           onChange={(e) => setConfigForm({ ...configForm!, ussdSyntaxMoov: e.target.value })}
+                           className="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl px-5 py-4 text-sm font-black text-slate-900 focus:outline-none focus:border-blue-500 focus:bg-white transition-all outline-none"
+                        />
+                        <p className="text-[9px] text-slate-400 font-bold mt-3 leading-relaxed italic">Exemple: *155*4*1*{"{amount}"}#</p>
+                     </div>
+                  </div>
+
+                     {/* Telecel Money */}
+                     <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 hover:shadow-xl transition-all group">
+                        <div className="flex items-center justify-between mb-4">
+                           <div className="flex items-center gap-4">
+                              <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center overflow-hidden border border-indigo-100">
+                                 <img src="/payments/telecel-1.png" alt="Telecel" className="w-full h-full object-contain" onError={(e) => { (e.target as HTMLImageElement).src = '//placehold.co/40?text=T' }}/>
+                              </div>
+                              <label className="text-[11px] font-black uppercase tracking-[0.1em] text-slate-800">Telecel Money</label>
+                           </div>
+                           <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                               <input 
+                                 type="checkbox" 
+                                 checked={configForm?.isTelecelActive !== false}
+                                 onChange={(e) => setConfigForm({ ...configForm!, isTelecelActive: e.target.checked })}
+                                 className="sr-only peer"
+                               />
+                               <div className="w-11 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:bg-indigo-500 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+                           </label>
+                        </div>
+                        <div className="mt-4">
+                        <input 
+                           type="text"
+                           placeholder="Ex: *156*4*2*{amount}#"
+                           value={configForm?.ussdSyntaxTelecel || ''}
+                           onChange={(e) => setConfigForm({ ...configForm!, ussdSyntaxTelecel: e.target.value })}
+                           className="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl px-5 py-4 text-sm font-black text-slate-900 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all outline-none"
+                        />
+                        <p className="text-[9px] text-slate-400 font-bold mt-3 leading-relaxed italic">Exemple: *156*4*2*{"{amount}"}#</p>
+                     </div>
+                  </div>
+
+                     {/* Coris Money */}
+                     <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 hover:shadow-xl transition-all group">
+                        <div className="flex items-center justify-between mb-4">
+                           <div className="flex items-center gap-4">
+                              <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center overflow-hidden border border-blue-100">
+                                 <div className="w-6 h-6 bg-blue-600 rounded flex items-center justify-center text-white font-bold text-[8px]">C</div>
+                              </div>
+                              <label className="text-[11px] font-black uppercase tracking-[0.1em] text-slate-800">Coris Money</label>
+                           </div>
+                           <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                               <input 
+                                 type="checkbox" 
+                                 checked={configForm?.isCorisActive !== false}
+                                 onChange={(e) => setConfigForm({ ...configForm!, isCorisActive: e.target.checked })}
+                                 className="sr-only peer"
+                               />
+                               <div className="w-11 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:bg-blue-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+                           </label>
+                        </div>
+                        <div className="mt-4">
+                        <input 
+                           type="text"
+                           placeholder="Ex: *555*1*1*{amount}#"
+                           value={configForm?.ussdSyntaxCoris || ''}
+                           onChange={(e) => setConfigForm({ ...configForm!, ussdSyntaxCoris: e.target.value })}
+                           className="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl px-5 py-4 text-sm font-black text-slate-900 focus:outline-none focus:border-blue-400 focus:bg-white transition-all outline-none"
+                        />
+                        <p className="text-[9px] text-slate-400 font-bold mt-3 leading-relaxed italic">Exemple: *555*1*1*{"{amount}"}#</p>
+                     </div>
+                  </div>
+
+                     {/* Autre */}
+                     <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 hover:shadow-xl transition-all group">
+                        <div className="flex items-center gap-4 mb-4">
+                           <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center overflow-hidden border border-slate-100">
+                              <Landmark className="w-5 h-5 text-slate-400" />
+                           </div>
+                           <label className="text-[11px] font-black uppercase tracking-[0.1em] text-slate-800">Autre Syntaxe</label>
+                        </div>
+                        <input 
+                           type="text"
+                           placeholder="Ex: *000*0*0*{amount}#"
+                           value={configForm?.ussdSyntaxGeneric || ''}
+                           onChange={(e) => setConfigForm({ ...configForm!, ussdSyntaxGeneric: e.target.value })}
+                           className="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl px-5 py-4 text-sm font-black text-slate-900 focus:outline-none focus:border-slate-400 focus:bg-white transition-all outline-none"
+                        />
+                        <p className="text-[9px] text-slate-400 font-bold mt-3 leading-relaxed italic">Syntaxe generique par defaut.</p>
+                     </div>
+                  </div>
+                </div>
+
+                {/* Personnalisation Graphique & Branding Saisonnier */}
+                <div className="mt-8 pt-8 border-t border-slate-200">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-orange-100 text-orange-600 rounded-2xl flex items-center justify-center">
+                        <Settings2 className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <h4 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Branding & Thèmes Saisonniers</h4>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Personnalisez le nom, le slogan, les couleurs et les décors festifs (Noël, Nouvel An)</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                    {/* Nom de l'application */}
+                    <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 flex flex-col justify-between">
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 px-2">Nom de l'application / Plateforme</label>
+                      <input 
+                        type="text" 
+                        value={configForm?.appName || ''}
+                        onChange={e => setConfigForm({ ...configForm!, appName: e.target.value })}
+                        className="w-full bg-white border border-slate-200 rounded-xl px-5 py-3 text-sm font-bold text-slate-900 focus:ring-4 focus:ring-orange-100 transition-all outline-none"
+                        placeholder="Ex: FASO EXPRESS"
+                      />
+                    </div>
+
+                    {/* Slogan de l'application */}
+                    <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 flex flex-col justify-between">
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 px-2">Slogan / Sous-titre</label>
+                      <input 
+                        type="text" 
+                        value={configForm?.appSlogan || ''}
+                        onChange={e => setConfigForm({ ...configForm!, appSlogan: e.target.value })}
+                        className="w-full bg-white border border-slate-200 rounded-xl px-5 py-3 text-sm font-bold text-slate-900 focus:ring-4 focus:ring-orange-100 transition-all outline-none"
+                        placeholder="Ex: Vitesse. Sécurité. Fiabilité."
+                      />
+                    </div>
+
+                    {/* Couleur Primaire */}
+                    <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 flex flex-col justify-between">
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 px-2">Couleur de marque principale</label>
+                      <div className="flex gap-2 mb-2 items-center">
+                        <input 
+                          type="color" 
+                          value={configForm?.primaryColor || '#f97316'}
+                          onChange={e => setConfigForm({ ...configForm!, primaryColor: e.target.value })}
+                          className="w-10 h-10 border border-slate-200 rounded-xl cursor-pointer bg-white"
+                        />
+                        <input 
+                          type="text" 
+                          value={configForm?.primaryColor || '#f97316'}
+                          onChange={e => setConfigForm({ ...configForm!, primaryColor: e.target.value })}
+                          className="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-900"
+                        />
+                      </div>
+                      <div className="flex gap-1.5 flex-wrap">
+                        {['#f97316', '#4f46e5', '#10b981', '#1e293b', '#8b5cf6', '#e11d48'].map(color => (
+                          <button
+                            key={color}
+                            type="button"
+                            onClick={() => setConfigForm({ ...configForm!, primaryColor: color })}
+                            className="w-5 h-5 rounded-full border border-white shadow-sm cursor-pointer"
+                            style={{ backgroundColor: color }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Thème Saisonnier */}
+                    <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 flex flex-col justify-between">
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 px-2">Thème Événementiel (Saison)</label>
+                      <select
+                        value={configForm?.brandingTheme || 'standard'}
+                        onChange={e => {
+                          const val = e.target.value as any;
+                          setConfigForm({ 
+                            ...configForm!, 
+                            brandingTheme: val,
+                            fallingSnow: val === 'christmas',
+                            fireworks: val === 'newyear',
+                            decorationsEnabled: val !== 'standard'
+                          });
+                        }}
+                        className="w-full bg-white border border-slate-200 rounded-xl px-5 py-3 text-sm font-bold text-slate-900 focus:ring-4 focus:ring-orange-100 transition-all outline-none"
+                      >
+                        <option value="standard">Standard (Couleurs Système)</option>
+                        <option value="custom">🎨 Personnalisé (Vos Couleurs de Marque)</option>
+                        <option value="christmas">🎄 Noël / Fêtes de fin d'année (Neige & Sapins)</option>
+                        <option value="newyear">🎆 Saint-Sylvestre / Nouvel An (Feux d'artifice)</option>
+                        <option value="valentines">💖 Saint-Valentin (Cœurs flottants)</option>
+                        <option value="rainy">🌧️ Saison des Pluies (Fines gouttes & Splashs)</option>
+                        <option value="harmattan">🌪️ Harmattan / Tempête Dorée (Poussière de sable)</option>
+                        <option value="ramadan">🌙 Ramadan & Aïd (Croissants & Étoiles)</option>
+                        <option value="burkina">🇧🇫 Fête Nationale (Confettis Rouge, Vert, Étoile Jaune)</option>
+                        <option value="spring">🌸 Pâques / Printemps (Pétales de fleurs)</option>
+                      </select>
+                    </div>
+
+                    {/* Effets Interactifs */}
+                    <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 flex flex-col justify-between col-span-1 md:col-span-2">
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 px-2 font-black">Activer les animations interactives de fond</label>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <label className="flex items-center gap-3 bg-white p-3 rounded-2xl border border-slate-100 cursor-pointer hover:bg-slate-50 transition-colors">
+                          <input 
+                            type="checkbox"
+                            checked={configForm?.fallingSnow ?? false}
+                            onChange={e => setConfigForm({ ...configForm!, fallingSnow: e.target.checked })}
+                            className="w-4 h-4 rounded text-orange-500 focus:ring-orange-500"
+                          />
+                          <span className="text-[10px] font-black uppercase text-slate-600">❄️ Neige animée</span>
+                        </label>
+
+                        <label className="flex items-center gap-3 bg-white p-3 rounded-2xl border border-slate-100 cursor-pointer hover:bg-slate-50 transition-colors">
+                          <input 
+                            type="checkbox"
+                            checked={configForm?.fireworks ?? false}
+                            onChange={e => setConfigForm({ ...configForm!, fireworks: e.target.checked })}
+                            className="w-4 h-4 rounded text-orange-500 focus:ring-orange-500"
+                          />
+                          <span className="text-[10px] font-black uppercase text-slate-600">🎆 Feux d'artifice</span>
+                        </label>
+
+                        <label className="flex items-center gap-3 bg-white p-3 rounded-2xl border border-slate-100 cursor-pointer hover:bg-slate-50 transition-colors">
+                          <input 
+                            type="checkbox"
+                            checked={configForm?.decorationsEnabled ?? false}
+                            onChange={e => setConfigForm({ ...configForm!, decorationsEnabled: e.target.checked })}
+                            className="w-4 h-4 rounded text-orange-500 focus:ring-orange-500"
+                          />
+                          <span className="text-[10px] font-black uppercase text-slate-600">🎀 Décors d'angles</span>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Pop-up Promotionnel Interstitiel */}
+                <div className="mt-8 pt-8 border-t border-slate-200">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center">
+                        <Megaphone className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Pop-up Promotionnel Interstitiel</h4>
+                          <span className={cn("px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider", configForm?.promoPopup?.enabled ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500")}>
+                            {configForm?.promoPopup?.enabled ? "Actif" : "Désactivé"}
+                          </span>
+                        </div>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Fenêtre modale publicitaire ou offre spéciale affichée au 1er plan</p>
+                      </div>
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={isSaving}
+                      className="flex items-center gap-2 px-5 py-2.5 bg-amber-500 text-white rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-amber-600 transition-all shadow-md active:scale-95 disabled:opacity-50"
+                    >
+                      {isSaving ? <Clock className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                      Enregistrer Pop-up Promo
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {/* Form Controls Left / Center (2 cols) */}
+                    <div className="lg:col-span-2 space-y-5">
+                      {/* Interrupteur Actif / Inactif */}
+                      <div className="bg-slate-50 p-5 rounded-3xl border border-slate-100 flex items-center justify-between">
+                        <div>
+                          <p className="text-xs font-black uppercase text-slate-900">Activer le Pop-up Promotionnel</p>
+                          <p className="text-[10px] text-slate-500">Affiche la modale d'offre spéciale au premier plan lors de l'ouverture de l'application</p>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                          <input 
+                            type="checkbox" 
+                            checked={configForm?.promoPopup?.enabled ?? false}
+                            onChange={(e) => {
+                              const curr = configForm?.promoPopup || {
+                                enabled: false,
+                                title: "🎉 Offre Spéciale de Lancement !",
+                                description: "Bénéficiez de réductions exclusives sur vos prochaines livraisons.",
+                                promoCode: "PROMO2026",
+                                ctaText: "Profiter de l'offre",
+                                ctaTarget: "/client",
+                                frequency: "once_per_day",
+                                targetAudience: "all"
+                              };
+                              setConfigForm({
+                                ...configForm!,
+                                promoPopup: { ...curr, enabled: e.target.checked, id: `promo_${Date.now()}` }
+                              });
+                            }}
+                            className="sr-only peer"
+                          />
+                          <div className="w-12 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:bg-amber-500 after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+                        </label>
+                      </div>
+
+                      {/* Titre & Badge */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 px-1">Titre de la Promotion</label>
+                          <input 
+                            type="text" 
+                            value={configForm?.promoPopup?.title || ''}
+                            placeholder="ex: 🎉 Offre de Bienvenue !"
+                            onChange={(e) => setConfigForm({
+                              ...configForm!,
+                              promoPopup: { ...(configForm?.promoPopup || { enabled: false, title: '', description: '' }), title: e.target.value }
+                            })}
+                            className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm font-bold text-slate-900 focus:bg-white focus:ring-4 focus:ring-amber-100 outline-none transition-all"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 px-1">Badge d'en-tête (Tag)</label>
+                          <input 
+                            type="text" 
+                            value={configForm?.promoPopup?.badgeText || ''}
+                            placeholder="ex: Offre Exclusive, -20%, Nouveauté"
+                            onChange={(e) => setConfigForm({
+                              ...configForm!,
+                              promoPopup: { ...(configForm?.promoPopup || { enabled: false, title: '', description: '' }), badgeText: e.target.value }
+                            })}
+                            className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm font-bold text-slate-900 focus:bg-white focus:ring-4 focus:ring-amber-100 outline-none transition-all"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Description */}
+                      <div>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 px-1">Description / Message explicatif</label>
+                        <textarea 
+                          rows={2}
+                          value={configForm?.promoPopup?.description || ''}
+                          placeholder="Détails de l'offre promotionnelle..."
+                          onChange={(e) => setConfigForm({
+                            ...configForm!,
+                            promoPopup: { ...(configForm?.promoPopup || { enabled: false, title: '', description: '' }), description: e.target.value }
+                          })}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm font-bold text-slate-900 focus:bg-white focus:ring-4 focus:ring-amber-100 outline-none transition-all resize-none"
+                        />
+                      </div>
+
+                      {/* Code Promo & Bouton CTA */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 px-1">Code Promo (Optionnel)</label>
+                          <input 
+                            type="text" 
+                            value={configForm?.promoPopup?.promoCode || ''}
+                            placeholder="ex: FASO2026"
+                            onChange={(e) => setConfigForm({
+                              ...configForm!,
+                              promoPopup: { ...(configForm?.promoPopup || { enabled: false, title: '', description: '' }), promoCode: e.target.value.toUpperCase() }
+                            })}
+                            className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm font-black font-mono tracking-widest text-slate-900 uppercase focus:bg-white focus:ring-4 focus:ring-amber-100 outline-none transition-all"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 px-1">Texte du Bouton (CTA)</label>
+                          <input 
+                            type="text" 
+                            value={configForm?.promoPopup?.ctaText || ''}
+                            placeholder="ex: Profiter de l'offre"
+                            onChange={(e) => setConfigForm({
+                              ...configForm!,
+                              promoPopup: { ...(configForm?.promoPopup || { enabled: false, title: '', description: '' }), ctaText: e.target.value }
+                            })}
+                            className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm font-bold text-slate-900 focus:bg-white focus:ring-4 focus:ring-amber-100 outline-none transition-all"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Destination URL & Image URL / Upload */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 px-1">Lien de Destination / Route</label>
+                          <input 
+                            type="text" 
+                            value={configForm?.promoPopup?.ctaTarget || ''}
+                            placeholder="ex: /create, /client ou https://..."
+                            onChange={(e) => setConfigForm({
+                              ...configForm!,
+                              promoPopup: { ...(configForm?.promoPopup || { enabled: false, title: '', description: '' }), ctaTarget: e.target.value }
+                            })}
+                            className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm font-bold text-slate-900 focus:bg-white focus:ring-4 focus:ring-amber-100 outline-none transition-all"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 px-1">Image de Bannière (URL ou Fichier)</label>
+                          <div className="flex items-center gap-2">
+                            <input 
+                              type="text" 
+                              value={configForm?.promoPopup?.imageUrl || ''}
+                              placeholder="https://..."
+                              onChange={(e) => setConfigForm({
+                                ...configForm!,
+                                promoPopup: { ...(configForm?.promoPopup || { enabled: false, title: '', description: '' }), imageUrl: e.target.value }
+                              })}
+                              className="flex-1 bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-xs font-medium text-slate-900 focus:bg-white focus:ring-4 focus:ring-amber-100 outline-none transition-all"
+                            />
+                            <label className="cursor-pointer px-3.5 py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl text-[10px] font-black uppercase tracking-wider shrink-0 transition-all active:scale-95 flex items-center gap-1.5">
+                              <Upload className="w-3.5 h-3.5" />
+                              <input 
+                                type="file" 
+                                accept="image/*" 
+                                className="hidden" 
+                                onChange={async (e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) {
+                                    try {
+                                      const base64 = await compressImage(file);
+                                      setConfigForm({
+                                        ...configForm!,
+                                        promoPopup: { ...(configForm?.promoPopup || { enabled: false, title: '', description: '' }), imageUrl: base64 }
+                                      });
+                                    } catch (err) {}
+                                  }
+                                }}
+                              />
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Fréquence & Public Cible */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 px-1">Fréquence d'Affichage</label>
+                          <select 
+                            value={configForm?.promoPopup?.frequency || 'once_per_day'}
+                            onChange={(e) => setConfigForm({
+                              ...configForm!,
+                              promoPopup: { ...(configForm?.promoPopup || { enabled: false, title: '', description: '' }), frequency: e.target.value as any }
+                            })}
+                            className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm font-bold text-slate-900 focus:bg-white focus:ring-4 focus:ring-amber-100 outline-none transition-all"
+                          >
+                            <option value="once_per_day">1 fois par jour (Recommandé)</option>
+                            <option value="once_per_session">1 fois par session de navigation</option>
+                            <option value="always">À chaque ouverture de l'application</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 px-1">Public Cible</label>
+                          <select 
+                            value={configForm?.promoPopup?.targetAudience || 'all'}
+                            onChange={(e) => setConfigForm({
+                              ...configForm!,
+                              promoPopup: { ...(configForm?.promoPopup || { enabled: false, title: '', description: '' }), targetAudience: e.target.value as any }
+                            })}
+                            className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm font-bold text-slate-900 focus:bg-white focus:ring-4 focus:ring-amber-100 outline-none transition-all"
+                          >
+                            <option value="all">Tous les visiteurs (Clients + Livreurs + Visiteurs)</option>
+                            <option value="clients">Clients uniquement</option>
+                            <option value="drivers">Livreurs uniquement</option>
+                            <option value="guests">Visiteurs non connectés uniquement</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Live Mobile Preview Card Right (1 col) */}
+                    <div className="bg-slate-900 p-5 rounded-3xl border border-slate-800 text-white flex flex-col justify-between relative overflow-hidden">
+                      <div>
+                        <div className="flex items-center justify-between mb-4 border-b border-slate-800 pb-3">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-amber-400 flex items-center gap-1.5">
+                            <Eye className="w-3.5 h-3.5" />
+                            Aperçu Mobile en Direct
+                          </span>
+                          <span className="text-[9px] font-mono text-slate-500">375x667px</span>
+                        </div>
+
+                        {/* Mini Modal Preview */}
+                        <div className="bg-white text-slate-900 rounded-2xl overflow-hidden shadow-xl border border-slate-200">
+                          <div className="h-28 bg-gradient-to-br from-orange-500 via-amber-500 to-rose-500 relative flex items-center justify-center p-3">
+                            {configForm?.promoPopup?.imageUrl ? (
+                              <img src={configForm.promoPopup.imageUrl} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="text-center text-white">
+                                <Gift className="w-7 h-7 mx-auto mb-1 text-white" />
+                                <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-white/20 border border-white/30">
+                                  {configForm?.promoPopup?.badgeText || "Offre Exclusive"}
+                                </span>
+                              </div>
+                            )}
+                            <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-slate-900/60 text-white flex items-center justify-center text-[10px]">✕</div>
+                          </div>
+
+                          <div className="p-4 text-center">
+                            <h5 className="font-black text-sm text-slate-900 tracking-tight mb-1">
+                              {configForm?.promoPopup?.title || "Titre de votre offre"}
+                            </h5>
+                            <p className="text-[11px] font-medium text-slate-500 leading-snug mb-3">
+                              {configForm?.promoPopup?.description || "Description de votre promotion affichée aux utilisateurs..."}
+                            </p>
+
+                            {configForm?.promoPopup?.promoCode && (
+                              <div className="mb-3 p-2 bg-amber-50 border border-dashed border-amber-300 rounded-xl flex items-center justify-between text-xs">
+                                <span className="font-mono font-black text-amber-900">{configForm.promoPopup.promoCode}</span>
+                                <span className="text-[9px] font-bold bg-amber-500 text-white px-2 py-0.5 rounded-lg">Copier</span>
+                              </div>
+                            )}
+
+                            <div className="w-full py-2 bg-amber-500 text-white font-black text-xs rounded-xl uppercase tracking-wider shadow-sm">
+                              {configForm?.promoPopup?.ctaText || "Profiter de l'offre"}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 pt-3 border-t border-slate-800 text-[10px] text-slate-400 text-center font-medium">
+                        ✨ Mis à jour instantanément sur toutes les applications mobiles
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Configuration Contacts & Footer */}
+                <div className="mt-8 pt-8 border-t border-slate-200">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center">
+                        <Phone className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <h4 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Contacts & Footer</h4>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Gérez les informations de contact affichées en bas de page</p>
+                      </div>
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={isSaving}
+                      className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-blue-700 transition-all shadow-md active:scale-95 disabled:opacity-50"
+                    >
+                      {isSaving ? <Clock className="w-3.5 h-3.5 animate-spin" /> : <Settings className="w-3.5 h-3.5" />}
+                      Enregistrer Contacts & Footer
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {/* Logo de l'application */}
+                    <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 flex flex-col justify-between">
+                      <div className="flex items-center justify-between mb-3 px-2">
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Logo de l'application</label>
+                        <span className="text-[8px] font-black uppercase tracking-widest text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">Personnalisable</span>
+                      </div>
+                      <div className="flex items-center gap-4 bg-white p-3 rounded-2xl border border-slate-100">
+                        <div className="w-14 h-14 rounded-xl bg-slate-900/5 p-1 border border-slate-200 flex items-center justify-center shrink-0 overflow-hidden">
+                          <img 
+                            src={configForm?.appLogo ? (configForm.appLogo.startsWith('data:') ? configForm.appLogo : `${configForm.appLogo}?v=${Date.now()}`) : `/LOGOFASO.png?v=${Date.now()}`} 
+                            alt="Logo preview" 
+                            className="w-full h-full object-contain"
+                            onError={(e) => { 
+                              const target = e.target as HTMLImageElement;
+                              if (!target.src.includes('LOGOFASO.png')) {
+                                target.src = `/LOGOFASO.png?v=${Date.now()}`;
+                              } else {
+                                target.style.display = 'none';
+                              }
+                            }}
+                          />
+                        </div>
+                        <div className="flex-1 flex flex-col gap-1.5 min-w-0">
+                          <label className="cursor-pointer inline-flex items-center justify-center gap-2 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all shadow-sm active:scale-95">
+                            <Upload className="w-3 h-3" />
+                            Changer l'image
+                            <input 
+                              type="file" 
+                              accept="image/*" 
+                              className="hidden" 
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  try {
+                                    const base64 = await compressImage(file);
+                                    setConfigForm({ ...configForm!, appLogo: base64 });
+                                  } catch (err) {
+                                    console.error("Erreur de compression logo:", err);
+                                  }
+                                }
+                              }}
+                            />
+                          </label>
+                          {configForm?.appLogo && configForm.appLogo !== '/LOGOFASO.png' && (
+                            <button 
+                              type="button" 
+                              onClick={() => setConfigForm({ ...configForm!, appLogo: '/LOGOFASO.png' })}
+                              className="text-[9px] font-black text-rose-500 hover:text-rose-700 uppercase tracking-wider text-left transition-colors"
+                            >
+                              Réinitialiser par défaut
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 flex flex-col justify-between">
+                      <div className="flex items-center justify-between mb-3 px-2">
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Nom de l'entreprise (Edité par)</label>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">
+                            {configForm?.companyNameActive !== false ? 'Actif' : 'Masqué'}
+                          </span>
+                          <label className="relative inline-flex items-center cursor-pointer shrink-0 scale-75">
+                            <input 
+                              type="checkbox" 
+                              checked={configForm?.companyNameActive !== false}
+                              onChange={(e) => setConfigForm({ ...configForm!, companyNameActive: e.target.checked })}
+                              className="sr-only peer"
+                            />
+                            <div className="w-11 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:bg-emerald-500 after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+                          </label>
+                        </div>
+                      </div>
+                      <input 
+                        type="text" 
+                        value={configForm?.companyName || ''}
+                        disabled={configForm?.companyNameActive === false}
+                        onChange={e => setConfigForm({ ...configForm!, companyName: e.target.value })}
+                        className={cn(
+                          "w-full bg-white border-none rounded-xl px-5 py-3 text-sm font-black focus:ring-4 focus:ring-blue-100 transition-all",
+                          configForm?.companyNameActive === false ? "opacity-50 cursor-not-allowed bg-slate-100" : ""
+                        )}
+                        placeholder="Ex: SAPPAY TECHNOLOGIE"
+                      />
+                    </div>
+                    
+                    <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 flex flex-col justify-between">
+                      <div className="flex items-center justify-between mb-3 px-2">
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Numero de telephone</label>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">
+                            {configForm?.contactPhoneActive !== false ? 'Actif' : 'Masque'}
+                          </span>
+                          <label className="relative inline-flex items-center cursor-pointer shrink-0 scale-75">
+                            <input 
+                              type="checkbox" 
+                              checked={configForm?.contactPhoneActive !== false}
+                              onChange={(e) => setConfigForm({ ...configForm!, contactPhoneActive: e.target.checked })}
+                              className="sr-only peer"
+                            />
+                            <div className="w-11 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:bg-emerald-500 after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+                          </label>
+                        </div>
+                      </div>
+                      <input 
+                        type="text" 
+                        value={configForm?.contactPhone || ''}
+                        disabled={configForm?.contactPhoneActive === false}
+                        onChange={e => setConfigForm({ ...configForm!, contactPhone: e.target.value })}
+                        className={cn(
+                          "w-full bg-white border-none rounded-xl px-5 py-3 text-sm font-black focus:ring-4 focus:ring-blue-100 transition-all",
+                          configForm?.contactPhoneActive === false ? "opacity-50 cursor-not-allowed bg-slate-100" : ""
+                        )}
+                        placeholder="Ex: 72567606"
+                      />
+                    </div>
+
+                    <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 flex flex-col justify-between">
+                      <div className="flex items-center justify-between mb-3 px-2">
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Numero WhatsApp</label>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">
+                            {configForm?.contactWhatsappActive !== false ? 'Actif' : 'Masque'}
+                          </span>
+                          <label className="relative inline-flex items-center cursor-pointer shrink-0 scale-75">
+                            <input 
+                              type="checkbox" 
+                              checked={configForm?.contactWhatsappActive !== false}
+                              onChange={(e) => setConfigForm({ ...configForm!, contactWhatsappActive: e.target.checked })}
+                              className="sr-only peer"
+                            />
+                            <div className="w-11 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:bg-emerald-500 after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+                          </label>
+                        </div>
+                      </div>
+                      <input 
+                        type="text" 
+                        value={configForm?.contactWhatsapp || ''}
+                        disabled={configForm?.contactWhatsappActive === false}
+                        onChange={e => setConfigForm({ ...configForm!, contactWhatsapp: e.target.value })}
+                        className={cn(
+                          "w-full bg-white border-none rounded-xl px-5 py-3 text-sm font-black focus:ring-4 focus:ring-blue-100 transition-all",
+                          configForm?.contactWhatsappActive === false ? "opacity-50 cursor-not-allowed bg-slate-100" : ""
+                        )}
+                        placeholder="Ex: 72567606"
+                      />
+                    </div>
+
+                    <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 flex flex-col justify-between">
+                      <div className="flex items-center justify-between mb-3 px-2">
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Lien Facebook</label>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">
+                            {configForm?.contactFacebookActive !== false ? 'Actif' : 'Masque'}
+                          </span>
+                          <label className="relative inline-flex items-center cursor-pointer shrink-0 scale-75">
+                            <input 
+                              type="checkbox" 
+                              checked={configForm?.contactFacebookActive !== false}
+                              onChange={(e) => setConfigForm({ ...configForm!, contactFacebookActive: e.target.checked })}
+                              className="sr-only peer"
+                            />
+                            <div className="w-11 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:bg-emerald-500 after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+                          </label>
+                        </div>
+                      </div>
+                      <input 
+                        type="text" 
+                        value={configForm?.contactFacebook || ''}
+                        disabled={configForm?.contactFacebookActive === false}
+                        onChange={e => setConfigForm({ ...configForm!, contactFacebook: e.target.value })}
+                        className={cn(
+                          "w-full bg-white border-none rounded-xl px-5 py-3 text-sm font-black focus:ring-4 focus:ring-blue-100 transition-all",
+                          configForm?.contactFacebookActive === false ? "opacity-50 cursor-not-allowed bg-slate-100" : ""
+                        )}
+                        placeholder="Ex: https://facebook.com/nmetechnologie"
+                      />
+                    </div>
+
+                    <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 flex flex-col justify-between">
+                      <div className="flex items-center justify-between mb-3 px-2">
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Lien Messenger</label>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">
+                            {configForm?.contactMessengerActive !== false ? 'Actif' : 'Masque'}
+                          </span>
+                          <label className="relative inline-flex items-center cursor-pointer shrink-0 scale-75">
+                            <input 
+                              type="checkbox" 
+                              checked={configForm?.contactMessengerActive !== false}
+                              onChange={(e) => setConfigForm({ ...configForm!, contactMessengerActive: e.target.checked })}
+                              className="sr-only peer"
+                            />
+                            <div className="w-11 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:bg-emerald-500 after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+                          </label>
+                        </div>
+                      </div>
+                      <input 
+                        type="text" 
+                        value={configForm?.contactMessenger || ''}
+                        disabled={configForm?.contactMessengerActive === false}
+                        onChange={e => setConfigForm({ ...configForm!, contactMessenger: e.target.value })}
+                        className={cn(
+                          "w-full bg-white border-none rounded-xl px-5 py-3 text-sm font-black focus:ring-4 focus:ring-blue-100 transition-all",
+                          configForm?.contactMessengerActive === false ? "opacity-50 cursor-not-allowed bg-slate-100" : ""
+                        )}
+                        placeholder="Ex: https://m.me/nmetechnologie"
+                      />
+                    </div>
+
+                    <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 flex flex-col justify-between">
+                      <div className="flex items-center justify-between mb-3 px-2">
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Adresse Email</label>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">
+                            {configForm?.contactEmailActive !== false ? 'Actif' : 'Masque'}
+                          </span>
+                          <label className="relative inline-flex items-center cursor-pointer shrink-0 scale-75">
+                            <input 
+                              type="checkbox" 
+                              checked={configForm?.contactEmailActive !== false}
+                              onChange={(e) => setConfigForm({ ...configForm!, contactEmailActive: e.target.checked })}
+                              className="sr-only peer"
+                            />
+                            <div className="w-11 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:bg-emerald-500 after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+                          </label>
+                        </div>
+                      </div>
+                      <input 
+                        type="text" 
+                        value={configForm?.contactEmail || ''}
+                        disabled={configForm?.contactEmailActive === false}
+                        onChange={e => setConfigForm({ ...configForm!, contactEmail: e.target.value })}
+                        className={cn(
+                          "w-full bg-white border-none rounded-xl px-5 py-3 text-sm font-black focus:ring-4 focus:ring-blue-100 transition-all",
+                          configForm?.contactEmailActive === false ? "opacity-50 cursor-not-allowed bg-slate-100" : ""
+                        )}
+                        placeholder="Ex: contact@fasoexpress.net"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Configuration Mot de Passe Oublié & SMTP */}
+                <div className="mt-8 pt-8 border-t border-slate-200">
+                  <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-orange-100 text-orange-600 rounded-2xl flex items-center justify-center">
+                        <Mail className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <h4 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Mot de passe oublié & SMTP</h4>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Gérez le flux de récupération de mot de passe et l'envoi de mail</p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="submit"
+                        disabled={isSaving}
+                        className="flex items-center gap-2 px-5 py-2.5 bg-orange-600 text-white rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-orange-700 transition-all shadow-md active:scale-95 disabled:opacity-50"
+                      >
+                        {isSaving ? <Clock className="w-3.5 h-3.5 animate-spin" /> : <Settings className="w-3.5 h-3.5" />}
+                        Enregistrer Configuration SMTP
+                      </button>
+
+                      {/* Toggle activation button */}
+                      <div className="flex items-center gap-3 bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Flux Activé</span>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input 
+                            type="checkbox" 
+                            checked={configForm?.isForgotPasswordActive !== false}
+                            onChange={(e) => setConfigForm({ ...configForm!, isForgotPasswordActive: e.target.checked })}
+                            className="sr-only peer"
+                          />
+                          <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500"></div>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 px-2">Serveur SMTP (Host)</label>
+                      <input 
+                        type="text" 
+                        value={configForm?.smtpHost || ''}
+                        onChange={e => setConfigForm({ ...configForm!, smtpHost: e.target.value })}
+                        className="w-full bg-white border-none rounded-xl px-5 py-3 text-sm font-black focus:ring-4 focus:ring-blue-100 transition-all"
+                        placeholder="Ex: smtp.gmail.com"
+                      />
+                    </div>
+                    
+                    <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 px-2">Port SMTP</label>
+                      <input 
+                        type="text" 
+                        value={configForm?.smtpPort !== undefined ? String(configForm.smtpPort) : ''}
+                        onChange={e => setConfigForm({ ...configForm!, smtpPort: e.target.value ? parseInt(e.target.value) || 0 : undefined })}
+                        className="w-full bg-white border-none rounded-xl px-5 py-3 text-sm font-black focus:ring-4 focus:ring-blue-100 transition-all"
+                        placeholder="Ex: 587 ou 465"
+                      />
+                    </div>
+
+                    <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 px-2">Utilisateur SMTP</label>
+                      <input 
+                        type="text" 
+                        value={configForm?.smtpUser || ''}
+                        onChange={e => setConfigForm({ ...configForm!, smtpUser: e.target.value })}
+                        className="w-full bg-white border-none rounded-xl px-5 py-3 text-sm font-black focus:ring-4 focus:ring-blue-100 transition-all"
+                        placeholder="Ex: contact@fasoexpress.com"
+                      />
+                    </div>
+
+                    <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 px-2">Mot de passe SMTP</label>
+                      <div className="relative">
+                        <input 
+                          type={showSmtpPassword ? "text" : "password"} 
+                          value={configForm?.smtpPass || ''}
+                          onChange={e => setConfigForm({ ...configForm!, smtpPass: e.target.value })}
+                          className="w-full bg-white border-none rounded-xl px-5 pr-12 py-3 text-sm font-black focus:ring-4 focus:ring-blue-100 transition-all"
+                          placeholder="Mot de passe SMTP"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowSmtpPassword(!showSmtpPassword)}
+                          className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                        >
+                          {showSmtpPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 px-2">Adresse d'expédition (From)</label>
+                      <input 
+                        type="text" 
+                        value={configForm?.smtpFrom || ''}
+                        onChange={e => setConfigForm({ ...configForm!, smtpFrom: e.target.value })}
+                        className="w-full bg-white border-none rounded-xl px-5 py-3 text-sm font-black focus:ring-4 focus:ring-blue-100 transition-all"
+                        placeholder='Ex: "Faso Express" <noreply@fasoexpress.com>'
+                      />
+                    </div>
+
+                    <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 flex flex-col justify-center">
+                      <div className="flex items-center justify-between px-2">
+                        <div>
+                          <label className="block text-[10px] font-black text-slate-800 uppercase tracking-widest mb-1">Connexion Sécurisée (SSL/TLS)</label>
+                          <p className="text-[9px] text-slate-400 font-bold">Activer pour le port 465 (SSL)</p>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input 
+                            type="checkbox" 
+                            checked={configForm?.smtpSecure || false}
+                            onChange={(e) => setConfigForm({ ...configForm!, smtpSecure: e.target.checked })}
+                            className="sr-only peer"
+                          />
+                          <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-8 pt-8 border-t border-slate-200">
+                    <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest leading-relaxed text-center mb-6">
+                      Ces syntaxes sont cruciales pour le parcours utilisateur "Paiement Manuel". <br/>
+                      <span className="text-orange-600">Assurez-vous de verifier le code court de votre compte marchand avant de valider.</span>
+                    </p>
+
+                    <div className="flex justify-center">
+                      <button 
+                        type="submit"
+                        disabled={isSaving}
+                        className="flex items-center gap-3 px-10 py-4 bg-emerald-600 text-white rounded-2xl text-xs font-black uppercase tracking-[0.2em] hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-200 active:scale-95 disabled:opacity-50"
+                      >
+                        {isSaving ? <Clock className="w-5 h-5 animate-spin" /> : <Settings className="w-5 h-5" />}
+                        Enregistrer Toutes Les Modifications
+                      </button>
+                    </div>
+                  </div>
+
+                {/* Composant de Partitionnement Automatique des Tables */}
+                <TablePartitionManagerCard
+                  partitionStatusData={partitionStatusData}
+                  isPartitioning={isPartitioning}
+                  handleAutoPartition={handleAutoPartition}
+                  fetchPartitionStatus={fetchPartitionStatus}
+                  dbEngine={dbInfo?.engine}
+                />
+             </form>
+        );
+      }
+      case 'Transactions':
+        return (
+          <div className="bg-white rounded-3xl p-6 lg:p-5 lg:p-6 shadow-sm border border-slate-100">
+            <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter mb-8">Flux Financiers</h3>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="border-b border-slate-100">
+                    <th className="py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">ID</th>
+                    <th className="py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Montant</th>
+                    <th className="py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Mode</th>
+                    <th className="py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Statut</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {deliveries.slice(0, 10).map(d => (
+                    <tr key={d.id} className="border-b border-slate-50 hover:bg-slate-50 transition-all">
+                      <td className="py-4 text-xs font-black text-slate-900">#{d.id?.slice(0, 6) || 'N/A'}</td>
+                      <td className="py-4 text-xs font-black text-emerald-600">{d.cost || 0} FCFA</td>
+                      <td className="py-4 text-[10px] font-bold text-slate-400 uppercase">{d.paymentMethod}</td>
+                      <td className="py-4">
+                        <span className="px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full text-[8px] font-black uppercase tracking-widest">Paye</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+      case 'Support Chat': {
+        const selectedDelivery = deliveries.find(d => d.id === selectedChatDeliveryId);
+        const currentChatMessages = chatMessages;
+
+        return (
+          <div className="bg-white rounded-3xl shadow-sm border border-slate-100 flex h-[600px] lg:h-[700px] overflow-hidden">
+             {/* Sidebar: List of Chats */}
+             <div className={cn(
+               "w-full lg:w-80 border-r border-slate-100 flex flex-col bg-slate-50/50 shrink-0",
+               selectedChatDeliveryId ? "hidden lg:flex" : "flex"
+             )}>
+                <div className="p-5 lg:p-6 border-b border-slate-100 bg-white">
+                   <h3 className="text-xl font-black text-slate-900 tracking-tighter uppercase">Discussions</h3>
+                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">{chatDeliveries.length} actives</p>
+                </div>
+                <div className="flex-1 overflow-y-auto p-4 space-y-2">
+                   {chatDeliveries.map(d => (
+                     <button 
+                       key={d.id}
+                       onClick={() => setSelectedChatDeliveryId(d.id)}
+                       className={cn(
+                         "relative w-full p-4 rounded-2xl text-left transition-all border flex items-center gap-4",
+                         selectedChatDeliveryId === d.id 
+                           ? "bg-white border-orange-200 shadow-xl shadow-orange-100/50" 
+                           : "bg-transparent border-transparent hover:bg-white hover:border-slate-100"
+                       )}
+                     >
+                        <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shrink-0", selectedChatDeliveryId === d.id ? "bg-orange-500 text-white" : "bg-slate-100 text-slate-400")}>
+                           <MessageSquare className="w-5 h-5" />
+                        </div>
+                        <div className="min-w-0">
+                           <p className="text-[10px] font-black text-slate-900 truncate">Course #{d.id?.slice(0, 8) || 'N/A'}</p>
+                            {unreadChats.has(d.id) && <span className="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full animate-pulse" />}
+                           <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest truncate">{d.clientName || 'Inconnu'} & {d.driverName || 'En attente'}</p>
+                        </div>
+                     </button>
+                   ))}
+                   {chatDeliveries.length === 0 && (
+                     <div className="text-center py-20">
+                        <MessageSquare className="w-12 h-12 text-slate-200 mx-auto mb-4" />
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-4">En attente de messages clients ou zems...</p>
+                     </div>
+                   )}
+                </div>
+             </div>
+
+             {/* Main: Active Chat */}
+             <div className={cn(
+               "flex-1 flex flex-col bg-white",
+               selectedChatDeliveryId ? "flex" : "hidden lg:flex"
+             )}>
+                {selectedChatDeliveryId ? (
+                   <>
+                     <div className="p-4 lg:p-6 border-b border-slate-100 flex items-center justify-between">
+                        <div className="flex items-center gap-3 lg:gap-4 min-w-0">
+                           {/* Back button on mobile */}
+                           <button 
+                             onClick={() => setSelectedChatDeliveryId(null)}
+                             className="lg:hidden w-10 h-10 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition-all flex items-center justify-center shrink-0"
+                           >
+                             <ChevronLeft className="w-5 h-5" />
+                           </button>
+                           <div className="w-10 h-10 lg:w-12 lg:h-12 bg-orange-100 text-orange-600 rounded-2xl flex items-center justify-center shrink-0">
+                              <Package className="w-5 h-5 lg:w-6 lg:h-6" />
+                           </div>
+                           <div className="min-w-0">
+                             <h4 className="font-black text-slate-900 uppercase text-xs lg:text-sm truncate">Support #{selectedChatDeliveryId.slice(0, 8)}</h4>
+                             <p className="text-[8px] lg:text-[10px] font-bold text-slate-400 uppercase tracking-widest truncate">
+                                {selectedDelivery?.from?.address?.slice(0, 15) || 'Lieu'}... {'->'} {selectedDelivery?.to?.address?.slice(0, 15) || 'Lieu'}...
+                             </p>
+                           </div>
+                        </div>
+                     </div>
+
+                     <div className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-4 lg:space-y-6 bg-slate-50/30">
+                       {currentChatMessages.map((msg, idx) => {
+                          const isMe = msg.senderId === profile?.userId;
+                          const senderProfile = users.find(u => u.userId === msg.senderId);
+                          return (
+                            <div key={msg.id} className={cn("flex flex-col", isMe ? "items-end" : "items-start")}>
+                               <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">
+                                  {msg.senderName || 'Inconnu'} * {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString() : ''}
+                               </span>
+                               <div className={cn(
+                                 "max-w-[85%] lg:max-w-[70%] p-3.5 lg:p-5 rounded-xl text-xs lg:text-sm font-bold shadow-sm",
+                                 isMe ? "bg-slate-900 text-white rounded-tr-none" : "bg-white text-slate-800 rounded-tl-none border border-slate-100"
+                               )}>
+                                  {msg.text}
+                               </div>
+                            </div>
+                          );
+                       })}
+                    </div>
+
+                    <form onSubmit={handleSendAdminMessage} className="p-4 lg:p-6 border-t border-slate-100 flex gap-3 lg:gap-4">
+                       <input 
+                         type="text" 
+                         value={adminMessage}
+                         onChange={e => setAdminMessage(e.target.value)}
+                         placeholder="Repondre a la discussion..."
+                         className="flex-1 bg-slate-50 border-none rounded-2xl px-4 lg:px-6 py-3.5 font-bold text-xs lg:text-sm focus:ring-4 focus:ring-orange-100 transition-all outline-none"
+                       />
+                       <button 
+                         type="submit"
+                         className="px-5 lg:px-8 bg-orange-500 text-white rounded-2xl font-black text-[9px] lg:text-[10px] uppercase tracking-widest hover:bg-orange-600 transition-all shadow-xl shadow-orange-100"
+                       >
+                         Envoyer
+                       </button>
+                    </form>
+                  </>
+                ) : (
+                  <div className="flex-1 flex flex-col items-center justify-center p-20 text-center">
+                     <div className="w-24 h-24 bg-slate-50 rounded-3xl flex items-center justify-center mb-8">
+                        <MessageSquare className="w-12 h-12 text-slate-200" />
+                     </div>
+                     <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter mb-4">Centre de Support Actif</h3>
+                     <p className="text-slate-400 font-bold text-xs uppercase tracking-widest max-w-sm">Selectionnez une discussion a gauche pour intervenir en tant qu'administrateur ou moderateur.</p>
+                  </div>
+                )}
+             </div>
+          </div>
+        );
+      }
+      case 'Logs Systeme': {
+        const systemLogs = [
+          { id: 1, type: 'AUTH', text: 'Nouvelle connexion SuperAdmin', user: 'Admin', time: 'Il y a 2 min', color: 'text-indigo-500' },
+          { id: 2, type: 'PAYMENT', text: `Validation attendue: course de ${deliveries[0]?.clientName || 'un client'}`, user: 'System', time: 'Il y a 5 min', color: 'text-orange-500' },
+          { id: 3, type: 'LOGISTICS', text: 'Nouvelle mission publiee a Ouaga 2000', user: 'Client', time: 'Il y a 12 min', color: 'text-emerald-500' },
+          { id: 4, type: 'DB', text: 'Optimisation des index Firestore completee', user: 'Vercel/Fire', time: 'Il y a 45 min', color: 'text-slate-500' },
+          { id: 5, type: 'AUTH', text: 'Tentative de connexion echouee (IP: 192.168.1.1)', user: 'Guest', time: 'Il y a 1h', color: 'text-red-500' },
+        ];
+        return (
+          <div className="bg-white rounded-3xl p-6 lg:p-5 lg:p-6 shadow-sm border border-slate-100 h-full overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Journaux du Systeme FASO EXPRESS</h3>
+                <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-1">Surveillance en temps reel des activites plateforme</p>
+              </div>
+              <div className="flex gap-2">
+                 <div className="px-3 py-1 bg-emerald-50 text-emerald-600 rounded-lg text-[9px] font-black uppercase tracking-widest flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
+                    Live Watcher
+                 </div>
+              </div>
+            </div>
+
+            <div className="space-y-4 overflow-y-auto pr-2">
+              {systemLogs.map(log => (
+                <div key={log.id} className="p-5 bg-slate-50 rounded-3xl border border-slate-100 flex items-center justify-between hover:bg-white transition-all group">
+                   <div className="flex items-center gap-4">
+                      <div className={cn("w-2 h-10 rounded-full bg-slate-200 group-hover:w-3 transition-all", log.color.replace('text-', 'bg-'))} />
+                      <div>
+                         <div className="flex items-center gap-2 mb-1">
+                            <span className={cn("text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md bg-white border border-slate-100", log.color)}>
+                               {log.type}
+                            </span>
+                            <span className="text-[9px] font-bold text-slate-400 uppercase">{log.time}</span>
+                         </div>
+                         <p className="text-sm font-bold text-slate-800 tracking-tight">{log.text}</p>
+                      </div>
+                   </div>
+                   <div className="text-right">
+                      <p className="text-[9px] font-black uppercase text-slate-400 mb-0.5">Acteur</p>
+                      <p className="text-xs font-black text-slate-900">{log.user}</p>
+                   </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-8 pt-8 border-t border-slate-100">
+               <div className="bg-slate-900 rounded-2xl p-6 text-emerald-400 font-mono text-[10px] leading-relaxed shadow-xl">
+                  <p className="opacity-50 break-all mb-2">DEBUG_TRACE: 0x44F9A... Initializing Watchtower core...</p>
+                  <p className="opacity-70 break-all mb-2">DB_CONNECTED: Firestore Enterprise v2.b42 (Ouagadougou-1)</p>
+                  <p className="animate-pulse">_ READY: Waiting for socket incoming requests...</p>
+               </div>
+            </div>
+          </div>
+        );
+      }
+      case 'Partitions DB': {
+        return (
+          <div className="bg-white rounded-3xl p-6 lg:p-5 lg:p-6 shadow-sm border border-slate-100 flex flex-col h-full">
+            <div className="mb-4">
+              <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Gestion & Partitionnement de la Base de Données</h3>
+              <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-1">Supervisez l'état physique de vos tables, créez des index haute performance et partitionnez vos données historiques.</p>
+            </div>
+            <TablePartitionManagerCard
+              partitionStatusData={partitionStatusData}
+              isPartitioning={isPartitioning}
+              handleAutoPartition={handleAutoPartition}
+              fetchPartitionStatus={fetchPartitionStatus}
+              dbEngine={dbInfo?.engine}
+            />
+          </div>
+        );
+      }
+      case 'Base de Donnees':
+        return (
+          <div className="bg-white rounded-3xl p-6 lg:p-5 lg:p-6 shadow-sm border border-slate-100 flex flex-col h-full min-h-[600px]">
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Exploration de la Base de Donnees</h3>
+                <p className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] mt-1">
+                   {dbInfo ? `Connecte a : ${dbInfo.engine} (${dbInfo.database})` : 'Recuperation des informations de connexion...'}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => {
+                    const csv = [
+                      ['ID', 'Date', 'Type', 'Statut', 'Client', 'Livreur', 'Montant (FCFA)'],
+                      ...deliveries.map(d => [d.id, d.createdAt, 'Course', d.status, d.clientId, d.driverId || '-', d.cost || 0])
+                    ].map(row => row.join(',')).join('\n');
+                    const blob = new Blob([csv], { type: 'text/csv' });
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `export-courses-${new Date().toISOString().slice(0, 10)}.csv`;
+                    a.click();
+                  }}
+                  className="px-6 py-4 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2"
+                >
+                  <Download className="w-4 h-4" /> Export CSV (Courses)
+                </button>
+                <button 
+                  onClick={() => {
+                    const csv = [
+                      ['ID', 'Nom', 'Email', 'Role', 'Statut', 'Date Inscription'],
+                      ...users.map(u => [u.userId, u.name, u.email, u.role, u.accountStatus || 'active', u.updatedAt || ''])
+                    ].map(row => row.join(',')).join('\n');
+                    const blob = new Blob([csv], { type: 'text/csv' });
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `export-users-${new Date().toISOString().slice(0, 10)}.csv`;
+                    a.click();
+                  }}
+                  className="px-6 py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2"
+                >
+                  <Download className="w-4 h-4" /> Export CSV (Users)
+                </button>
+              </div>
+            </div>
+            
+            <div className="bg-slate-900 rounded-3xl p-6 border border-slate-800 flex-1 flex flex-col font-mono text-xs overflow-hidden shadow-inner">
+               <div className="flex items-center gap-4 mb-4 border-b border-slate-700/50 pb-4">
+                 <div className="flex items-center gap-2 text-emerald-400">
+                    <Database className="w-4 h-4" />
+                    <span className="font-bold">SQL Studio Terminal</span>
+                 </div>
+               </div>
+               
+               <div className="mb-4">
+                 <label htmlFor="sql_query" className="block text-slate-400 font-bold mb-2 uppercase tracking-widest text-[10px]">Executer une requete SQL</label>
+                 <div className="relative">
+                   <textarea
+                     id="sql_query"
+                     value={sqlQuery}
+                     onChange={(e) => setSqlQuery(e.target.value)}
+                     className="w-full bg-slate-950 text-emerald-400 font-mono text-sm p-4 rounded-xl border border-slate-800 focus:outline-none focus:border-emerald-500/50 resize-y min-h-[100px]"
+                     placeholder="SELECT * FROM users LIMIT 10;"
+                     spellCheck={false}
+                   />
+                   <div className="absolute bottom-4 right-4 flex gap-2">
+                     <button
+                       onClick={() => handleExecuteSql()}
+                       disabled={isExecutingSql}
+                       className="px-4 py-2 bg-emerald-600/20 text-emerald-400 font-black uppercase text-[10px] tracking-widest rounded-lg hover:bg-emerald-600/40 transition-colors disabled:opacity-50 border border-emerald-500/30 flex items-center gap-2"
+                     >
+                       {isExecutingSql ? '...' : (
+                         <>
+                           <Play className="w-3 h-3" /> Run
+                         </>
+                       )}
+                     </button>
+                   </div>
+                 </div>
+                 {queryError && (
+                   <div className="mt-3 p-3 bg-red-950/50 border border-red-900/50 rounded-lg text-red-400 font-mono text-xs flex gap-3">
+                     <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                     <span>{queryError}</span>
+                   </div>
+                 )}
+               </div>
+
+               <div className="flex-1 overflow-auto rounded-xl bg-slate-950 border border-slate-800 text-slate-300 relative">
+                 {queryResult ? (
+                   queryResult.length === 0 ? (
+                     <div className="p-8 text-center text-slate-500 top-1/2 left-1/2 absolute -translate-x-1/2 -translate-y-1/2">
+                       <p className="font-bold uppercase tracking-widest">- Retour vide -</p>
+                     </div>
+                   ) : (
+                     <table className="w-full text-left border-collapse">
+                       <thead className="sticky top-0 bg-slate-900 border-b border-slate-800">
+                         <tr>
+                           {Object.keys(queryResult[0]).map(key => (
+                             <th key={key} className="p-3 text-[10px] uppercase font-bold text-slate-400 tracking-widest whitespace-nowrap bg-slate-900">
+                               {key}
+                             </th>
+                           ))}
+                         </tr>
+                       </thead>
+                       <tbody className="divide-y divide-slate-800">
+                         {queryResult.map((row, i) => (
+                           <tr key={i} className="hover:bg-slate-800/50 transition-colors">
+                             {Object.values(row).map((val: any, j) => (
+                               <td key={j} className="p-3 text-xs text-slate-300 whitespace-nowrap overflow-hidden text-ellipsis max-w-xs">
+                                 {val === null ? <span className="text-slate-600 italic">null</span> : 
+                                  typeof val === 'object' ? JSON.stringify(val) : String(val)}
+                               </td>
+                             ))}
+                           </tr>
+                         ))}
+                       </tbody>
+                     </table>
+                   )
+                 ) : (
+                   <div className="p-4 space-y-2 text-[10px]">
+                     <p className="text-slate-500">// Terminal local SQL. Tables disponibles :</p>
+                     <p className="text-slate-400">- users (id, name, email, role, phone, accountStatus...)</p>
+                     <p className="text-slate-400">- deliveries (id, clientId, driverId, status, cost, from, to...)</p>
+                     <p className="text-slate-400">- config (key, value)</p>
+                     <p className="text-slate-400">- messages (id, deliveryId, text, senderId...)</p>
+                     <p className="text-slate-400">- notifications (id, userId, title, message...)</p>
+                     <p className="text-slate-400">- withdrawals (id, driverId, amount, status...)</p>
+                     <p className="text-slate-400">- historique_gains (id, driverId, type, amount...)</p>
+                     <p className="text-emerald-500 mt-4 animate-pulse">Ready &gt;_</p>
+                   </div>
+                 )}
+               </div>
+            </div>
+          </div>
+        );
+      case 'Tarification': {
+        const handleAddPricingRule = async (e: React.FormEvent) => {
+          e.preventDefault();
+          const newRules = [...pricingRules, {
+            id: Math.random().toString(36).substring(2, 9),
+            ...pricingForm
+          }];
+          setIsSaving(true);
+          try {
+            await api.config.update('pricing_rules', newRules);
+            setPricingRules(newRules);
+            setToast({ type: 'success', message: 'Regle de tarification ajoutee avec succes !' });
+            setPricingForm({
+              vehicleType: 'moto',
+              poidsMin: 0,
+              poidsMax: 10,
+              baseCost: 1000,
+              tarifKm: 150
+            });
+            await fetchData();
+          } catch (err: any) {
+            setToast({ type: 'error', message: 'Erreur: ' + err.message });
+          } finally {
+            setIsSaving(false);
+          }
+        };
+
+        const handleDeletePricingRule = async (ruleId: string) => {
+          const newRules = pricingRules.filter((r: any) => r.id !== ruleId);
+          setIsSaving(true);
+          try {
+            await api.config.update('pricing_rules', newRules);
+            setPricingRules(newRules);
+            setToast({ type: 'success', message: 'Regle supprimee avec succes !' });
+            setConfirmingDeleteRuleId(null);
+            await fetchData();
+          } catch (err: any) {
+            setToast({ type: 'error', message: 'Erreur de suppression: ' + err.message });
+          } finally {
+            setIsSaving(false);
+          }
+        };
+
+        const handleUpdateDefaultPricing = async (e: React.FormEvent) => {
+          e.preventDefault();
+          setIsSaving(true);
+          try {
+            await api.config.update('default_pricing', defaultPricing);
+            isDefaultPricingDirtyRef.current = false;
+            setToast({ type: 'success', message: 'Parametres par defaut mis a jour !' });
+            await fetchData();
+          } catch (err: any) {
+            setToast({ type: 'error', message: 'Erreur: ' + err.message });
+          } finally {
+            setIsSaving(false);
+          }
+        };
+
+        return (
+          <div className="space-y-8">
+            <div className="bg-white rounded-[32px] p-8 border border-slate-100 shadow-sm">
+              <div className="flex items-center justify-between mb-8">
+                <div>
+                  <h3 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Parametres par Defaut (Moto & Urgence)</h3>
+                  <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-1">Configurez la base de la tarification geolocalisee (Haversine)</p>
+                </div>
+                <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center">
+                  <Settings className="w-6 h-6" />
+                </div>
+              </div>
+
+              <form onSubmit={handleUpdateDefaultPricing} className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-50 p-6 rounded-2xl border border-slate-100 mb-8 items-end">
+                <div>
+                  <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1 pl-2">Moto: Jusqu'a 10 km (F)</label>
+                  <input type="number" value={defaultPricing.motoBase10 || ''} onChange={e => setDefaultPricing({ ...defaultPricing, motoBase10: Number(e.target.value) })} className="w-full bg-white border border-slate-200 text-slate-900 p-3 rounded-xl focus:outline-none focus:border-indigo-500 font-bold text-xs" />
+                </div>
+                <div>
+                  <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1 pl-2">Moto: Jusqu'a 15 km (F)</label>
+                  <input type="number" value={defaultPricing.motoBase15 || ''} onChange={e => setDefaultPricing({ ...defaultPricing, motoBase15: Number(e.target.value) })} className="w-full bg-white border border-slate-200 text-slate-900 p-3 rounded-xl focus:outline-none focus:border-indigo-500 font-bold text-xs" />
+                </div>
+                <div>
+                  <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1 pl-2">Moto: Cout par Km &gt; 15km</label>
+                  <input type="number" value={defaultPricing.motoCostPerKmAfter15 || ''} onChange={e => setDefaultPricing({ ...defaultPricing, motoCostPerKmAfter15: Number(e.target.value) })} className="w-full bg-white border border-slate-200 text-slate-900 p-3 rounded-xl focus:outline-none focus:border-indigo-500 font-bold text-xs" />
+                </div>
+                <div>
+                  <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1 pl-2">Moto: Surcharge par Poids</label>
+                  <input type="number" value={defaultPricing.motoWeightCost || ''} onChange={e => setDefaultPricing({ ...defaultPricing, motoWeightCost: Number(e.target.value) })} className="w-full bg-white border border-slate-200 text-slate-900 p-3 rounded-xl focus:outline-none focus:border-indigo-500 font-bold text-xs" />
+                </div>
+                <div>
+                  <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1 pl-2">Surcharge Urgence (Global)</label>
+                  <input type="number" value={defaultPricing.urgenceCost || ''} onChange={e => setDefaultPricing({ ...defaultPricing, urgenceCost: Number(e.target.value) })} className="w-full bg-white border border-slate-200 text-slate-900 p-3 rounded-xl focus:outline-none focus:border-indigo-500 font-bold text-xs" />
+                </div>
+                <div>
+                  <button type="submit" disabled={isSaving} className="w-full bg-slate-900 text-white font-bold text-sm py-3 px-4 rounded-xl hover:bg-slate-800 transition-colors disabled:opacity-50 h-[42px] flex items-center justify-center">
+                    {isSaving ? 'Enregistrement...' : 'Enregistrer les parametres par defaut'}
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            <div className="bg-white rounded-[32px] p-8 border border-slate-100 shadow-sm">
+              <div className="flex items-center justify-between mb-8">
+                <div>
+                  <h3 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Regles Dynamiques Avancees</h3>
+                  <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-1">Ecrase les formules standards (ex. tricycle/camion par poids)</p>
+                </div>
+                <div className="w-12 h-12 bg-orange-50 text-orange-600 rounded-2xl flex items-center justify-center">
+                  <Settings className="w-6 h-6" />
+                </div>
+              </div>
+
+              <form onSubmit={handleAddPricingRule} className="grid grid-cols-1 md:grid-cols-5 gap-4 bg-slate-50 p-6 rounded-2xl border border-slate-100 mb-8 items-end">
+                <div>
+                  <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1 pl-2">Vehicule</label>
+                  <select 
+                    value={pricingForm.vehicleType}
+                    onChange={e => setPricingForm({ ...pricingForm, vehicleType: e.target.value })}
+                    className="w-full bg-white border border-slate-200 text-slate-900 p-3 rounded-xl focus:outline-none focus:border-indigo-500 font-bold text-xs appearance-none"
+                  >
+                    <option value="moto">Moto</option>
+                    <option value="tricycle">Tricycle</option>
+                    <option value="camion">Camion</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1 pl-2">Poids Min (Kg)</label>
+                  <input 
+                    type="number" 
+                    value={pricingForm.poidsMin}
+                    onChange={e => setPricingForm({ ...pricingForm, poidsMin: Number(e.target.value) })}
+                    className="w-full bg-white border border-slate-200 text-slate-900 p-3 rounded-xl focus:outline-none focus:border-indigo-500 font-bold text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1 pl-2">Poids Max (Kg)</label>
+                  <input 
+                    type="number" 
+                    value={pricingForm.poidsMax}
+                    onChange={e => setPricingForm({ ...pricingForm, poidsMax: Number(e.target.value) })}
+                    className="w-full bg-white border border-slate-200 text-slate-900 p-3 rounded-xl focus:outline-none focus:border-indigo-500 font-bold text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1 pl-2">Pris de base (F)</label>
+                  <input 
+                    type="number" 
+                    value={pricingForm.baseCost}
+                    onChange={e => setPricingForm({ ...pricingForm, baseCost: Number(e.target.value) })}
+                    className="w-full bg-white border border-slate-200 text-slate-900 p-3 rounded-xl focus:outline-none focus:border-indigo-500 font-bold text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1 pl-2">Tarif/Km (F)</label>
+                  <input 
+                    type="number" 
+                    value={pricingForm.tarifKm}
+                    onChange={e => setPricingForm({ ...pricingForm, tarifKm: Number(e.target.value) })}
+                    className="w-full bg-white border border-slate-200 text-slate-900 p-3 rounded-xl focus:outline-none focus:border-indigo-500 font-bold text-xs mb-2"
+                  />
+                  <button 
+                    type="submit"
+                    disabled={isSaving}
+                    className="w-full py-3 bg-slate-900 hover:bg-indigo-600 text-white font-extrabold uppercase tracking-widest text-[9px] rounded-xl transition-all"
+                  >
+                    Ajouter
+                  </button>
+                </div>
+              </form>
+
+              <div className="space-y-3">
+                {pricingRules.length === 0 ? (
+                  <p className="text-center py-10 text-slate-400 text-xs font-bold uppercase tracking-widest">Aucune regle specifique. Tarifs standards appliques.</p>
+                ) : (
+                  pricingRules.map((rule: any) => (
+                    <div key={rule.id} className="p-4 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-between hover:bg-white transition-all shadow-sm">
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center font-bold text-xs capitalize">
+                          {rule.vehicleType?.slice(0, 4)}
+                        </div>
+                        <div>
+                          <p className="text-xs font-black text-slate-900 uppercase font-black">Vehicule : {rule.vehicleType}</p>
+                          <p className="text-[10px] font-bold text-slate-400 tracking-wider">
+                            Poids admissible: {rule.poidsMin} kg a {rule.poidsMax} kg * Cout Fixe: {rule.baseCost} F * Tarif/Km: {rule.tarifKm} F/km
+                          </p>
+                        </div>
+                      </div>
+
+                      {confirmingDeleteRuleId === rule.id ? (
+                        <div className="flex items-center gap-2">
+                          <span className="text-[9px] font-black uppercase text-red-500 mr-1 animate-pulse">Sur(e) ?</span>
+                          <button
+                            onClick={() => handleDeletePricingRule(rule.id)}
+                            className="bg-red-600 hover:bg-red-700 text-white font-extrabold px-3 py-2 rounded-xl text-[9px] uppercase tracking-wider transition-all"
+                          >
+                            Oui
+                          </button>
+                          <button
+                            onClick={() => setConfirmingDeleteRuleId(null)}
+                            className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-extrabold px-3 py-2 rounded-xl text-[9px] uppercase tracking-wider transition-all"
+                          >
+                            Non
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setConfirmingDeleteRuleId(rule.id)}
+                          className="p-3 bg-red-50 hover:bg-red-100 text-red-500 rounded-xl transition-all border border-red-100"
+                          title="Supprimer"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      }
+      case 'Codes Promo': {
+        const handleCreatePromo = async (e: React.FormEvent) => {
+          e.preventDefault();
+          if (!promoForm.code.trim()) {
+            toast("Veuillez saisir un code promo.");
+            return;
+          }
+          setIsCreatingPromo(true);
+          try {
+            await api.promo.create(promoForm);
+            setToast({ type: 'success', message: 'Code promo cree avec succes !' });
+            setPromoForm({
+              code: '',
+              type: 'percentage',
+              value: 10,
+              start_date: '',
+              end_date: '',
+              max_uses: '',
+              max_per_user: 1
+            });
+            await fetchData();
+          } catch (err: any) {
+            setToast({ type: 'error', message: err.message });
+          } finally {
+            setIsCreatingPromo(false);
+          }
+        };
+
+        const handleDeletePromo = async (codeToDelete: string) => {
+          try {
+            await api.promo.delete(codeToDelete);
+            setToast({ type: 'success', message: 'Code promo supprime avec succes !' });
+            setConfirmingDeletePromoCode(null);
+            await fetchData();
+          } catch (err: any) {
+            setToast({ type: 'error', message: err.message });
+          }
+        };
+
+        return (
+          <div className="space-y-8">
+            <div className="bg-white rounded-[32px] p-8 border border-slate-100 shadow-sm">
+              <div className="flex items-center justify-between mb-8">
+                <div>
+                  <h3 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Gestion des Codes Promotionnels</h3>
+                  <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-1">Creez et gerez les ristournes appliquees sur les courses</p>
+                </div>
+                <div className="w-12 h-12 bg-orange-50 text-orange-600 rounded-2xl flex items-center justify-center">
+                  <BadgePercent className="w-6 h-6" />
+                </div>
+              </div>
+
+              <form onSubmit={handleCreatePromo} className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-slate-50 p-6 rounded-2xl border border-slate-100 mb-8 items-end">
+                <div>
+                  <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1 pl-2">Code (Ex: faso25)</label>
+                  <input 
+                    type="text" 
+                    placeholder="faso20"
+                    value={promoForm.code}
+                    onChange={e => setPromoForm({ ...promoForm, code: e.target.value.toUpperCase() })}
+                    className="w-full bg-white border border-slate-200 text-slate-900 p-3 rounded-xl focus:outline-none focus:border-indigo-500 font-bold text-xs uppercase placeholder:text-slate-300"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1 pl-2">Type</label>
+                  <select 
+                    value={promoForm.type}
+                    onChange={e => setPromoForm({ ...promoForm, type: e.target.value as any })}
+                    className="w-full bg-white border border-slate-200 text-slate-900 p-3 rounded-xl focus:outline-none focus:border-indigo-500 font-bold text-xs appearance-none"
+                  >
+                    <option value="percentage">Pourcentage (%)</option>
+                    <option value="fixed">Montant fixe (FCFA)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1 pl-2">Valeur (Ex: 20 ou 500)</label>
+                  <input 
+                    type="number" 
+                    value={promoForm.value}
+                    onChange={e => setPromoForm({ ...promoForm, value: Number(e.target.value) })}
+                    className="w-full bg-white border border-slate-200 text-slate-900 p-3 rounded-xl focus:outline-none focus:border-indigo-500 font-bold text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1 pl-2">Limite utilisations</label>
+                  <input 
+                    type="number" 
+                    placeholder="Illimite"
+                    value={promoForm.max_uses}
+                    onChange={e => setPromoForm({ ...promoForm, max_uses: e.target.value })}
+                    className="w-full bg-white border border-slate-200 text-slate-900 p-3 rounded-xl focus:outline-none focus:border-indigo-500 font-bold text-xs placeholder:text-slate-300"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1 pl-2">Date & Heure Fin (Optionnelle)</label>
+                  <input 
+                    type="datetime-local" 
+                    value={promoForm.end_date}
+                    onChange={e => setPromoForm({ ...promoForm, end_date: e.target.value })}
+                    className="w-full bg-white border border-slate-200 text-slate-900 p-3 rounded-xl focus:outline-none focus:border-indigo-500 font-bold text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1 pl-2">Uti. max par client</label>
+                  <input 
+                    type="number" 
+                    value={promoForm.max_per_user}
+                    onChange={e => setPromoForm({ ...promoForm, max_per_user: Number(e.target.value) })}
+                    className="w-full bg-white border border-slate-200 text-slate-900 p-3 rounded-xl focus:outline-none focus:border-indigo-500 font-bold text-xs"
+                  />
+                </div>
+                <div className="md:col-span-2 font-black">
+                  <button 
+                    type="submit"
+                    disabled={isCreatingPromo}
+                    className="w-full py-4 bg-slate-900 hover:bg-orange-600 text-white font-extrabold uppercase tracking-widest text-[9px] rounded-xl transition-all"
+                  >
+                    {isCreatingPromo ? "Creation..." : "Enregistrer le code promo"}
+                  </button>
+                </div>
+              </form>
+ 
+               <div className="space-y-3">
+                {promoCodes.length === 0 ? (
+                  <p className="text-center py-10 text-slate-400 text-xs font-bold uppercase tracking-widest">Aucun code promo actif actuellement.</p>
+                ) : (
+                  promoCodes.map((promo: any) => (
+                    <div key={promo.code} className="p-4 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-between hover:bg-white transition-all shadow-sm">
+                      <div className="flex items-center gap-4">
+                        <div className="px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-xl font-black text-xs">
+                          {promo.code}
+                        </div>
+                        <div>
+                          <p className="text-xs font-black text-slate-900 uppercase tracking-wider">
+                            {promo.type === 'percentage' ? `Reduction: -${promo.value}%` : `Reduction: -${promo.value} FCFA`}
+                          </p>
+                          <p className="text-[10px] font-bold text-slate-400 tracking-wider">
+                            Utilise {promo.uses_count} fois {promo.max_uses ? `sur un maximum de ${promo.max_uses}` : '(Sans limite globale)'} * Max par utilisateur : {promo.max_per_user}
+                          </p>
+                          {promo.end_date && (
+                            <p className="text-[9px] font-bold text-red-500 mt-1 uppercase">
+                              Expire le : {new Date(promo.end_date).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }).replace(',', ' a')}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      {confirmingDeletePromoCode === promo.code ? (
+                        <div className="flex items-center gap-2">
+                          <span className="text-[9px] font-black uppercase text-red-500 mr-1 animate-pulse">Sur(e) ?</span>
+                          <button
+                            onClick={() => handleDeletePromo(promo.code)}
+                            className="bg-red-600 hover:bg-red-700 text-white font-extrabold px-3 py-2 rounded-xl text-[9px] uppercase tracking-wider transition-all"
+                          >
+                            Oui
+                          </button>
+                          <button
+                            onClick={() => setConfirmingDeletePromoCode(null)}
+                            className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-extrabold px-3 py-2 rounded-xl text-[9px] uppercase tracking-wider transition-all"
+                          >
+                            Non
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setConfirmingDeletePromoCode(promo.code)}
+                          className="p-3 bg-red-50 hover:bg-red-100 text-red-500 rounded-xl transition-all border border-red-100"
+                        >
+                          <Trash2 className="w-4 h-4 shrink-0" />
+                        </button>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      }
+      default:
+        return (
+          <div className="flex flex-col items-center justify-center py-32 bg-white rounded-3xl border border-slate-100 shadow-sm text-center px-10">
+            <Store className="w-24 h-24 text-slate-100 mb-8" />
+            <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter mb-4">Module {activeMenu}</h3>
+            <p className="text-slate-400 font-bold text-sm uppercase tracking-widest max-w-md">Ce module de suivi en temps reel de FASO EXPRESS est en cours de deploiement securise.</p>
+          </div>
+        );
+    }
+  };
+
+  // Safety redirection: If for some reason the profile role changes to non-admin or non-staff
+  // and we are still on the admin view, redirect immediately.
+  if (profile && profile.role !== 'admin' && profile.role !== 'superadmin' && profile.role !== 'manager' && profile.role !== 'support' && !isMasterAdmin) {
+    return <Navigate to={profile.role === 'driver' ? '/driver' : '/client'} />;
+  }
+
+  return (
+    <div className="flex-1 flex w-full bg-[#f8fafc] overflow-hidden min-h-0">
+      {loading && (
+        <div className="fixed top-0 left-0 right-0 z-[100] h-1 overflow-hidden bg-indigo-100">
+          <motion.div 
+            initial={{ x: '-100%' }}
+            animate={{ x: '100%' }}
+            transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }}
+            className="h-full w-1/3 bg-indigo-600 shadow-[0_0_10px_rgba(79,70,229,0.5)]"
+          />
+        </div>
+      )}
+      <aside className="w-64 bg-white border-r border-slate-200 overflow-y-auto hidden lg:block">
+        <div className="p-6">
+          <div className="flex items-center gap-3 mb-12">
+            <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-xl shadow-indigo-100">
+              <ShieldCheck className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="font-black text-slate-900 text-lg tracking-tight leading-none uppercase">FASO EXPRESS</h2>
+              <p className="text-[9px] font-black text-indigo-500 uppercase tracking-[0.3em] mt-1.5">Administration</p>
+            </div>
+          </div>
+
+          <div className="space-y-8">
+            {sidebarItems.map((group) => (
+              <div key={group.group}>
+                <h3 className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 px-3">{group.group}</h3>
+                <div className="space-y-1">
+                  {group.items.map((item) => (
+                    <button
+                      key={item.name}
+                      onClick={() => handleMenuChange(item.name)}
+                      className={cn(
+                        "w-full flex items-center justify-between px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-tight transition-all duration-300",
+                        activeMenu === item.name 
+                          ? "bg-slate-900 text-white shadow-sm scale-[1.02]" 
+                          : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"
+                      )}
+                    >
+                      <div className="flex items-center gap-3">
+                        <item.icon className={cn("w-4 h-4", activeMenu === item.name ? "text-white" : "text-slate-400")} />
+                        {item.name}
+                      </div>
+                      {item.name === 'Paiements Livreurs' && withdrawals.some(w => w.status === 'en_attente') && (
+                        <span className="w-2 h-2 bg-red-500 rounded-full shadow-[0_0_8px_rgba(239,68,68,0.8)]" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-8 pt-6 border-t border-slate-100">
+            <button onClick={() => {logout(); navigate('/')}} className="w-full flex items-center gap-3 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-rose-500 hover:bg-rose-50 rounded-xl transition-all mb-6">
+              <LogOut className="w-4 h-4" />
+              Deconnexion
+            </button>
+
+            {dbInfo ? (
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 mt-2">
+                <div className="flex items-center gap-2 mb-2">
+                   <Database className="w-3 h-3 text-indigo-500" />
+                   <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Base active</span>
+                </div>
+                <div className="flex justify-between items-center">
+                   <span className="text-[10px] font-black text-slate-700">{dbInfo.engine}</span>
+                   <div className="flex items-center gap-1">
+                      <div className={cn("w-1.5 h-1.5 rounded-full shadow-[0_0_5px]", dbInfo.engine === 'MariaDB' ? 'bg-emerald-500 shadow-emerald-500' : 'bg-amber-500 shadow-amber-500 animate-pulse')}></div>
+                      <span className="text-[8px] font-bold text-slate-400 uppercase">Live</span>
+                   </div>
+                </div>
+                <p className="text-[8px] font-medium text-slate-400 mt-1 truncate max-w-full opacity-60">{dbInfo.database}</p>
+                <p className="text-[7px] text-slate-300 mt-0.5">{dbInfo.host}</p>
+              </div>
+            ) : (
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex items-center justify-center p-2">
+                <span className="text-[8px] font-bold text-slate-300 uppercase tracking-widest">Recuperation DB...</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </aside>
+
+      <main className="flex-1 flex flex-col overflow-hidden bg-slate-50 shadow-inner min-h-0">
+        <header className="bg-white px-4 sm:px-8 py-4 flex flex-col gap-4 sm:flex-row sm:items-center justify-between sticky top-0 z-40 border-b border-slate-200 shrink-0 shadow-sm">
+          <div className="flex items-center justify-between sm:justify-start gap-4">
+             <button 
+               onClick={() => setIsSidebarOpen(true)}
+               className="lg:hidden w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-slate-600"
+             >
+               <Menu className="w-5 h-5" />
+             </button>
+             <h3 className="text-xl font-black text-slate-900 tracking-tight uppercase">{activeMenu}</h3>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3 sm:gap-6 justify-between sm:justify-end">
+            {isSuperAdmin && (
+              <div className="flex flex-col items-start sm:items-end">
+                <span className="text-[7px] sm:text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Systeme Mode</span>
+                <button 
+                  onClick={handleToggleMode}
+                  className={cn(
+                    "flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl text-[9px] sm:text-[10px] font-black uppercase tracking-widest transition-all",
+                    appConfig?.mode === 'prod' ? "bg-emerald-500 text-white shadow-lg shadow-emerald-200" : "bg-amber-400 text-amber-950"
+                  )}
+                >
+                  <ShieldCheck className="w-3 h-3" />
+                  {appConfig?.mode === 'prod' ? 'Production' : 'Mode Test'}
+                </button>
+              </div>
+            )}
+            
+            {isSuperAdmin && <div className="hidden sm:block h-10 w-px bg-slate-100 mx-2" />}
+          </div>
+        </header>
+
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeMenu}
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -30 }}
+              transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
+            >
+              {renderContent()}
+            </motion.div>
+          </AnimatePresence>
+        </div>
+      </main>
+
+      {/* Mobile Sidebar */}
+      <AnimatePresence>
+        {isSidebarOpen && (
+          <div className="fixed inset-0 z-[60] lg:hidden">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsSidebarOpen(false)}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" 
+            />
+            <motion.aside 
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="absolute inset-y-0 left-0 w-80 bg-white shadow-2xl flex flex-col pt-[env(safe-area-inset-top)]"
+            >
+               <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white">
+                      <ShieldCheck className="w-5 h-5" />
+                    </div>
+                    <span className="font-black text-slate-900 uppercase">ADMIN FASO EXPRESS</span>
+                  </div>
+                  <button onClick={() => setIsSidebarOpen(false)} className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center">
+                    <X className="w-5 h-5" />
+                  </button>
+               </div>
+               <div className="flex-1 overflow-y-auto p-6 space-y-8 py-[env(safe-area-inset-bottom)]">
+                  {sidebarItems.map((group) => (
+                    <div key={group.group}>
+                      <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 px-3">{group.group}</h3>
+                      <div className="space-y-1">
+                        {group.items.map((item) => (
+                          <button
+                            key={item.name}
+                            onClick={() => handleMenuChange(item.name)}
+                            className={cn(
+                              "w-full flex items-center justify-between px-4 py-3 rounded-xl text-[11px] font-black uppercase tracking-tight transition-all duration-300",
+                              activeMenu === item.name 
+                                ? "bg-slate-900 text-white shadow-lg scale-[1.02]" 
+                                : "text-slate-500 hover:bg-slate-50"
+                            )}
+                          >
+                            <div className="flex items-center gap-3">
+                              <item.icon className={cn("w-4 h-4", activeMenu === item.name ? "text-white" : "text-slate-400")} />
+                              {item.name}
+                            </div>
+                            {item.name === 'Paiements Livreurs' && withdrawals.some(w => w.status === 'en_attente') && (
+                              <span className="w-2 h-2 bg-red-500 rounded-full shadow-[0_0_8px_rgba(239,68,68,0.8)]" />
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+               </div>
+            </motion.aside>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Custom Reset Modal */}
+      <AnimatePresence>
+        {showResetConfirm && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-slate-950/80 backdrop-blur-md" 
+              onClick={() => setShowResetConfirm(false)} 
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="bg-white rounded-[40px] p-8 lg:p-10 max-w-sm w-full relative z-10 shadow-2xl border border-white"
+            >
+              <div className="w-20 h-20 bg-rose-100 text-rose-600 rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-inner">
+                <Trash2 className="w-10 h-10" />
+              </div>
+              <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter text-center mb-4 italic">Hard Reset</h3>
+              <p className="text-xs font-bold text-slate-500 mb-8 leading-relaxed text-center uppercase tracking-tight">
+                Cette action supprimera toutes les livraisons, encheres, tracking, messages et comptes utilisateurs. Tapez <span className="text-rose-600 font-black px-2 py-1 bg-rose-50 rounded-lg mx-1">RESET</span> pour confirmer le nettoyage complet de la base de donnees locale.
+              </p>
+              
+              <div className="space-y-6">
+                <input
+                  type="text"
+                  value={resetCode}
+                  onChange={(e) => setResetCode(e.target.value)}
+                  placeholder="Tapez RESET ici"
+                  className="w-full bg-slate-50 border-2 border-slate-100 rounded-[24px] px-6 py-5 font-black text-slate-900 uppercase tracking-[0.2em] text-center focus:border-rose-600 focus:bg-white transition-all outline-none text-sm placeholder:text-slate-300"
+                />
+                
+                <div className="flex gap-4">
+                  <button
+                    onClick={() => setShowResetConfirm(false)}
+                    className="flex-1 px-4 py-5 bg-slate-100 text-slate-600 rounded-[24px] text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all active:scale-95"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    onClick={executeHardReset}
+                    disabled={resetCode.trim().toUpperCase() !== 'RESET' || isSaving}
+                    className="flex-1 px-4 py-5 bg-rose-600 text-white rounded-[24px] text-[10px] font-black uppercase tracking-widest hover:bg-rose-700 transition-all shadow-xl shadow-rose-200 disabled:opacity-40 active:scale-95 disabled:scale-100"
+                  >
+                    {isSaving ? 'Nettoyage...' : 'Confirmer'}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Payout Modal */}
+      <AnimatePresence>
+        {payoutModalData && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setPayoutModalData(null)} />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white rounded-[24px] p-8 w-full max-w-md relative z-10 shadow-2xl"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h3 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Valider le Paiement</h3>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+                    {payoutModalData.driverName} - {payoutModalData.amount?.toLocaleString()} FCFA
+                  </p>
+                  {(payoutModalData.phone || payoutModalData.info) && (
+                    <div className="mt-2 bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100 inline-block">
+                      <p className="text-[10px] font-black text-indigo-600 uppercase tracking-wider">
+                         CIBLE: {payoutModalData.phone || payoutModalData.info}
+                      </p>
+                    </div>
+                  )}
+                </div>
+                <button onClick={() => setPayoutModalData(null)} className="text-slate-300 hover:text-slate-900 transition-colors">
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <label className="flex items-start gap-4 p-4 rounded-xl border border-slate-100 cursor-pointer hover:bg-slate-50 transition-colors" onClick={() => setPayoutForm({ ...payoutForm, mode: 'manual' })}>
+                  <input type="radio" name="payoutMode" checked={payoutForm.mode === 'manual'} readOnly className="mt-1" />
+                  <div>
+                    <h4 className="text-sm font-black uppercase tracking-wider text-slate-900">Mode Manuel</h4>
+                    <p className="text-[10px] text-slate-500 mt-1">Vous avez effectué le paiement hors-plateforme. Le système sera mis à jour et le livreur notifié.</p>
+                  </div>
+                </label>
+
+                <label className="flex items-start gap-4 p-4 rounded-xl border border-emerald-100 cursor-pointer hover:bg-emerald-50 transition-colors" onClick={() => setPayoutForm({ ...payoutForm, mode: 'auto' })}>
+                  <input type="radio" name="payoutMode" checked={payoutForm.mode === 'auto'} readOnly className="mt-1" />
+                  <div>
+                    <h4 className="text-sm font-black uppercase tracking-wider text-emerald-600">Mode Automatique (SapPay)</h4>
+                    <p className="text-[10px] text-slate-500 mt-1">Déclenche instantanément un virement via l'API SapPay vers le mobile du livreur.</p>
+                  </div>
+                </label>
+
+                <label className="flex items-start gap-4 p-4 rounded-xl border border-orange-100 cursor-pointer hover:bg-orange-50 transition-colors" onClick={() => setPayoutForm({ ...payoutForm, mode: 'force' })}>
+                  <input type="radio" name="payoutMode" checked={payoutForm.mode === 'force'} readOnly className="mt-1" />
+                  <div>
+                    <h4 className="text-sm font-black uppercase tracking-wider text-orange-600">Forcer le Statut</h4>
+                    <p className="text-[10px] text-slate-500 mt-1">En cas d'anomalie réseau. Marque la transaction comme payée manuellement avec un TxID de référence.</p>
+                  </div>
+                </label>
+
+                {payoutForm.mode === 'force' && (
+                  <div className="mt-4">
+                    <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider block mb-2">Transaction ID (TxID)</label>
+                    <input
+                      type="text"
+                      placeholder="Ex: SP_123456789"
+                      value={payoutForm.txId}
+                      onChange={(e) => setPayoutForm({ ...payoutForm, txId: e.target.value })}
+                      className="w-full bg-slate-50 border-none rounded-xl px-4 py-3 text-xs font-bold focus:ring-4 focus:ring-orange-100"
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-8 flex gap-3">
+                <button
+                  onClick={() => handleValidateWithdrawal(payoutModalData.id, payoutForm.mode, payoutForm.txId)}
+                  disabled={isProcessingAction || (payoutForm.mode === 'force' && !payoutForm.txId)}
+                  className="flex-1 bg-slate-900 text-white py-3 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-slate-800 transition-colors disabled:opacity-50"
+                >
+                  {isProcessingAction ? 'En cours...' : 'Confirmer'}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Create User Modal */}
+      <AnimatePresence>
+        {showCreateUserModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => !isSubmittingNewUser && setShowCreateUserModal(false)} />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white rounded-3xl p-6 lg:p-5 lg:p-6 max-w-lg w-full relative z-10 shadow-2xl overflow-y-auto max-h-[90vh]"
+            >
+              <div className="flex justify-between items-start mb-8">
+                <div>
+                  <h3 className="text-2xl font-black text-slate-900 tracking-tighter uppercase">Creer un Utilisateur</h3>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+                    {newUserData.role === 'client' ? 'Nouveau Client' : 'Nouveau Livreur'}
+                  </p>
+                </div>
+                <button onClick={() => !isSubmittingNewUser && setShowCreateUserModal(false)} className="text-slate-300 hover:text-slate-900 transition-colors">
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <form onSubmit={handleCreateUser} className="space-y-4">
+                <div className="flex justify-center mb-6">
+                  <div 
+                    onClick={() => document.getElementById('adminUserPhoto')?.click()}
+                    className="w-24 h-24 bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-100 transition-all overflow-hidden relative group"
+                  >
+                    {newUserData.photoURL ? (
+                      <>
+                        <img src={newUserData.photoURL} className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <Plus className="w-6 h-6 text-white" />
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <UserCircle className="w-8 h-8 text-slate-300" />
+                        <span className="text-[8px] font-black text-slate-400 uppercase mt-1">Photo</span>
+                      </>
+                    )}
+                    <input id="adminUserPhoto" type="file" accept="image/*" className="hidden" onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onloadend = () => setNewUserData({...newUserData, photoURL: reader.result as string});
+                        reader.readAsDataURL(file);
+                      }
+                    }} />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Nom complet *</label>
+                  <input type="text" value={newUserData.name} onChange={e => setNewUserData({...newUserData, name: e.target.value})} required className="w-full bg-slate-50 border-none rounded-2xl px-4 py-3 text-sm font-bold focus:ring-4 focus:ring-indigo-100" />
+                </div>
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Email *</label>
+                  <input type="email" value={newUserData.email} onChange={e => setNewUserData({...newUserData, email: e.target.value})} required className="w-full bg-slate-50 border-none rounded-2xl px-4 py-3 text-sm font-bold focus:ring-4 focus:ring-indigo-100" />
+                </div>
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Mot de passe temporaire *</label>
+                  <div className="relative">
+                    <input 
+                      type={showUserPassword ? "text" : "password"} 
+                      value={newUserData.password} 
+                      onChange={e => setNewUserData({...newUserData, password: e.target.value})} 
+                      required 
+                      className="w-full bg-slate-50 border-none rounded-2xl px-4 pr-12 py-3 text-sm font-bold focus:ring-4 focus:ring-indigo-100" 
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowUserPassword(!showUserPassword)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                    >
+                      {showUserPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Rôle / Profil *</label>
+                  <select 
+                    value={newUserData.role} 
+                    onChange={e => {
+                      const selectedRole = e.target.value as UserRole;
+                      setNewUserData({
+                        ...newUserData,
+                        role: selectedRole,
+                        permissions: DEFAULT_ROLE_PERMISSIONS[selectedRole] || []
+                      });
+                    }}
+                    className="w-full bg-slate-50 border-none rounded-2xl px-4 py-3 text-sm font-bold focus:ring-4 focus:ring-indigo-100"
+                  >
+                    <option value="client">Client Standard</option>
+                    <option value="driver">Livreur (Zem)</option>
+                    <option value="manager">Manager / Gestionnaire Flotte</option>
+                    <option value="support">Agent Support & Assistance</option>
+                    <option value="admin">Administrateur</option>
+                    {isSuperAdmin && <option value="superadmin">Super Admin</option>}
+                  </select>
+                </div>
+
+                {(newUserData.role === 'manager' || newUserData.role === 'support' || newUserData.role === 'admin' || newUserData.role === 'superadmin') && (
+                  <div className="bg-slate-50 p-4 rounded-2xl space-y-3 border border-slate-100">
+                    <div className="flex justify-between items-center">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-700">Permissions et Droits d'Accès</label>
+                      <span className="text-[9px] font-bold text-indigo-600 uppercase bg-indigo-50 px-2 py-0.5 rounded-full">
+                        {(newUserData.permissions || []).length} / {ALL_PERMISSIONS.length}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto pr-1">
+                      {ALL_PERMISSIONS.map(p => {
+                        const isChecked = (newUserData.permissions || []).includes(p.id);
+                        return (
+                          <label key={p.id} className="flex items-start gap-3 p-2.5 bg-white rounded-xl border border-slate-100 cursor-pointer hover:border-indigo-200 transition-colors">
+                            <input 
+                              type="checkbox" 
+                              checked={isChecked}
+                              onChange={(e) => {
+                                const currentPerms: UserPermission[] = newUserData.permissions || [];
+                                if (e.target.checked) {
+                                  setNewUserData({ ...newUserData, permissions: [...currentPerms, p.id] });
+                                } else {
+                                  setNewUserData({ ...newUserData, permissions: currentPerms.filter(id => id !== p.id) });
+                                }
+                              }}
+                              className="mt-0.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                            />
+                            <div>
+                              <p className="text-xs font-bold text-slate-800">{p.label}</p>
+                              <p className="text-[10px] text-slate-400 font-medium">{p.description}</p>
+                            </div>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Telephone</label>
+                  <input type="tel" value={newUserData.phone} onChange={e => setNewUserData({...newUserData, phone: e.target.value})} className="w-full bg-slate-50 border-none rounded-2xl px-4 py-3 text-sm font-bold focus:ring-4 focus:ring-indigo-100" />
+                </div>
+
+                {newUserData.role === 'driver' && (
+                  <>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Type vehicule</label>
+                        <select value={newUserData.vehicleType} onChange={e => setNewUserData({...newUserData, vehicleType: e.target.value})} className="w-full bg-slate-50 border-none rounded-2xl px-4 py-3 text-sm font-bold focus:ring-4 focus:ring-indigo-100">
+                          <option>Moto</option>
+                          <option>Tricycle</option>
+                          <option>Camionnette</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Statut Pro</label>
+                        <select value={newUserData.driverType} onChange={e => setNewUserData({...newUserData, driverType: e.target.value})} className="w-full bg-slate-50 border-none rounded-2xl px-4 py-3 text-sm font-bold focus:ring-4 focus:ring-indigo-100">
+                          <option value="freelance">Independant</option>
+                          <option value="company">Flotte Entreprise</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Immatriculation</label>
+                      <input type="text" value={newUserData.licensePlate || ''} onChange={e => setNewUserData({...newUserData, licensePlate: e.target.value})} className="w-full bg-slate-50 border-none rounded-2xl px-4 py-3 text-sm font-bold focus:ring-4 focus:ring-indigo-100" />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Tel. Compensation (Opt.)</label>
+                        <input type="tel" value={newUserData.withdrawalPhone} onChange={e => setNewUserData({...newUserData, withdrawalPhone: e.target.value})} className="w-full bg-slate-50 border-none rounded-2xl px-4 py-3 text-sm font-bold focus:ring-4 focus:ring-indigo-100" />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">RIB / IBAN (Opt.)</label>
+                        <input type="text" value={newUserData.rib} onChange={e => setNewUserData({...newUserData, rib: e.target.value})} className="w-full bg-slate-50 border-none rounded-2xl px-4 py-3 text-sm font-bold focus:ring-4 focus:ring-indigo-100" />
+                      </div>
+                    </div>
+
+                    <div className="bg-amber-50 rounded-2xl p-4 space-y-4">
+                      <p className="text-[9px] font-black uppercase tracking-widest text-amber-600">Dossier / Garant (Optionnel)</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        <input 
+                          type="text" 
+                          placeholder="Nom Garant" 
+                          value={newUserData.guarantorName} 
+                          onChange={e => setNewUserData({...newUserData, guarantorName: e.target.value})} 
+                          className="w-full bg-white border-none rounded-xl px-3 py-2 text-[10px] font-bold" 
+                        />
+                        <input 
+                          type="tel" 
+                          placeholder="Tel Garant" 
+                          value={newUserData.guarantorPhone} 
+                          onChange={e => setNewUserData({...newUserData, guarantorPhone: e.target.value})} 
+                          className="w-full bg-white border-none rounded-xl px-3 py-2 text-[10px] font-bold" 
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <div 
+                          onClick={() => document.getElementById('adminIdFront')?.click()}
+                          className="flex-1 h-20 border-2 border-dashed border-amber-200 rounded-xl flex items-center justify-center cursor-pointer bg-white"
+                        >
+                          {newUserData.idCardFront ? (
+                            <img src={newUserData.idCardFront} className="h-full w-full object-cover rounded-xl" />
+                          ) : (
+                            <span className="text-[8px] font-black text-amber-400 uppercase">ID Recto</span>
+                          )}
+                          <input id="adminIdFront" type="file" accept="image/*" className="hidden" onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onloadend = () => setNewUserData({...newUserData, idCardFront: reader.result as string});
+                              reader.readAsDataURL(file);
+                            }
+                          }} />
+                        </div>
+                        <div 
+                          onClick={() => document.getElementById('adminIdBack')?.click()}
+                          className="flex-1 h-20 border-2 border-dashed border-amber-200 rounded-xl flex items-center justify-center cursor-pointer bg-white"
+                        >
+                          {newUserData.idCardBack ? (
+                            <img src={newUserData.idCardBack} className="h-full w-full object-cover rounded-xl" />
+                          ) : (
+                            <span className="text-[8px] font-black text-amber-400 uppercase">ID Verso</span>
+                          )}
+                          <input id="adminIdBack" type="file" accept="image/*" className="hidden" onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onloadend = () => setNewUserData({...newUserData, idCardBack: reader.result as string});
+                              reader.readAsDataURL(file);
+                            }
+                          }} />
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                <div className="pt-6">
+                  <button type="submit" disabled={isSubmittingNewUser} className="w-full py-4 bg-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-xl hover:bg-indigo-700 transition-all disabled:opacity-50">
+                    {isSubmittingNewUser ? 'Creation...' : 'Creer l\'utilisateur'}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* User Details Modal */}
+      <AnimatePresence>
+        {selectedUser && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setSelectedUser(null)} />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white rounded-[32px] p-5 max-w-lg w-full relative z-10 shadow-2xl max-h-[80vh] overflow-y-auto custom-scrollbar"
+            >
+              <div className="flex justify-between items-center mb-6 px-1">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-orange-50 rounded-2xl flex items-center justify-center text-orange-500 border-2 border-white shadow-lg shadow-orange-100/50 overflow-hidden">
+                    {selectedUser.photoURL ? (
+                      <img src={selectedUser.photoURL} className="w-full h-full object-cover" />
+                    ) : (
+                      <UserCircle className="w-8 h-8" />
+                    )}
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-black text-slate-900 tracking-tighter uppercase leading-tight">{selectedUser.name}</h3>
+                    <div className="flex items-center gap-2 mt-0.5">
+                       {isSuperAdmin && profile?.userId !== selectedUser.userId ? (
+                         <select
+                           value={selectedUser.role}
+                           onChange={async (e) => {
+                             const newRole = e.target.value as UserRole;
+                             try {
+                               const newPerms = DEFAULT_ROLE_PERMISSIONS[newRole] || [];
+                               await api.admin.users.update(selectedUser.userId, { 
+                                 role: newRole,
+                                 permissions: JSON.stringify(newPerms),
+                                 permissionsList: JSON.stringify(newPerms),
+                                 updatedAt: new Date().toISOString()
+                               });
+                               setSelectedUser({ ...selectedUser, role: newRole, permissions: newPerms } as any);
+                               fetchData();
+                             } catch (err) {
+                               console.error(err);
+                             }
+                           }}
+                           className={cn(
+                             "px-2 py-0.5 rounded-md text-[7px] font-black uppercase tracking-widest border-none cursor-pointer focus:ring-2 appearance-none shadow-sm",
+                             selectedUser.role === 'driver' ? "bg-blue-50 text-blue-600 focus:ring-blue-200" : 
+                             selectedUser.role === 'manager' ? "bg-purple-50 text-purple-600 focus:ring-purple-200" :
+                             selectedUser.role === 'support' ? "bg-teal-50 text-teal-600 focus:ring-teal-200" :
+                             (selectedUser.role === 'admin' || selectedUser.role === 'superadmin') ? "bg-orange-50 text-orange-600 focus:ring-orange-200" :
+                             "bg-emerald-50 text-emerald-600 focus:ring-emerald-200"
+                           )}
+                         >
+                           <option value="client">CLIENT</option>
+                           <option value="driver">LIVREUR</option>
+                           <option value="manager">MANAGER</option>
+                           <option value="support">SUPPORT</option>
+                           <option value="admin">ADMIN</option>
+                           <option value="superadmin">SUPER ADMIN</option>
+                         </select>
+                       ) : (
+                         <span className={cn(
+                           "px-2 py-0.5 rounded-md text-[7px] font-black uppercase tracking-widest",
+                           selectedUser.role === 'driver' ? "bg-blue-50 text-blue-600" : 
+                           selectedUser.role === 'manager' ? "bg-purple-50 text-purple-600" :
+                           selectedUser.role === 'support' ? "bg-teal-50 text-teal-600" :
+                           (selectedUser.role === 'admin' || selectedUser.role === 'superadmin') ? "bg-orange-50 text-orange-600" :
+                           "bg-emerald-50 text-emerald-600"
+                         )}>
+                           {selectedUser.role}
+                         </span>
+                       )}
+                       {selectedUser.accountStatus === 'suspended' && (
+                         <span className="bg-red-50 text-red-600 px-2 py-0.5 rounded-md text-[7px] font-black uppercase tracking-widest shadow-sm">Suspendu</span>
+                       )}
+                    </div>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setSelectedUser(null)} 
+                  className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-full text-slate-400 hover:text-slate-900 transition-all border border-slate-100 active:scale-95 shadow-sm"
+                >
+                  <span className="text-[10px] font-black uppercase tracking-widest px-1">Fermer</span>
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="space-y-5">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-slate-50 p-4 rounded-3xl border border-slate-100">
+                    <p className="text-[7px] font-black text-slate-400 uppercase tracking-widest mb-1 text-left">Email</p>
+                    <p className="text-xs font-bold text-slate-900 break-all text-left">{selectedUser.email}</p>
+                  </div>
+                  <div className="bg-slate-50 p-4 rounded-3xl border border-slate-100">
+                    <p className="text-[7px] font-black text-slate-400 uppercase tracking-widest mb-1 text-left">Telephone</p>
+                    <p className="text-xs font-bold text-slate-900 text-left">{selectedUser.phone || 'Non renseigne'}</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-slate-50 p-4 rounded-3xl border border-slate-100">
+                    <p className="text-[7px] font-black text-slate-400 uppercase tracking-widest mb-1 text-left">Type de compte</p>
+                    <p className="text-xs font-bold text-slate-900 uppercase tracking-tighter text-left">{(selectedUser as any).driverType || 'Standard'}</p>
+                  </div>
+                  <div className="bg-slate-50 p-4 rounded-3xl border border-slate-100">
+                    <p className="text-[7px] font-black text-slate-400 uppercase tracking-widest mb-1 text-left">Inscrit le</p>
+                    <p className="text-xs font-bold text-slate-900 text-left">{selectedUser.createdAt ? new Date(selectedUser.createdAt).toLocaleDateString() : 'Inconnu'}</p>
+                  </div>
+                </div>
+
+                {(selectedUser.role === 'manager' || selectedUser.role === 'support' || selectedUser.role === 'admin' || selectedUser.role === 'superadmin') && (
+                  <div className="bg-slate-50 p-4 rounded-3xl border border-slate-100 space-y-3">
+                    <div className="flex justify-between items-center">
+                      <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest">Droits & Permissions</p>
+                      <button
+                        onClick={async () => {
+                          try {
+                            let currentPerms: UserPermission[] = [];
+                            if (Array.isArray((selectedUser as any).permissions)) {
+                              currentPerms = (selectedUser as any).permissions;
+                            } else if (typeof (selectedUser as any).permissions === 'string') {
+                              try {
+                                currentPerms = JSON.parse((selectedUser as any).permissions);
+                              } catch (e) {
+                                currentPerms = DEFAULT_ROLE_PERMISSIONS[selectedUser.role] || [];
+                              }
+                            } else {
+                              currentPerms = DEFAULT_ROLE_PERMISSIONS[selectedUser.role] || [];
+                            }
+
+                            await api.admin.users.update(selectedUser.userId, {
+                              permissions: JSON.stringify(currentPerms),
+                              permissionsList: JSON.stringify(currentPerms),
+                              updatedAt: new Date().toISOString()
+                            });
+                            toast.success("Droits mis à jour avec succès !");
+                            fetchData();
+                          } catch (e: any) {
+                            toast.error("Erreur lors de la mise à jour des droits : " + (e.message || ''));
+                          }
+                        }}
+                        className="px-3 py-1.5 bg-indigo-600 text-white text-[9px] font-black uppercase rounded-xl hover:bg-indigo-700 transition-all shadow-md shadow-indigo-600/20"
+                      >
+                        Enregistrer Droits
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto pr-1">
+                      {ALL_PERMISSIONS.map(p => {
+                        let activePerms: UserPermission[] = [];
+                        if (Array.isArray((selectedUser as any).permissions)) {
+                          activePerms = (selectedUser as any).permissions;
+                        } else if (typeof (selectedUser as any).permissions === 'string') {
+                          try {
+                            activePerms = JSON.parse((selectedUser as any).permissions);
+                          } catch (e) {
+                            activePerms = DEFAULT_ROLE_PERMISSIONS[selectedUser.role] || [];
+                          }
+                        } else {
+                          activePerms = DEFAULT_ROLE_PERMISSIONS[selectedUser.role] || [];
+                        }
+
+                        const isChecked = activePerms.includes(p.id);
+
+                        return (
+                          <label key={p.id} className="flex items-start gap-3 p-2.5 bg-white rounded-2xl border border-slate-100 cursor-pointer hover:border-indigo-200 transition-colors">
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={(e) => {
+                                const newPerms = e.target.checked
+                                  ? [...activePerms, p.id]
+                                  : activePerms.filter(id => id !== p.id);
+                                setSelectedUser({
+                                  ...selectedUser,
+                                  permissions: newPerms
+                                } as any);
+                              }}
+                              className="mt-0.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                            />
+                            <div>
+                              <p className="text-xs font-bold text-slate-800">{p.label}</p>
+                              <p className="text-[10px] text-slate-400 font-medium">{p.description}</p>
+                            </div>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                <div className="pt-2 flex gap-3">
+                   <button 
+                     onClick={() => {
+                       handleOpenUserSupportChat(selectedUser);
+                       setSelectedUser(null);
+                     }}
+                     className="flex-1 py-4 bg-orange-500 text-white rounded-2xl text-[10px] uppercase font-black tracking-widest active:scale-95 transition-all shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2"
+                   >
+                     <MessageSquare className="w-4 h-4" /> Discuter
+                   </button>
+                   <button
+                     onClick={async () => {
+                       try {
+                         const newStatus = selectedUser.accountStatus === 'suspended' ? 'active' : 'suspended';
+                         await api.admin.users.update(selectedUser.userId, {
+                           accountStatus: newStatus,
+                           updatedAt: new Date().toISOString()
+                         });
+                         setSelectedUser({ ...selectedUser, accountStatus: newStatus });
+                         fetchData();
+                       } catch (e) {
+                         toast.error("Erreur lors du changement de statut");
+                       }
+                     }}
+                     className={cn(
+                       "flex-1 py-4 rounded-2xl text-[10px] uppercase font-black tracking-widest active:scale-95 transition-all outline-none",
+                       selectedUser.accountStatus === 'suspended' ? "bg-emerald-100 text-emerald-600 hover:bg-emerald-200" : "bg-red-100 text-red-600 hover:bg-red-200"
+                     )}
+                   >
+                     {selectedUser.accountStatus === 'suspended' ? 'Reactiver le compte' : 'Suspendre le compte'}
+                   </button>
+                </div>
+
+                {selectedUser.role === 'driver' && (
+                  <div className="p-5 bg-slate-900 rounded-[32px] space-y-4 shadow-xl shadow-slate-200">
+                    <div className="flex items-center justify-between text-white">
+                      <p className="text-[9px] font-black uppercase tracking-[0.2em]">Details du vehicule</p>
+                      <Truck className="w-4 h-4 text-orange-500" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-1 text-left">Modele</p>
+                        <p className="text-xs font-bold text-white uppercase text-left">{selectedUser.vehicleType || 'Moto'}</p>
+                      </div>
+                      <div>
+                        <p className="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-1 text-left">Immatriculation</p>
+                        <p className="text-xs font-bold text-white uppercase text-left">{selectedUser.licensePlate || 'N/A'}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {selectedUser.role === 'driver' && (selectedUser.guarantorName || selectedUser.guarantorPhone) && (
+                   <div className="bg-indigo-50 p-4 rounded-[32px] border border-indigo-100 space-y-3">
+                      <div className="flex items-center gap-3">
+                         <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 shadow-sm"><ShieldCheck className="w-4 h-4" /></div>
+                         <p className="text-[9px] font-black uppercase tracking-widest text-indigo-900">Garanti / Reference</p>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                         <div>
+                            <p className="text-[7px] font-black text-indigo-400 uppercase tracking-widest mb-1 text-left">Nom du garant</p>
+                            <p className="text-xs font-bold text-indigo-900 text-left">{selectedUser.guarantorName || 'N/A'}</p>
+                         </div>
+                         <div>
+                            <p className="text-[7px] font-black text-indigo-400 uppercase tracking-widest mb-1 text-left">Telephone</p>
+                            <p className="text-xs font-bold text-indigo-900 text-left">{selectedUser.guarantorPhone || 'N/A'}</p>
+                         </div>
+                      </div>
+                   </div>
+                )}
+                
+                {selectedUser.role === 'driver' && (
+                  <div className="space-y-4">
+                    <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 px-2 text-left">DOCUMENTS ET PIECES JOINTES</p>
+                    <div className="grid grid-cols-2 gap-3">
+                       {/* Identity Recto */}
+                       <div className="space-y-1">
+                          <p className="text-[7px] font-black text-slate-500 uppercase tracking-widest pl-1 text-left">CNIB (Recto/Statuts)</p>
+                          {(selectedUser.identityCardUrl || selectedUser.idCardFront) ? (
+                            <button className="w-full relative group" onClick={() => window.open((selectedUser.identityCardUrl || selectedUser.idCardFront)!, '_blank')}>
+                              <img src={selectedUser.identityCardUrl || selectedUser.idCardFront} alt="ID Front" className="w-full aspect-video object-cover rounded-2xl border border-slate-200 shadow-sm" />
+                              <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-2xl">
+                                <span className="text-[8px] font-black text-white uppercase tracking-widest">Voir</span>
+                              </div>
+                            </button>
+                          ) : (
+                            <div className="w-full aspect-video bg-slate-50 rounded-2xl flex items-center justify-center text-[10px] text-slate-300 font-bold border border-dashed border-slate-200">Non fourni</div>
+                          )}
+                       </div>
+
+                       {/* Identity Verso */}
+                       <div className="space-y-1">
+                          <p className="text-[7px] font-black text-slate-500 uppercase tracking-widest pl-1 text-left">CNIB (Verso / Complement)</p>
+                          {(selectedUser.identityCardBackUrl || selectedUser.idCardBack) ? (
+                            <button className="w-full relative group" onClick={() => window.open((selectedUser.identityCardBackUrl || selectedUser.idCardBack)!, '_blank')}>
+                              <img src={selectedUser.identityCardBackUrl || selectedUser.idCardBack} alt="ID Back" className="w-full aspect-video object-cover rounded-2xl border border-slate-200 shadow-sm" />
+                              <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-2xl">
+                                <span className="text-[8px] font-black text-white uppercase tracking-widest">Voir</span>
+                              </div>
+                            </button>
+                          ) : (
+                            <div className="w-full aspect-video bg-slate-50 rounded-2xl flex items-center justify-center text-[10px] text-slate-300 font-bold border border-dashed border-slate-200">Non fourni</div>
+                          )}
+                       </div>
+
+                       {/* Casier Judiciaire */}
+                       <div className="space-y-1">
+                          <p className="text-[7px] font-black text-slate-500 uppercase tracking-widest pl-1 text-left">Casier / NIF</p>
+                          {selectedUser.criminalRecordUrl ? (
+                            <button className="w-full relative group" onClick={() => window.open(selectedUser.criminalRecordUrl!, '_blank')}>
+                              <img src={selectedUser.criminalRecordUrl} alt="Record" className="w-full aspect-video object-cover rounded-2xl border border-slate-200 shadow-sm" />
+                              <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-2xl">
+                                <span className="text-[8px] font-black text-white uppercase tracking-widest">Voir</span>
+                              </div>
+                            </button>
+                          ) : (
+                            <div className="w-full aspect-video bg-slate-50 rounded-2xl flex items-center justify-center text-[10px] text-slate-300 font-bold border border-dashed border-slate-200">Non fourni</div>
+                          )}
+                       </div>
+
+                       {/* CNI Garant */}
+                       <div className="space-y-1">
+                          <p className="text-[7px] font-black text-slate-500 uppercase tracking-widest pl-1 text-left">CNIB du Garant / Autre</p>
+                          {selectedUser.guarantorCniUrl ? (
+                            <button className="w-full relative group" onClick={() => window.open(selectedUser.guarantorCniUrl!, '_blank')}>
+                              <img src={selectedUser.guarantorCniUrl} alt="Guarantor CNI" className="w-full aspect-video object-cover rounded-2xl border border-slate-200 shadow-sm" />
+                              <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-2xl">
+                                <span className="text-[8px] font-black text-white uppercase tracking-widest">Voir</span>
+                              </div>
+                            </button>
+                          ) : (
+                            <div className="w-full aspect-video bg-slate-50 rounded-2xl flex items-center justify-center text-[10px] text-slate-300 font-bold border border-dashed border-slate-200">Non fourni</div>
+                          )}
+                       </div>
+                    </div>
+                  </div>
+                )}
+
+                {selectedUser.role === 'driver' && (
+                  <div className="mt-8 pt-6 border-t border-slate-100 space-y-6">
+                    <div className="flex items-center justify-between">
+                      <div className="text-left">
+                        <p className="text-[10px] font-black text-slate-900 uppercase tracking-tight">Statut Dossier</p>
+                        <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Verification de l'identite du livreur</p>
+                      </div>
+                      <span className={cn(
+                        "px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest shadow-sm",
+                        selectedUser.verificationStatus === 'verified' ? "bg-emerald-50 text-emerald-600 border border-emerald-100" :
+                        selectedUser.verificationStatus === 'rejected' ? "bg-red-50 text-red-600 border border-red-100" :
+                        "bg-amber-50 text-amber-600 border border-amber-100 animate-pulse"
+                      )}>
+                        {selectedUser.verificationStatus === 'verified' ? "Valide" : 
+                         selectedUser.verificationStatus === 'rejected' ? "Rejete" : "En attente"}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 mt-4">
+                      <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        disabled={isProcessingAction || selectedUser.verificationStatus === 'verified'}
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          setIsProcessingAction(true);
+                          try {
+                            await api.admin.users.update(selectedUser.userId, {
+                              verificationStatus: 'verified',
+                              accountStatus: 'active',
+                              isVerified: true,
+                              updatedAt: new Date().toISOString()
+                            });
+                            setSelectedUser({ ...selectedUser, verificationStatus: 'verified', accountStatus: 'active', isVerified: true });
+                            fetchData();
+                            await sendNotification(selectedUser.userId, "Dossier Valide ! !", "Votre dossier a ete approuve. Bienvenue !", 'success');
+                          } catch (err) {
+                            console.error(err);
+                          } finally {
+                            setIsProcessingAction(false);
+                          }
+                        }}
+                        className="flex-1 py-4 bg-emerald-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.1em] shadow-lg shadow-emerald-100 hover:bg-emerald-700 active:bg-emerald-800 transition-all disabled:opacity-50 disabled:grayscale flex items-center justify-center gap-2"
+                      >
+                        {isProcessingAction ? <Clock className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+                        {selectedUser.verificationStatus === 'verified' ? 'Deja Valide' : (isProcessingAction ? 'Attente...' : 'Valider')}
+                      </motion.button>
+                      <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        disabled={isProcessingAction || selectedUser.verificationStatus === 'rejected'}
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          setIsProcessingAction(true);
+                          const reason = "Documents incomplets ou non conformes";
+                          try {
+                            await api.admin.users.update(selectedUser.userId, {
+                              verificationStatus: 'rejected',
+                              accountStatus: 'pending_approval',
+                              isVerified: false,
+                              updatedAt: new Date().toISOString()
+                            });
+                            setSelectedUser({ ...selectedUser, verificationStatus: 'rejected', accountStatus: 'pending_approval', isVerified: false });
+                            fetchData();
+                            await sendNotification(selectedUser.userId, "Dossier a corriger [!]", `Rejete. Raison : ${reason || "Doc non conformes"}`, 'warning');
+                          } catch (err) {
+                            console.error(err);
+                          } finally {
+                            setIsProcessingAction(false);
+                          }
+                        }}
+                        className="flex-1 py-4 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.1em] shadow-lg shadow-slate-200 hover:bg-black transition-all disabled:opacity-50 disabled:grayscale flex items-center justify-center gap-2"
+                      >
+                         {isProcessingAction ? <Clock className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
+                         {selectedUser.verificationStatus === 'rejected' ? 'Rejete' : (isProcessingAction ? 'Attente...' : 'Rejeter')}
+                      </motion.button>
+                    </div>
+                  </div>
+                )}
+                
+                <div className="bg-orange-50 p-4 rounded-3xl border border-orange-100 mt-4">
+                   <p className="text-[7px] font-black text-orange-400 uppercase tracking-widest mb-1 text-left">Localisation / Zone</p>
+                   <p className="text-xs font-bold text-orange-900 text-left">{(selectedUser as any).address || 'Ouagadougou'}</p>
+                </div>
+
+                {selectedUser.role === 'driver' && (
+                  <div className="space-y-4 pt-4 border-t border-slate-100">
+                    {/* Driver Stats & Rank Header */}
+                    {(() => {
+                      const stats = getDriverStatsAndRank(selectedUser.userId);
+                      return (
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="bg-amber-50 border border-amber-100 p-3 rounded-2xl flex flex-col items-center">
+                            <span className="text-[7px] font-black uppercase text-amber-500 tracking-wider">Moyenne</span>
+                            <div className="flex items-center gap-1 mt-1">
+                              <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                              <span className="text-xs font-black text-amber-950">{stats.avgRating > 0 ? stats.avgRating.toFixed(1) : "N/A"}</span>
+                            </div>
+                          </div>
+                          <div className="bg-indigo-50 border border-indigo-100 p-3 rounded-2xl flex flex-col items-center">
+                            <span className="text-[7px] font-black uppercase text-indigo-500 tracking-wider">Classement</span>
+                            <span className="text-xs font-black text-indigo-950 mt-1">#{stats.rank || "-"}</span>
+                          </div>
+                          <div className="bg-emerald-50 border border-emerald-100 p-3 rounded-2xl flex flex-col items-center">
+                            <span className="text-[7px] font-black uppercase text-emerald-500 tracking-wider">Completes</span>
+                            <span className="text-xs font-black text-emerald-950 mt-1">{stats.completedCount}</span>
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    {/* Mission History (Logs) */}
+                    <div className="bg-slate-50 border border-slate-100 rounded-3xl p-4">
+                      <h4 className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 mb-3 text-left">Log d'Activite & Missions</h4>
+                      {isLoadingHistory ? (
+                        <div className="flex items-center justify-center py-4">
+                          <Clock className="w-4 h-4 animate-spin text-slate-400" />
+                        </div>
+                      ) : driverMissionHistory && driverMissionHistory.length > 0 ? (
+                        <div className="space-y-2.5 max-h-40 overflow-y-auto custom-scrollbar pr-1">
+                          {driverMissionHistory.map((historyItem: any, index: number) => (
+                            <div key={index} className="flex items-start justify-between bg-white border border-slate-100 rounded-xl p-2.5 text-left">
+                              <div className="space-y-0.5">
+                                <p className="text-[9px] font-black uppercase text-slate-800 leading-none">Course #{historyItem.deliveryId}</p>
+                                <p className="text-[8px] font-medium text-slate-400 mt-1 leading-normal">{historyItem.details || historyItem.reason || "Action enregistree"}</p>
+                              </div>
+                              <span className={cn(
+                                "text-[7px] font-black uppercase px-2 py-0.5 rounded-full shadow-xs shrink-0",
+                                historyItem.action === 'accepted' ? "bg-emerald-50 text-emerald-600 border border-emerald-100" :
+                                historyItem.action === 'rejected' ? "bg-rose-50 text-rose-600 border border-rose-100" :
+                                "bg-indigo-50 text-indigo-600 border border-indigo-100"
+                              )}>
+                                {historyItem.action === 'accepted' ? "Accepte" :
+                                 historyItem.action === 'rejected' ? "Refuse" :
+                                 historyItem.action}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-[9px] font-bold text-slate-400 uppercase italic text-center py-2">Aucun historique de mission disponible</p>
+                      )}
+                    </div>
+
+                    {/* Client Reviews / Comments */}
+                    <div className="bg-slate-50 border border-slate-100 rounded-3xl p-4">
+                      <h4 className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 mb-3 text-left">Avis & Commentaires Clients</h4>
+                      {(() => {
+                        const ratedDeliveries = deliveries.filter(d => d.driverId === selectedUser.userId && d.rating && d.rating > 0);
+                        return ratedDeliveries.length > 0 ? (
+                          <div className="space-y-2 max-h-40 overflow-y-auto custom-scrollbar pr-1">
+                            {ratedDeliveries.map((deliveryItem: any) => (
+                              <div key={deliveryItem.deliveryId || deliveryItem.id} className="bg-white border border-slate-100 rounded-xl p-2.5 text-left">
+                                <div className="flex items-center justify-between mb-1.5">
+                                  <div className="flex items-center gap-0.5">
+                                    {[1, 2, 3, 4, 5].map((star) => (
+                                      <Star 
+                                        key={star} 
+                                        className={cn(
+                                          "w-2.5 h-2.5",
+                                          star <= deliveryItem.rating ? "text-amber-400 fill-amber-400" : "text-slate-200"
+                                        )}
+                                      />
+                                    ))}
+                                  </div>
+                                  <span className="text-[7px] font-bold text-slate-400 uppercase">{deliveryItem.clientPhone || "Client"}</span>
+                                </div>
+                                {deliveryItem.feedback && (
+                                  <p className="text-[9px] font-bold text-slate-600 bg-slate-50 rounded-lg p-2 mt-1">
+                                    "{deliveryItem.feedback}"
+                                  </p>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-[9px] font-bold text-slate-400 uppercase italic text-center py-2">Aucun avis client pour le moment</p>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-8 flex flex-col gap-3">
+                {isSuperAdmin && profile?.userId !== selectedUser.userId && (
+                  confirmingDeleteUserId === selectedUser.userId ? (
+                    <div className="flex gap-2 w-full animate-bounce">
+                      <button
+                        onClick={async () => {
+                          await handleDeleteUser(selectedUser.userId);
+                        }}
+                        disabled={isDeleting}
+                        className="flex-1 py-4 bg-red-600 hover:bg-red-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.1em] transition-all disabled:opacity-50"
+                      >
+                        {isDeleting ? 'Suppression...' : 'Sur ! Supprimer'}
+                      </button>
+                      <button
+                        onClick={() => setConfirmingDeleteUserId(null)}
+                        className="flex-1 py-4 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-2xl text-[10px] font-black uppercase tracking-[0.1em] transition-all"
+                      >
+                        Annuler
+                      </button>
+                    </div>
+                  ) : (
+                    <button 
+                      onClick={() => setConfirmingDeleteUserId(selectedUser.userId)}
+                      className="w-full py-4 bg-rose-50 text-rose-600 border border-rose-100 rounded-2xl text-[10px] font-black uppercase tracking-[0.1em] hover:bg-rose-600 hover:text-white transition-all"
+                    >
+                      Supprimer Compte
+                    </button>
+                  )
+                )}
+                <button 
+                  onClick={() => setSelectedUser(null)}
+                  className="w-full py-5 bg-slate-100 text-slate-900 rounded-[28px] text-[11px] font-black uppercase tracking-[0.3em] hover:bg-slate-200 active:scale-95 transition-all"
+                >
+                  Fermer
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* FLOATING SYSTEM TOAST */}
+      <AnimatePresence>
+        {toastState && (
+          <motion.div
+            initial={{ opacity: 0, y: 50, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.9 }}
+            className="fixed bottom-6 right-6 z-[300] max-w-sm w-full bg-slate-950 text-white rounded-[24px] p-6 shadow-2xl flex items-start gap-4 border border-white/10"
+          >
+            <div className={cn(
+              "w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-lg",
+              toastState.type === 'success' ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/30" :
+              toastState.type === 'error' ? "bg-rose-500 text-white shadow-lg shadow-rose-500/30" : "bg-blue-500 text-white shadow-lg shadow-blue-500/30"
+            )}>
+              {toastState.type === 'success' ? <CheckCircle className="w-5 h-5" /> : 
+               toastState.type === 'error' ? <AlertCircle className="w-5 h-5" /> : <Info className="w-5 h-5" />}
+            </div>
+            <div className="flex-1 text-left">
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Notification Systeme</p>
+              <p className="text-xs font-bold leading-relaxed mt-1 text-slate-100">{toastState.message}</p>
+            </div>
+            <button onClick={() => setToastState(null)} className="text-slate-500 hover:text-white transition-colors cursor-pointer self-start p-1 bg-transparent border-none outline-none">
+              <X className="w-4 h-4" />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function TablePartitionManagerCard({
+  partitionStatusData,
+  isPartitioning,
+  handleAutoPartition,
+  fetchPartitionStatus,
+  dbEngine
+}: {
+  partitionStatusData: any;
+  isPartitioning: boolean;
+  handleAutoPartition: (retentionDays: number) => void;
+  fetchPartitionStatus: () => void;
+  dbEngine?: string;
+}) {
+  const [showLogs, setShowLogs] = useState(false);
+  const [retentionDays, setRetentionDays] = useState<number>(365); // Par défaut 1 an (365 jours)
+
+  const overallStatus = partitionStatusData?.overallStatus || 'needs_partitioning';
+  const lastError = partitionStatusData?.lastError;
+  const tables = partitionStatusData?.tables || [];
+
+  // Options de partitionnement et archivage temporel
+  const retentionOptions = [
+    { label: "30 jours", value: 30, desc: "Ultra-rapide" },
+    { label: "90 jours", value: 90, desc: "Saisonnière" },
+    { label: "180 jours", value: 180, desc: "Semestrielle" },
+    { label: "1 an", value: 365, desc: "Annuelle" },
+    { label: "2 ans", value: 730, desc: "Biennale" },
+    { label: "3 ans", value: 1095, desc: "Triennale" }
+  ];
+
+  // Calculer la date limite et l'année cible de manière dynamique pour l'affichage informatif
+  const cutoffDate = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000);
+  const targetYear = cutoffDate.getFullYear();
+  const formattedCutoff = cutoffDate.toLocaleDateString('fr-FR', { 
+    day: 'numeric', 
+    month: 'long', 
+    year: 'numeric' 
+  });
+
+  return (
+    <div className="bg-white rounded-3xl p-6 lg:p-7 shadow-sm border border-slate-100 flex flex-col gap-6 mt-8">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-6">
+        <div className="flex items-start gap-4">
+          <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center shrink-0 border border-indigo-100/50 shadow-sm">
+            <Layers className="w-6 h-6" />
+          </div>
+          <div>
+            <div className="flex items-center gap-3 flex-wrap">
+              <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">
+                Partitionnement Automatique des Tables
+              </h3>
+              {/* Point de Statut Lumineux Global (Poin) */}
+              <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-slate-50 border border-slate-200">
+                <div
+                  className={cn(
+                    "w-2.5 h-2.5 rounded-full transition-all",
+                    overallStatus === 'failed'
+                      ? "bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.8)] animate-pulse"
+                      : overallStatus === 'partitioned'
+                      ? "bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.8)]"
+                      : "bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.8)] animate-pulse"
+                  )}
+                />
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-700">
+                  {overallStatus === 'failed'
+                    ? 'Échec Partition'
+                    : overallStatus === 'partitioned'
+                    ? 'Partitions Optimales'
+                    : 'Recommandé'}
+                </span>
+              </div>
+            </div>
+            <p className="text-xs text-slate-500 font-medium mt-1">
+              Indexation automatique par clés temporelles, archivage des logs historiques et défragmentation.
+            </p>
+          </div>
+        </div>
+
+        {/* Actions de contrôle */}
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={fetchPartitionStatus}
+            disabled={isPartitioning}
+            className="p-3 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-2xl transition-all disabled:opacity-50"
+            title="Rafraîchir le statut"
+          >
+            <RefreshCw className={cn("w-4 h-4", isPartitioning && "animate-spin")} />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleAutoPartition(retentionDays)}
+            disabled={isPartitioning}
+            className="px-6 py-3.5 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2.5 shadow-lg shadow-slate-200 disabled:opacity-50"
+          >
+            {isPartitioning ? (
+              <>
+                <RefreshCw className="w-4 h-4 animate-spin text-emerald-400" />
+                Partitionnement en cours...
+              </>
+            ) : (
+              <>
+                <Zap className="w-4 h-4 text-emerald-400 fill-emerald-400" />
+                Partitionner Automatiquement
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* Configuration du seuil de rétention (Sélection pour un an, 3 ans, etc) */}
+      <div className="p-5 rounded-2xl bg-indigo-50/40 border border-indigo-100/50">
+        <h4 className="text-xs font-black text-indigo-950 uppercase tracking-wider mb-3">
+          1. Choisir la période de rétention active :
+        </h4>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
+          {retentionOptions.map((opt) => {
+            const isSelected = retentionDays === opt.value;
+            // Calculer l'année cible pour l'option
+            const optCutoff = new Date(Date.now() - opt.value * 24 * 60 * 60 * 1000);
+            const optYear = optCutoff.getFullYear();
+
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setRetentionDays(opt.value)}
+                disabled={isPartitioning}
+                className={cn(
+                  "flex flex-col items-center justify-center p-3 rounded-xl border text-center transition-all",
+                  isSelected 
+                    ? "bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-100" 
+                    : "bg-white border-slate-200 text-slate-700 hover:border-indigo-300"
+                )}
+              >
+                <span className="text-xs font-black">{opt.label}</span>
+                <span className={cn(
+                  "text-[9px] font-bold mt-0.5 uppercase tracking-tight",
+                  isSelected ? "text-indigo-200" : "text-slate-400"
+                )}>
+                  Cible : {optYear}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Explications des Limites Temporelles */}
+        <div className="mt-4 flex items-start gap-2.5 text-xs text-indigo-900">
+          <Info className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
+          <div>
+            <span className="font-bold">Limite de partitionnement : </span>
+            Toutes les données historiques générées avant le <span className="font-black underline">{formattedCutoff}</span> (c'est-à-dire l'année <span className="font-black">{targetYear}</span> et antérieures) seront déplacées vers les partitions d'archivage haute performance (<code className="bg-white/80 px-1 rounded font-mono text-[11px]">_partition_archive</code>). La base de données active ne conservera que les {retentionDays} derniers jours pour une vitesse d'exécution maximale.
+          </div>
+        </div>
+      </div>
+
+      {/* Message d'Erreur si le partitionnement a échoué */}
+      {overallStatus === 'failed' && (
+        <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <XCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+            <div>
+              <h4 className="text-xs font-black text-rose-900 uppercase tracking-wide">
+                Échec du dernier partitionnement
+              </h4>
+              <p className="text-xs text-rose-700 mt-0.5 font-medium">
+                {lastError || "Une erreur inattendue est survenue pendant le partitionnement de la base."}
+              </p>
+              <p className="text-[10px] text-rose-500 font-bold mt-1">
+                Note : Aucune donnée n'a été corrompue. Les transactions restent sécurisées.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => handleAutoPartition(retentionDays)}
+            disabled={isPartitioning}
+            className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-black uppercase tracking-wider rounded-xl transition-all shrink-0"
+          >
+            Réessayer la Partition
+          </button>
+        </div>
+      )}
+
+      {/* Résumé des Métriques & Partitions */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Dernier Partitionnement</span>
+          <span className="text-sm font-black text-slate-800">
+            {partitionStatusData?.lastRun
+              ? new Date(partitionStatusData.lastRun).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })
+              : 'Jamais exécuté'}
+          </span>
+        </div>
+        <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Moteur Base active</span>
+          <span className="text-sm font-black text-slate-800">
+            {partitionStatusData?.engine || dbEngine || 'SQLite (Local)'}
+          </span>
+        </div>
+        <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Entrées Archivées</span>
+          <span className="text-sm font-black text-emerald-600">
+            {(partitionStatusData?.archivedCountTotal || 0).toLocaleString()} lignes
+          </span>
+        </div>
+        <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Statut Intégrité</span>
+          <span className="text-sm font-black text-emerald-600 flex items-center gap-1.5">
+            <CheckCircle2 className="w-4 h-4" /> 100% OK
+          </span>
+        </div>
+      </div>
+
+      {/* Grille des Tables avec Poin de Statut sur chaque Partition */}
+      <div>
+        <div className="flex justify-between items-center mb-4">
+          <h4 className="text-xs font-black text-slate-700 uppercase tracking-wider flex items-center gap-2">
+            <HardDrive className="w-4 h-4 text-indigo-500" />
+            État des Partitions par Table ({tables.length})
+          </h4>
+          <button
+            type="button"
+            onClick={() => setShowLogs(!showLogs)}
+            className="text-[10px] font-black uppercase text-indigo-600 hover:text-indigo-800 tracking-wider"
+          >
+            {showLogs ? 'Masquer les logs' : 'Voir les logs d\'exécution'}
+          </button>
+        </div>
+
+        {/* Console de logs si activée */}
+        {showLogs && partitionStatusData?.logDetails && partitionStatusData.logDetails.length > 0 && (
+          <div className="mb-4 p-4 rounded-2xl bg-slate-950 text-emerald-400 font-mono text-[11px] max-h-48 overflow-y-auto border border-slate-800">
+            <div className="text-slate-500 font-bold mb-2 uppercase text-[9px] tracking-widest border-b border-slate-800 pb-1">
+              Journal système du partitionnement :
+            </div>
+            {partitionStatusData.logDetails.map((log: string, idx: number) => (
+              <div key={idx} className="leading-relaxed">{log}</div>
+            ))}
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {tables.map((table: any) => {
+            const isEmerald = table.healthColor === 'emerald';
+            const isRose = table.healthColor === 'rose';
+            const isAmber = table.healthColor === 'amber';
+
+            return (
+              <div
+                key={table.name}
+                className={cn(
+                  "p-4 rounded-2xl border transition-all flex flex-col justify-between",
+                  isRose ? "bg-rose-50/50 border-rose-200" : isAmber ? "bg-amber-50/50 border-amber-200" : "bg-slate-50/70 border-slate-200/60"
+                )}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2.5">
+                    {/* Point de Statut Lumineux (Poin) */}
+                    <div
+                      className={cn(
+                        "w-3 h-3 rounded-full shrink-0 transition-all",
+                        isEmerald && "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.7)]",
+                        isAmber && "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.7)] animate-pulse",
+                        isRose && "bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.7)] animate-ping"
+                      )}
+                      title={`Statut Partition: ${table.statusText}`}
+                    />
+                    <span className="font-mono font-bold text-slate-800 text-xs">{table.name}</span>
+                  </div>
+                  <span
+                    className={cn(
+                      "text-[9px] font-black uppercase px-2 py-0.5 rounded-full border",
+                      isEmerald && "bg-emerald-100 text-emerald-700 border-emerald-200",
+                      isAmber && "bg-amber-100 text-amber-700 border-amber-200",
+                      isRose && "bg-rose-100 text-rose-700 border-rose-200"
+                    )}
+                  >
+                    {table.statusText}
+                  </span>
+                </div>
+
+                <div className="mt-2 text-[10px] text-slate-500 space-y-1">
+                  <div className="flex justify-between">
+                    <span>Volume actif :</span>
+                    <span className="font-bold text-slate-700">{table.rowCount.toLocaleString()} lignes</span>
+                  </div>
+                  {table.archiveRowCount > 0 && (
+                    <div className="flex justify-between text-emerald-600">
+                      <span>Partition Archivée :</span>
+                      <span className="font-bold">{table.archiveRowCount.toLocaleString()} lignes</span>
+                    </div>
+                  )}
+                  <div className="text-[9px] text-slate-400 font-medium truncate pt-1 border-t border-slate-200/50">
+                    {table.partitionType}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}

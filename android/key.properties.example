@@ -1,0 +1,7 @@
+# Exemple de configuration de la clé de signature Android (Keystore)
+# Recopiez ce fichier sous le nom "key.properties" dans le dossier "android/"
+
+storePassword=votre_mot_de_passe_keystore
+keyPassword=votre_mot_de_passe_cle
+keyAlias=faso_express_key
+storeFile=../release.keystore
