@@ -4,19 +4,19 @@ import { Capacitor } from '@capacitor/core';
 
 export const getApiBase = () => {
   if (typeof window !== 'undefined') {
-    // Si l'utilisateur accède à l'application web en local sur un port de dev (ex: 5173, 4173, 3001)
-    // différent du port de production (80, 443) ou du port du serveur backend (qui est 1000),
-    // on redirige dynamiquement vers le port 1000 de la machine locale.
-    if (window.location.port && 
-        window.location.port !== '1000' && 
-        window.location.port !== '443' && 
-        window.location.port !== '80') {
+    const port = window.location.port;
+    // Si nous sommes sur un port de développement Vite (5173, 4173) ou similaire,
+    // on redirige vers le backend local (qui tourne sur le port 1000 ou 3000).
+    // Sinon, si on est sur le même port que le serveur (ex: 1000 ou 3000), on reste sur du relatif.
+    if (port && (port === '5173' || port === '4173' || port === '3001')) {
       const protocol = window.location.protocol;
+      // On privilégie le port 1000 du serveur local configuré par l'utilisateur
       return `${protocol}//${window.location.hostname}:1000/api`;
     }
   }
 
-  // Pour le web, on utilise toujours le chemin relatif /api du serveur local
+  // Pour le web en production ou si l'app est servie directement par Express,
+  // on utilise toujours le chemin relatif /api du serveur local (s'adapte à n'importe quel port de service)
   if (typeof window !== 'undefined' && !Capacitor.isNativePlatform()) {
     return "/api";
   }

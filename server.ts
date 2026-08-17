@@ -2584,7 +2584,7 @@ const MASTER_ADMIN_EMAILS = ['mandemohamed68@gmail.com', 'mandemohamed6868@gmail
       } else if (db.engine && db.engine.includes('MariaDB')) {
         tablesToPartition.forEach((tbl) => {
           try {
-            db.query(`OPTIMIZE TABLE ${tbl}`);
+            db.exec(`OPTIMIZE TABLE ${tbl}`);
           } catch (_) {}
         });
         logDetails.push("Commandes OPTIMIZE TABLE MariaDB exécutées.");
