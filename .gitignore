@@ -4,8 +4,17 @@ coverage/
 *.log
 .env*
 !.env.example
-local.db
-local.db-journal
+local.db*
+*.db*
+*.db-shm
+*.db-wal
+
+# Build & Binary outputs
+dist/
+build/
+*.jar
+*.apk
+*.aab
 
 # Firebase Private Keys and Secrets
 *firebase-adminsdk*.json
@@ -15,9 +24,7 @@ local.db-journal
 *.p8
 *.p12
 
-# Build outputs
-dist/
-build/
+# Credentials & Keystores
 service-account.json
 *.jks
 *.keystore

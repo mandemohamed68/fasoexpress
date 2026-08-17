@@ -1,0 +1,59 @@
+# ==============================================================================
+# Configuration Nginx pour FasoExpress (Serveur Local & Production Debian/Ubuntu)
+# ==============================================================================
+# Placez ce fichier dans : /etc/nginx/sites-available/fasoexpress
+# Puis activez-le avec : sudo ln -s /etc/nginx/sites-available/fasoexpress /etc/nginx/sites-enabled/
+# Et rechargez Nginx : sudo systemctl restart nginx
+# ==============================================================================
+
+server {
+    listen 80;
+    server_name fasoexpress.net www.fasoexpress.net localhost;
+
+    # Chemin absolu vers le dossier dist compilé du projet
+    root /var/www/fasoexpress/dist;
+    index index.html;
+
+    # Optimisation des performances et compression gzip
+    gzip on;
+    gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript image/svg+xml;
+    gzip_min_length 256;
+
+    # 1. Redirection de toutes les routes SPA React (ex: /assistance, /suivi, /login)
+    #    Empêche les erreurs 404 lors du rechargement direct de page
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # 2. Redirection des requêtes API vers le backend Node.js (Port 3000)
+    location /api/ {
+        proxy_pass http://127.0.0.1:3000/api/;
+        proxy_http_version 1.1;
+        
+        # En-têtes pour conserver l'IP réelle et les protocoles
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        
+        # Délais de garde pour éviter les coupures de requêtes
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+        proxy_cache_bypass $http_upgrade;
+    }
+
+    # 3. Mise en cache des fichiers statiques (images, polices, scripts)
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
+        expires 30d;
+        add_header Cache-Control "public, no-transform";
+        try_files $uri =404;
+    }
+
+    # Sécurité : blocage des fichiers cachés (.env, .git, etc.)
+    location ~ /\. {
+        deny all;
+    }
+}

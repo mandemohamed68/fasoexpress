@@ -30,6 +30,7 @@ import Settings from './views/Settings';
 import Messaging from './views/Messaging';
 import LegalView from './views/LegalView';
 import ShowcaseView from './views/ShowcaseView';
+import AssistanceView from './views/AssistanceView';
 
 import { Capacitor } from '@capacitor/core';
 import { Geolocation } from '@capacitor/geolocation';
@@ -289,6 +290,14 @@ function AppRoutes() {
                 <Route path="/politique-de-confidentialite" element={<PageWrapper><LegalView /></PageWrapper>} />
                 <Route path="/privacy" element={<PageWrapper><LegalView /></PageWrapper>} />
                 <Route path="/politique" element={<PageWrapper><LegalView /></PageWrapper>} />
+
+                {/* Assistance & Support Public Routes */}
+                <Route path="/assistance" element={<PageWrapper><AssistanceView /></PageWrapper>} />
+                <Route path="/Assistance" element={<PageWrapper><AssistanceView /></PageWrapper>} />
+                <Route path="/support" element={<PageWrapper><AssistanceView /></PageWrapper>} />
+                <Route path="/Support" element={<PageWrapper><AssistanceView /></PageWrapper>} />
+                <Route path="/aide" element={<PageWrapper><AssistanceView /></PageWrapper>} />
+                <Route path="/contact" element={<PageWrapper><AssistanceView /></PageWrapper>} />
             </Routes>
           </AnimatePresence>
         </Suspense>
