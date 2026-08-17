@@ -798,20 +798,23 @@ export default function AdminDashboard() {
         api.config.get('default_pricing').then(res => res || null).catch(() => null)
       ]);
 
-      setUsers(usersList);
-      setDeliveries(deliveriesList);
-      if (configData) setAppConfig(configData);
+      setUsers(prev => JSON.stringify(prev) === JSON.stringify(usersList) ? prev : usersList);
+      setDeliveries(prev => JSON.stringify(prev) === JSON.stringify(deliveriesList) ? prev : deliveriesList);
+      if (configData) setAppConfig(prev => JSON.stringify(prev) === JSON.stringify(configData) ? prev : configData);
       if (commissionsData && !isCommissionDirtyRef.current) {
-        setCommissionState(commissionsData);
+        setCommissionState(prev => prev ? prev : commissionsData);
       }
       if (defaultPricingData && !isDefaultPricingDirtyRef.current) {
-        setDefaultPricingState(defaultPricingData);
+        setDefaultPricingState(prev => prev ? prev : defaultPricingData);
       }
-      setSectors(sectorsData);
-      setAnnouncements(announcementsData);
-      setWithdrawals(withdrawalsList);
-      setPromoCodes(promoList);
-      setPricingRules(Array.isArray(rulesList) ? rulesList : []);
+      setSectors(prev => JSON.stringify(prev) === JSON.stringify(sectorsData) ? prev : sectorsData);
+      setAnnouncements(prev => JSON.stringify(prev) === JSON.stringify(announcementsData) ? prev : announcementsData);
+      setWithdrawals(prev => JSON.stringify(prev) === JSON.stringify(withdrawalsList) ? prev : withdrawalsList);
+      setPromoCodes(prev => JSON.stringify(prev) === JSON.stringify(promoList) ? prev : promoList);
+      setPricingRules(prev => {
+        const rules = Array.isArray(rulesList) ? rulesList : [];
+        return JSON.stringify(prev) === JSON.stringify(rules) ? prev : rules;
+      });
 
       // Config Form Init - only update if configForm is null and not dirty
       if (configData && !configForm && !isConfigFormDirtyRef.current) {
@@ -833,7 +836,7 @@ export default function AdminDashboard() {
     }
 
     fetchData();
-    const interval = setInterval(fetchData, 30000); // Poll every 30s to prevent UI freeze
+    const interval = setInterval(fetchData, 10000); // Poll every 10s
 
     return () => clearInterval(interval);
   }, [profile, isMasterAdmin]);

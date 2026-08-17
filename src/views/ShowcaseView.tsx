@@ -4,7 +4,7 @@ import {
   Truck, Package, MapPin, ShieldCheck, ArrowRight, Phone, CheckCircle2, 
   Smartphone, Zap, Award, Users, CreditCard, ChevronDown, ChevronRight, 
   Clock, Lock, MessageSquare, Navigation, FileText, ExternalLink, HelpCircle, 
-  Building2, UserCheck, Shield, Check, Headset, Receipt, Bike, Box, Download, Eye
+  Building2, UserCheck, Shield, Check, Headset, Receipt, Bike, Box
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
@@ -302,34 +302,6 @@ export default function ShowcaseView() {
               <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm">
                 <span className="block text-2xl sm:text-3xl font-black text-amber-600 mb-1">7j / 7</span>
                 <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Support Client</span>
-              </div>
-            </div>
-
-            {/* AFFICHE PROMOTIONNELLE & DE PRÉSENTATION */}
-            <div className="mt-12 max-w-4xl mx-auto bg-slate-900 rounded-3xl p-6 sm:p-8 text-white shadow-2xl overflow-hidden relative group border border-slate-800 text-left">
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-6 mb-6">
-                <div>
-                  <span className="text-orange-400 font-black text-xs uppercase tracking-widest block mb-1">Affiche Officielle de Présentation</span>
-                  <h3 className="text-xl sm:text-2xl font-black italic tracking-tight">Support Visuel FasoExpress</h3>
-                </div>
-                <a 
-                  href="/fasoexpress_promo.jpg" 
-                  download="Affiche_FasoExpress_HD.jpg"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-6 py-3 rounded-2xl bg-orange-600 hover:bg-orange-500 text-white font-black text-xs uppercase tracking-wider transition-all flex items-center gap-2 shadow-lg shadow-orange-600/30 active:scale-95 cursor-pointer"
-                >
-                  <Download className="w-4 h-4" />
-                  <span>Télécharger l'Affiche (HD)</span>
-                </a>
-              </div>
-
-              <div className="rounded-2xl overflow-hidden border border-slate-700/60 shadow-inner bg-slate-950 flex items-center justify-center">
-                <img 
-                  src="/fasoexpress_promo.jpg" 
-                  alt="Affiche de Présentation FasoExpress" 
-                  className="w-full h-auto object-cover max-h-[500px]"
-                />
               </div>
             </div>
 

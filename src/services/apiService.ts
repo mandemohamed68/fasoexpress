@@ -33,27 +33,21 @@ async function request(endpoint: string, method = 'GET', body?: any, retryCount 
 
   const API_BASE = getApiBase();
   let response: Response;
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 60000); // 15s safety timeout
-
   try {
     response = await fetch(`${API_BASE}${endpoint}`, {
       method,
       headers,
       body: body ? JSON.stringify(body) : undefined,
-      signal: controller.signal,
     });
-    clearTimeout(timeoutId);
   } catch (err: any) {
-    clearTimeout(timeoutId);
     if (
       err?.name === 'AbortError' || 
       err?.message?.includes('aborted') || 
       err?.message?.includes('abort') || 
       err?.message?.includes('signal is aborted')
     ) {
-      console.warn(`[API] Request timed out or was aborted: ${endpoint}`);
-      throw new Error("La requête a mis trop de temps à répondre (délai dépassé). Veuillez réessayer.");
+      // Silently ignore aborted requests to prevent showing "signal is aborted without reason" toasts
+      return new Promise(() => {});
     }
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
       throw new Error("Vous êtes actuellement hors connexion internet. Veuillez vérifier votre réseau.");

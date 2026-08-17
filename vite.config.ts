@@ -17,17 +17,16 @@ export default defineConfig(({mode}) => {
       VitePWA({
  
         registerType: 'autoUpdate',
-        selfDestroying: true,
         includeAssets: ['LOGOFASO.png', 'favicon.png', 'splash.png'],
         manifest: false, // We are using an external manifest in public/manifest.json
         workbox: {
-          maximumFileSizeToCacheInBytes: 15000000,
+          maximumFileSizeToCacheInBytes: 5000000,
           runtimeCaching: [
             {
               urlPattern: ({ url }) => url.pathname.includes('/api/deliveries'),
               handler: 'NetworkFirst',
               options: {
-                cacheName: 'api-deliveries-cache-v2',
+                cacheName: 'api-deliveries-cache',
                 expiration: {
                   maxEntries: 50,
                   maxAgeSeconds: 24 * 60 * 60, // 24 hours
@@ -41,7 +40,7 @@ export default defineConfig(({mode}) => {
               urlPattern: ({ url }) => url.pathname.includes('/api/'),
               handler: 'NetworkFirst',
               options: {
-                cacheName: 'api-general-cache-v2',
+                cacheName: 'api-general-cache',
                 expiration: {
                   maxEntries: 100,
                   maxAgeSeconds: 24 * 60 * 60,

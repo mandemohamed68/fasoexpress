@@ -1028,23 +1028,66 @@ export default function LandingView() {
             </form>
           )}
 
-          <div className="mt-10 pt-8 border-t border-slate-100 flex flex-col sm:flex-row justify-center items-center gap-6">
-             <div className="flex items-center gap-3 text-xs font-semibold text-slate-600 flex-wrap justify-center">
-               <a href="/accueil" className="text-orange-600 font-bold hover:underline transition-colors">
-                 Site Vitrine & Présentation
-               </a>
-               <span className="text-slate-300 font-bold">•</span>
-               <a href="/assistance" className="text-emerald-700 font-bold hover:underline transition-colors">
-                 Centre d'Assistance
-               </a>
-               <span className="text-slate-300 font-bold">•</span>
-               <a href="https://fasoexpress.net/Conditions_Generales" target="_blank" rel="noopener noreferrer" className="hover:text-slate-900 underline decoration-slate-300 underline-offset-2 transition-colors">
-                 Conditions Générales
-               </a>
-               <span className="text-slate-300 font-bold">•</span>
-               <a href="https://fasoexpress.net/Politique_de_Confidentialite" target="_blank" rel="noopener noreferrer" className="hover:text-slate-900 underline decoration-slate-300 underline-offset-2 transition-colors">
-                 Politique de Confidentialité
-               </a>
+          <div className="mt-10 pt-8 border-t border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
+             <div className="flex flex-col text-left">
+                {appConfig?.companyNameActive !== false && (
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider italic mb-1">
+                    ÉDITÉ PAR {appConfig?.companyName || 'SAPPAY TECHNOLOGIE'}
+                  </span>
+                )}
+                {appConfig?.contactPhoneActive !== false && (
+                  <span className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight italic mb-3">
+                    {appConfig?.contactPhone || '72567606'}
+                  </span>
+                )}
+                <div className="flex items-center gap-3 text-xs font-semibold text-slate-600 flex-wrap">
+                  <a href="/accueil" className="text-orange-600 font-bold hover:underline transition-colors">
+                    Site Vitrine & Présentation
+                  </a>
+                  <span className="text-slate-300 font-bold">•</span>
+                  <a href="https://fasoexpress.net/Conditions_Generales" target="_blank" rel="noopener noreferrer" className="hover:text-slate-900 underline decoration-slate-300 underline-offset-2 transition-colors">
+                    Conditions Générales
+                  </a>
+                  <span className="text-slate-300 font-bold">•</span>
+                  <a href="https://fasoexpress.net/Politique_de_Confidentialite" target="_blank" rel="noopener noreferrer" className="hover:text-slate-900 underline decoration-slate-300 underline-offset-2 transition-colors">
+                    Politique de Confidentialité
+                  </a>
+                </div>
+             </div>
+
+             <div className="flex flex-col items-center sm:items-end gap-2.5 w-full sm:w-auto">
+                <div className="flex items-center gap-2.5 justify-center sm:justify-end">
+                   {appConfig?.contactPhoneActive !== false && (
+                     <a href={`tel:+226${(appConfig?.contactPhone || '72567606').replace(/[^0-9]/g, '')}`} title="Téléphone" className="w-12 h-12 rounded-2xl bg-white border border-slate-100 shadow-sm flex items-center justify-center text-slate-500 hover:text-slate-900 hover:border-slate-300 hover:shadow transition-all cursor-pointer">
+                        <Phone className="w-5 h-5" />
+                     </a>
+                   )}
+                   {appConfig?.contactWhatsappActive !== false && (
+                     <a href={`https://wa.me/226${(appConfig?.contactWhatsapp || appConfig?.contactPhone || '72567606').replace(/[^0-9]/g, '')}`} target="_blank" rel="noopener noreferrer" title="WhatsApp" className="w-12 h-12 rounded-2xl bg-white border border-slate-100 shadow-sm flex items-center justify-center text-slate-500 hover:text-emerald-600 hover:border-emerald-200 hover:shadow transition-all cursor-pointer">
+                        <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                          <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.455L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.725 1.451 5.436 0 9.86-4.42 9.864-9.864.002-2.637-1.03-5.115-2.906-6.99C16.452 1.876 13.977 1.05 11.35 1.05 5.91 11.35 1.488 5.474 1.484 10.916c-.002 1.71.459 3.382 1.332 4.885L1.875 22.03l6.398-1.679c.002-.001.002-.001.003-.001zm11.45-6.72c-.178-.089-1.055-.52-1.22-.58-.164-.06-.284-.09-.404.09-.12.18-.464.58-.57.7-.104.12-.21.134-.388.045-1.748-.875-2.902-1.534-4.053-3.513-.105-.18-.105-.29-.016-.379.08-.08.178-.21.267-.315.09-.105.12-.178.18-.299.06-.12.03-.225-.015-.315-.045-.09-.404-.975-.555-1.343-.146-.356-.296-.307-.404-.313-.105-.005-.224-.006-.344-.006-.12 0-.315.045-.48.225-.164.18-.63.615-.63 1.502s.645 1.739.735 1.859c.09.12 1.268 1.938 3.073 2.719.43.186.765.298 1.026.381.431.137.824.117 1.135.07.347-.053 1.055-.431 1.205-.826.15-.395.15-.734.105-.806-.045-.072-.165-.112-.343-.201z"/>
+                        </svg>
+                     </a>
+                   )}
+                   {appConfig?.contactFacebookActive !== false && (
+                     <a href={appConfig?.contactFacebook || "https://facebook.com/fasoexpress"} target="_blank" rel="noopener noreferrer" title="Facebook" className="w-12 h-12 rounded-2xl bg-white border border-slate-100 shadow-sm flex items-center justify-center text-slate-500 hover:text-blue-600 hover:border-blue-200 hover:shadow transition-all cursor-pointer">
+                        <Facebook className="w-5 h-5" />
+                     </a>
+                   )}
+                </div>
+
+                <div className="flex items-center gap-2.5 justify-center sm:justify-end">
+                   {appConfig?.contactMessengerActive !== false && (
+                     <a href={appConfig?.contactMessenger?.startsWith('http') ? appConfig.contactMessenger : `https://${appConfig?.contactMessenger || 'm.me/fasoexpress'}`} target="_blank" rel="noopener noreferrer" title="Messenger" className="w-12 h-12 rounded-2xl bg-white border border-slate-100 shadow-sm flex items-center justify-center text-slate-500 hover:text-sky-600 hover:border-sky-200 hover:shadow transition-all cursor-pointer">
+                        <MessageSquare className="w-5 h-5" />
+                     </a>
+                   )}
+                   {appConfig?.contactEmailActive !== false && appConfig?.contactEmail && (
+                     <a href={`mailto:${appConfig.contactEmail}`} title="Email" className="w-12 h-12 rounded-2xl bg-white border border-slate-100 shadow-sm flex items-center justify-center text-slate-500 hover:text-orange-600 hover:border-orange-200 hover:shadow transition-all cursor-pointer">
+                        <Mail className="w-5 h-5" />
+                     </a>
+                   )}
+                </div>
              </div>
           </div>
         </div>

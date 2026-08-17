@@ -332,38 +332,6 @@ export default function initMariaDB() {
     archiveTablesToCreate.forEach(sqlQuery => {
       try { connection.query(sqlQuery); } catch(e) {}
     });
-
-    // High performance indexes to prevent full table scans
-    const indexesToCreate = [
-      "CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)",
-      "CREATE INDEX IF NOT EXISTS idx_users_role ON users(role)",
-      "CREATE INDEX IF NOT EXISTS idx_users_userId ON users(userId)",
-      "CREATE INDEX IF NOT EXISTS idx_deliveries_clientId ON deliveries(clientId)",
-      "CREATE INDEX IF NOT EXISTS idx_deliveries_driverId ON deliveries(driverId)",
-      "CREATE INDEX IF NOT EXISTS idx_deliveries_status ON deliveries(status)",
-      "CREATE INDEX IF NOT EXISTS idx_deliveries_createdAt ON deliveries(createdAt)",
-      "CREATE INDEX IF NOT EXISTS idx_bids_deliveryId ON bids(deliveryId)",
-      "CREATE INDEX IF NOT EXISTS idx_bids_driverId ON bids(driverId)",
-      "CREATE INDEX IF NOT EXISTS idx_notifications_userId ON notifications(userId)",
-      "CREATE INDEX IF NOT EXISTS idx_tracking_deliveryId ON tracking(deliveryId)",
-      "CREATE INDEX IF NOT EXISTS idx_messages_deliveryId ON messages(deliveryId)"
-    ];
-
-    indexesToCreate.forEach(idxQuery => {
-      try {
-        connection.query(idxQuery);
-      } catch (e: any) {
-        // Fallback for MySQL/MariaDB versions that don't support IF NOT EXISTS in CREATE INDEX
-        if (!e.message?.includes('Duplicate key name') && !e.message?.includes('already exists')) {
-          const match = idxQuery.match(/CREATE INDEX IF NOT EXISTS\s+(\w+)\s+ON\s+(\w+)\((.+)\)/i);
-          if (match) {
-            try {
-              connection.query(`CREATE INDEX ${match[1]} ON ${match[2]}(${match[3]})`);
-            } catch (_) {}
-          }
-        }
-      }
-    });
     
     console.log("MariaDB: Vérification/Ajout des colonnes de profil et système réussie.");
   } catch (err: any) {
