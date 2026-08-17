@@ -34,7 +34,7 @@ async function request(endpoint: string, method = 'GET', body?: any, retryCount 
   const API_BASE = getApiBase();
   let response: Response;
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s safety timeout
+  const timeoutId = setTimeout(() => controller.abort(), 60000); // 15s safety timeout
 
   try {
     response = await fetch(`${API_BASE}${endpoint}`, {

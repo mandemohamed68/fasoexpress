@@ -1513,6 +1513,9 @@ const MASTER_ADMIN_EMAILS = ['mandemohamed68@gmail.com', 'mandemohamed6868@gmail
       let parsed = row && row.value ? JSON.parse(row.value) : {};
       if (key === 'app_config') {
         parsed = { ...DEFAULT_APP_CONFIG, ...parsed };
+        if (parsed.appLogo && parsed.appLogo.length > 500000) {
+          parsed.appLogo = '/LOGOFASO.png'; // Strip massive base64 to prevent bandwidth freezing
+        }
       }
       configCache.set(key, { value: parsed, expiresAt: now + CONFIG_CACHE_TTL });
       return res.json(parsed);
