@@ -17,6 +17,7 @@ export default defineConfig(({mode}) => {
       VitePWA({
  
         registerType: 'autoUpdate',
+        selfDestroying: true,
         includeAssets: ['LOGOFASO.png', 'favicon.png', 'splash.png'],
         manifest: false, // We are using an external manifest in public/manifest.json
         workbox: {
