@@ -154,14 +154,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   // AUTOMATIC REAL-TIME SYNC FOR MOBILE & WEB:
-  // Auto-refreshes app_config from backend every 10 seconds in background and immediately on app resume/focus/online
+  // Auto-refreshes app_config from backend immediately on app resume/focus/online
   useEffect(() => {
-    // 1. Balanced background polling interval (10 seconds)
-    const interval = setInterval(() => {
-      refreshAppConfig();
-    }, 10000);
-
-    // 2. Immediate refresh when mobile app comes back to foreground, screen unlocks, or internet reconnects
+    // 1. Immediate refresh when mobile app comes back to foreground, screen unlocks, or internet reconnects
     const handleImmediateSync = () => {
       refreshAppConfig();
     };
@@ -192,7 +187,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     window.addEventListener('app_config_updated', handleCustomConfigEvent);
 
     return () => {
-      clearInterval(interval);
       window.removeEventListener('visibilitychange', handleImmediateSync);
       window.removeEventListener('focus', handleImmediateSync);
       window.removeEventListener('online', handleImmediateSync);
