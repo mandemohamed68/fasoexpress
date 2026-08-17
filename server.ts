@@ -2096,18 +2096,53 @@ const MASTER_ADMIN_EMAILS = ['mandemohamed68@gmail.com', 'mandemohamed6868@gmail
   });
 
   app.get("/api/user-directory", authenticate, checkAdmin, (req: any, res) => {
-    const users = db.prepare("SELECT * FROM users").all() as any[];
-    users.forEach(u => {
-      delete u.password;
-      if (typeof u.currentLocation === 'string' && u.currentLocation) {
+    try {
+      const users = db.prepare(`
+        SELECT 
+          id, userId, name, email, role, status, accountStatus, isVerified, city, 
+          neighborhood, verificationStatus, guarantorName, guarantorPhone, currentLocation, 
+          balance, earnings, createdAt, updatedAt, withdrawalPhone, rib, termsAcceptedAt, 
+          driverType, photoURL, address, totalWithdrawn, withdrawalRequested, withdrawalAmount, 
+          withdrawalMethod, vehicleType, licensePlate
+        FROM users
+      `).all() as any[];
+      users.forEach(u => {
+        delete u.password;
+        if (typeof u.currentLocation === 'string' && u.currentLocation) {
+          try {
+            u.currentLocation = JSON.parse(u.currentLocation);
+          } catch (e) {
+            u.currentLocation = null;
+          }
+        }
+      });
+      res.json(users);
+    } catch (err: any) {
+      console.error("Error in /api/user-directory:", err);
+      res.status(500).json({ error: "Échec de la récupération de la liste des utilisateurs." });
+    }
+  });
+
+  app.get("/api/user-directory/:userId", authenticate, checkAdmin, (req: any, res) => {
+    const { userId } = req.params;
+    try {
+      const user = db.prepare("SELECT * FROM users WHERE userId = ?").get(userId) as any;
+      if (!user) {
+        return res.status(404).json({ error: "Utilisateur non trouvé" });
+      }
+      delete user.password;
+      if (typeof user.currentLocation === 'string' && user.currentLocation) {
         try {
-          u.currentLocation = JSON.parse(u.currentLocation);
+          user.currentLocation = JSON.parse(user.currentLocation);
         } catch (e) {
-          u.currentLocation = null;
+          user.currentLocation = null;
         }
       }
-    });
-    res.json(users);
+      res.json(user);
+    } catch (err: any) {
+      console.error(`Error in /api/user-directory/${userId}:`, err);
+      res.status(500).json({ error: "Échec de la récupération des détails de l'utilisateur." });
+    }
   });
 
   app.patch("/api/user-directory/:userId", authenticate, checkAdmin, (req: any, res) => {

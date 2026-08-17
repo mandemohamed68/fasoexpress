@@ -144,6 +144,7 @@ export interface CommissionSettings {
 }
 
 export interface UserProfile {
+  _isFullyLoaded?: boolean;
   userId: string;
   name: string;
   email: string;

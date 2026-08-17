@@ -683,6 +683,28 @@ export default function AdminDashboard() {
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
 
   useEffect(() => {
+    if (selectedUser && selectedUser.userId && !(selectedUser as any)._isFullyLoaded) {
+      const apiBase = getApiBase();
+      fetch(`${apiBase}/user-directory/${selectedUser.userId}`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
+      })
+        .then(res => {
+          if (res.ok) return res.json();
+          throw new Error("Failed to load user details");
+        })
+        .then(fullData => {
+          if (fullData) {
+            setSelectedUser({ ...fullData, _isFullyLoaded: true });
+          }
+        })
+        .catch(err => {
+          console.warn("Could not fetch full user details dynamically:", err);
+          setSelectedUser({ ...selectedUser, _isFullyLoaded: true });
+        });
+    }
+  }, [selectedUser?.userId]);
+
+  useEffect(() => {
     if (selectedUser && selectedUser.role === 'driver') {
       setIsLoadingHistory(true);
       api.drivers.getMissionHistory(selectedUser.userId)
@@ -698,7 +720,7 @@ export default function AdminDashboard() {
     } else {
       setDriverMissionHistory([]);
     }
-  }, [selectedUser]);
+  }, [selectedUser?.userId]);
 
   const getDriverStatsAndRank = (driverId: string) => {
     const driverDeliveries = deliveries.filter(d => d.driverId === driverId && d.status === 'delivered');
