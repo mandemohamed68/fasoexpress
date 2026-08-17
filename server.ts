@@ -3309,8 +3309,14 @@ Informations utiles sur Faso Express :
   } else {
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
-    app.get("*all", (req, res) => {
-      res.sendFile(path.join(distPath, "index.html"));
+    
+    // SPA Fallback for all routes (e.g. /assistance, /accueil, /admin)
+    app.use((req, res, next) => {
+      if (req.method === "GET" && !req.path.startsWith("/api")) {
+        res.sendFile(path.join(distPath, "index.html"));
+      } else {
+        next();
+      }
     });
   }
 
