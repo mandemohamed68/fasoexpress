@@ -1,19 +1,30 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { motion } from 'framer-motion';
 import { 
   Phone, MessageSquare, Mail, Facebook, 
-  ArrowLeft, LifeBuoy, ShieldCheck, Clock, MapPin, Headset, ExternalLink, HelpCircle
+  ArrowLeft, LifeBuoy, ShieldCheck, Clock, MapPin, Headset, 
+  ExternalLink, HelpCircle, Send, CheckCircle2, AlertCircle, Copy, Check
 } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 export default function AssistanceView() {
   const { appConfig } = useAuth();
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [ticketSent, setTicketSent] = useState(false);
+  const [ticketForm, setTicketForm] = useState({
+    name: '',
+    phone: '',
+    subject: 'Problème de livraison',
+    message: ''
+  });
 
   const phone = appConfig?.contactPhone || '72567606';
+  const cleanPhone = phone.replace(/[^0-9]/g, '');
   const isPhoneActive = appConfig?.contactPhoneActive !== false;
 
   const whatsapp = appConfig?.contactWhatsapp || '72567606';
+  const cleanWhatsapp = whatsapp.replace(/[^0-9]/g, '');
   const isWhatsappActive = appConfig?.contactWhatsappActive !== false;
 
   const facebook = appConfig?.contactFacebook || 'https://facebook.com/fasoexpress';
@@ -22,194 +33,335 @@ export default function AssistanceView() {
   const messenger = appConfig?.contactMessenger || 'https://m.me/fasoexpress';
   const isMessengerActive = appConfig?.contactMessengerActive !== false;
 
-  const email = appConfig?.contactEmail || '';
-  const isEmailActive = appConfig?.contactEmailActive !== false && !!email;
+  const email = appConfig?.contactEmail || 'contact@fasoexpress.net';
+  const isEmailActive = appConfig?.contactEmailActive !== false;
 
-  const supportMethods = [
-    {
-      id: 'phone',
-      title: 'Service Téléphonique Direct',
-      subtitle: 'Pour vos urgences et appels directs',
-      value: phone,
-      href: `tel:+226${phone.replace(/[^0-9]/g, '')}`,
-      active: isPhoneActive && !!phone,
-      icon: Phone,
-      badge: '7j/7 • 24h/24',
-      color: 'bg-orange-500 text-white',
-      cardBg: 'hover:border-orange-500/40 hover:shadow-orange-500/10'
-    },
+  const handleCopy = (text: string, id: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedField(id);
+    toast.success(`${text} copié dans le presse-papier !`);
+    setTimeout(() => setCopiedField(null), 2500);
+  };
+
+  const handleTicketSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!ticketForm.name || !ticketForm.phone || !ticketForm.message) {
+      toast.error('Veuillez remplir tous les champs obligatoires.');
+      return;
+    }
+
+    const whatsappMessage = `*Demande d'Assistance FasoExpress*%0A%0A*Nom:* ${encodeURIComponent(ticketForm.name)}%0A*Téléphone:* ${encodeURIComponent(ticketForm.phone)}%0A*Objet:* ${encodeURIComponent(ticketForm.subject)}%0A*Message:* ${encodeURIComponent(ticketForm.message)}`;
+    
+    // Redirect to WhatsApp with prefilled message
+    window.open(`https://wa.me/226${cleanWhatsapp}?text=${whatsappMessage}`, '_blank');
+    setTicketSent(true);
+    toast.success('Votre message est prêt à être envoyé sur WhatsApp !');
+  };
+
+  const channels = [
     {
       id: 'whatsapp',
-      title: 'Support WhatsApp Chat',
-      subtitle: 'Assistance rapide, envoi de pièces et localisation',
-      value: whatsapp,
-      href: `https://wa.me/226${whatsapp.replace(/[^0-9]/g, '')}`,
-      active: isWhatsappActive && !!whatsapp,
+      title: 'WhatsApp Support',
+      subtitle: 'Assistance instantanée, envoi de photos et localisation GPS',
+      displayValue: `+226 ${cleanWhatsapp.replace(/(\d{2})(\d{2})(\d{2})(\d{2})/, '$1 $2 $3 $4')}`,
+      rawValue: `+226${cleanWhatsapp}`,
+      href: `https://wa.me/226${cleanWhatsapp}?text=${encodeURIComponent("Bonjour l'équipe FasoExpress, j'ai besoin d'une assistance pour ma livraison.")}`,
+      active: isWhatsappActive,
       icon: MessageSquare,
-      badge: 'Réponse Rapide',
-      color: 'bg-emerald-500 text-white',
-      cardBg: 'hover:border-emerald-500/40 hover:shadow-emerald-500/10'
+      badge: 'Réponse Ultra Rapide',
+      themeColor: 'from-emerald-500 to-teal-600',
+      btnText: 'Ouvrir WhatsApp',
+      btnBg: 'bg-emerald-600 hover:bg-emerald-700 text-white'
     },
     {
       id: 'messenger',
       title: 'Facebook Messenger',
-      subtitle: 'Discuter avec notre équipe de support',
-      value: 'Envoyer un message',
+      subtitle: 'Discutez en direct avec nos agents via Messenger',
+      displayValue: 'm.me/fasoexpress',
+      rawValue: messenger.startsWith('http') ? messenger : `https://${messenger}`,
       href: messenger.startsWith('http') ? messenger : `https://${messenger}`,
-      active: isMessengerActive && !!messenger,
+      active: isMessengerActive,
       icon: MessageSquare,
       badge: 'En Ligne',
-      color: 'bg-sky-500 text-white',
-      cardBg: 'hover:border-sky-500/40 hover:shadow-sky-500/10'
+      themeColor: 'from-sky-500 to-blue-600',
+      btnText: 'Ouvrir Messenger',
+      btnBg: 'bg-sky-600 hover:bg-sky-700 text-white'
+    },
+    {
+      id: 'phone',
+      title: 'Appel Téléphonique Direct',
+      subtitle: 'Pour vos urgences de livraison et réclamations directes',
+      displayValue: `+226 ${cleanPhone.replace(/(\d{2})(\d{2})(\d{2})(\d{2})/, '$1 $2 $3 $4')}`,
+      rawValue: `+226${cleanPhone}`,
+      href: `tel:+226${cleanPhone}`,
+      active: isPhoneActive,
+      icon: Phone,
+      badge: '7j/7 • 24h/24',
+      themeColor: 'from-orange-500 to-amber-600',
+      btnText: 'Appeler Maintenant',
+      btnBg: 'bg-orange-600 hover:bg-orange-700 text-white'
     },
     {
       id: 'facebook',
-      title: 'Page Officielle Facebook',
-      subtitle: 'Actualités, offres et informations',
-      value: 'Faso Express Officiel',
+      title: 'Page Facebook Officielle',
+      subtitle: 'Actualités, informations du réseau et messagerie Facebook',
+      displayValue: 'Faso Express Officiel',
+      rawValue: facebook.startsWith('http') ? facebook : `https://${facebook}`,
       href: facebook.startsWith('http') ? facebook : `https://${facebook}`,
-      active: isFacebookActive && !!facebook,
+      active: isFacebookActive,
       icon: Facebook,
       badge: 'Communauté',
-      color: 'bg-blue-600 text-white',
-      cardBg: 'hover:border-blue-500/40 hover:shadow-blue-500/10'
+      themeColor: 'from-blue-600 to-indigo-700',
+      btnText: 'Visiter la Page',
+      btnBg: 'bg-blue-600 hover:bg-blue-700 text-white'
     },
     {
       id: 'email',
-      title: 'Support par Courriel',
-      subtitle: 'Pour vos réclamations et partenariats',
-      value: email,
-      href: `mailto:${email}`,
-      active: isEmailActive && !!email,
+      title: 'Support par Email',
+      subtitle: 'Pour vos demandes de partenariat, factures et réclamations écrites',
+      displayValue: email,
+      rawValue: email,
+      href: `mailto:${email}?subject=${encodeURIComponent('Demande de support - FasoExpress')}`,
+      active: isEmailActive,
       icon: Mail,
-      badge: 'Email Pro',
-      color: 'bg-rose-500 text-white',
-      cardBg: 'hover:border-rose-500/40 hover:shadow-rose-500/10'
-    },
-  ].filter(method => method.active);
+      badge: 'Support Pro',
+      themeColor: 'from-rose-500 to-red-600',
+      btnText: 'Envoyer un Email',
+      btnBg: 'bg-rose-600 hover:bg-rose-700 text-white'
+    }
+  ];
 
   const faqs = [
     {
       q: "Comment suivre ma livraison en temps réel ?",
-      a: "Dès que le livreur accepte votre course, vous pouvez suivre son déplacement directement sur la carte interactive depuis l'onglet 'Suivi' ou en saisissant l'identifiant de votre colis."
+      a: "Dès que le livreur accepte votre commande, vous pouvez suivre son déplacement en temps réel sur la carte interactive depuis l'onglet 'Suivi' ou en saisissant le numéro de votre colis."
     },
     {
       q: "À quoi sert le code OTP de livraison ?",
-      a: "C'est un code secret à 4 chiffres généré pour chaque course. Le livreur doit saisir ce code lors de la remise du colis pour valider officiellement la livraison."
+      a: "C'est un code de sécurité confidentiel à 4 chiffres généré pour votre commande. Le livreur doit le saisir lors de la remise pour clôturer officiellement la course et sécuriser votre colis."
     },
     {
-      q: "Quels sont les modes de paiement acceptés ?",
-      a: "Nous acceptons les paiements Mobile Money (Orange Money, Moov Money, Telecel Cash, Coris Money) ainsi que le paiement en espèces à la livraison."
+      q: "Quels sont les modes de paiement disponibles ?",
+      a: "Nous acceptons tous les paiements Mobile Money (Orange Money, Moov Money, Telecel Cash, Coris Money) ainsi que le paiement en espèces directement à la livraison."
     },
     {
-      q: "Que faire si mon livreur a du retard ?",
-      a: "Vous pouvez contacter le livreur directement depuis l'application via le bouton d'appel, ou joindre notre centre de support téléphonique au 72 56 76 06."
+      q: "Que faire si mon livreur a du retard ou ne répond pas ?",
+      a: "Vous pouvez contacter directement notre service client au (+226) 72 56 76 06 ou via WhatsApp pour une réattribution immédiate de votre course."
     }
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto space-y-8">
+    <div className="min-h-screen bg-slate-900 text-slate-100 py-10 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-5xl mx-auto space-y-10">
         
-        {/* Navigation & Header */}
+        {/* Header Bar */}
         <div className="flex items-center justify-between">
           <Link 
             to="/" 
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs uppercase tracking-wider hover:border-orange-500 transition-all shadow-sm"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-slate-800 border border-slate-700 text-slate-200 font-bold text-xs uppercase tracking-wider hover:border-orange-500 hover:text-orange-400 transition-all shadow-md"
           >
             <ArrowLeft className="w-4 h-4" />
             <span>Retour à l'accueil</span>
           </Link>
 
-          <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span className="text-xs font-black text-slate-500 uppercase tracking-widest">Support Disponible</span>
+          <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-emerald-950/80 border border-emerald-500/30 text-emerald-400 text-xs font-black tracking-wide">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span>SUPPORT EN LIGNE (24h/24 & 7j/7)</span>
           </div>
         </div>
 
         {/* Hero Banner */}
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-900 to-orange-950 text-white p-8 sm:p-12 shadow-2xl border border-slate-800">
-          <div className="relative z-10 max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-500/20 border border-orange-500/30 text-orange-400 text-xs font-black uppercase tracking-widest mb-4">
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-850 via-slate-800 to-orange-950/40 p-8 sm:p-12 border border-slate-700 shadow-2xl">
+          <div className="relative z-10 max-w-2xl space-y-4">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-orange-500/20 border border-orange-500/40 text-orange-400 text-xs font-black uppercase tracking-widest">
               <LifeBuoy className="w-4 h-4" />
-              <span>Centre de Support & Assistance</span>
+              <span>Centre d'Assistance & Service Client</span>
             </div>
-            <h1 className="text-3xl sm:text-4xl font-black italic tracking-tight mb-4">
-              Comment pouvons-nous vous aider aujourd'hui ?
+            
+            <h1 className="text-3xl sm:text-5xl font-black italic tracking-tight text-white leading-tight">
+              Besoin d'aide ? <br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-amber-300">
+                Nous sommes à votre écoute.
+              </span>
             </h1>
+            
             <p className="text-slate-300 text-sm sm:text-base font-medium leading-relaxed">
-              L'équipe FasoExpress est à votre entière disposition pour répondre à toutes vos questions, suivre vos colis et résoudre vos soucis de livraison.
+              Pour toute question sur une livraison en cours, un problème avec un livreur, un paiement ou une demande de partenariat, contactez notre équipe disponible 7j/7 au Burkina Faso.
             </p>
           </div>
-          
-          <div className="absolute right-[-40px] bottom-[-40px] opacity-10 pointer-events-none">
+
+          <div className="absolute right-[-30px] bottom-[-30px] opacity-10 pointer-events-none">
             <Headset className="w-80 h-80 text-orange-500" />
           </div>
         </div>
 
-        {/* Contact Grid */}
-        <div className="space-y-4">
-          <h2 className="text-xl font-black text-slate-900 dark:text-white italic tracking-tight flex items-center gap-2">
-            <Headset className="w-5 h-5 text-orange-500" />
-            <span>Nos Canaux de Contact Direct</span>
-          </h2>
+        {/* Canaux de contact directs */}
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-black text-white italic tracking-tight flex items-center gap-2.5">
+              <Headset className="w-6 h-6 text-orange-500" />
+              <span>Nos Canaux de Contact Officiels</span>
+            </h2>
+            <span className="text-xs text-slate-400 font-bold uppercase tracking-wider hidden sm:inline-block">
+              Cliquez pour contacter
+            </span>
+          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {supportMethods.map((method) => {
-              const Icon = method.icon;
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {channels.map((channel) => {
+              const Icon = channel.icon;
               return (
-                <a
-                  key={method.id}
-                  href={method.href}
-                  target={method.href.startsWith('http') ? '_blank' : '_self'}
-                  rel="noopener noreferrer"
-                  className={`p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm transition-all duration-200 flex flex-col justify-between group cursor-pointer ${method.cardBg}`}
+                <div
+                  key={channel.id}
+                  className="rounded-3xl bg-slate-800/90 border border-slate-700/80 p-6 shadow-lg hover:border-slate-600 transition-all duration-200 flex flex-col justify-between space-y-6 group"
                 >
-                  <div className="flex items-start justify-between mb-4">
-                    <div className={`p-3 rounded-2xl ${method.color} shadow-lg shadow-orange-500/10`}>
-                      <Icon className="w-6 h-6" />
+                  <div className="space-y-4">
+                    <div className="flex items-start justify-between">
+                      <div className={`p-3.5 rounded-2xl bg-gradient-to-br ${channel.themeColor} text-white shadow-lg shadow-black/20`}>
+                        <Icon className="w-7 h-7" />
+                      </div>
+                      <span className="px-3 py-1 rounded-full bg-slate-900/90 border border-slate-700 text-slate-300 text-[11px] font-black uppercase tracking-wider">
+                        {channel.badge}
+                      </span>
                     </div>
-                    <span className="px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[10px] font-black uppercase tracking-wider">
-                      {method.badge}
-                    </span>
+
+                    <div>
+                      <h3 className="text-xl font-black text-white group-hover:text-orange-400 transition-colors">
+                        {channel.title}
+                      </h3>
+                      <p className="text-slate-400 text-xs font-medium mt-1 leading-relaxed">
+                        {channel.subtitle}
+                      </p>
+                    </div>
+
+                    <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-750 flex items-center justify-between">
+                      <span className="text-sm font-black text-orange-400 font-mono tracking-wide">
+                        {channel.displayValue}
+                      </span>
+                      <button
+                        onClick={() => handleCopy(channel.rawValue, channel.id)}
+                        className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
+                        title="Copier le contact"
+                      >
+                        {copiedField === channel.id ? (
+                          <Check className="w-4 h-4 text-emerald-400" />
+                        ) : (
+                          <Copy className="w-4 h-4" />
+                        )}
+                      </button>
+                    </div>
                   </div>
 
-                  <div>
-                    <h3 className="text-lg font-black text-slate-900 dark:text-white mb-1 group-hover:text-orange-500 transition-colors flex items-center gap-1.5">
-                      <span>{method.title}</span>
-                      <ExternalLink className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                    </h3>
-                    <p className="text-slate-500 dark:text-slate-400 text-xs font-medium mb-3">
-                      {method.subtitle}
-                    </p>
-                    <div className="text-base font-black text-slate-900 dark:text-orange-400 italic">
-                      {method.value}
-                    </div>
-                  </div>
-                </a>
+                  <a
+                    href={channel.href}
+                    target={channel.href.startsWith('http') ? '_blank' : '_self'}
+                    rel="noopener noreferrer"
+                    className={`w-full py-3.5 px-4 rounded-2xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition-all ${channel.btnBg}`}
+                  >
+                    <span>{channel.btnText}</span>
+                    <ExternalLink className="w-4 h-4" />
+                  </a>
+                </div>
               );
             })}
           </div>
         </div>
 
-        {/* FAQ Section */}
-        <div className="space-y-4 pt-4">
-          <h2 className="text-xl font-black text-slate-900 dark:text-white italic tracking-tight flex items-center gap-2">
+        {/* Formulaire de Message Rapide / Ticket WhatsApp */}
+        <div className="rounded-3xl bg-slate-800/80 border border-slate-700 p-6 sm:p-8 shadow-xl space-y-6">
+          <div className="space-y-1">
+            <h2 className="text-xl font-black text-white italic tracking-tight flex items-center gap-2">
+              <Send className="w-5 h-5 text-orange-500" />
+              <span>Envoyer un message rapide au Support</span>
+            </h2>
+            <p className="text-slate-400 text-xs font-medium">
+              Remplissez ce formulaire court pour être pris en charge immédiatement par notre équipe sur WhatsApp.
+            </p>
+          </div>
+
+          <form onSubmit={handleTicketSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-black uppercase tracking-wider text-slate-300">Votre Nom Complet *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ex: Mohamed Ouedraogo"
+                  value={ticketForm.name}
+                  onChange={(e) => setTicketForm({ ...ticketForm, name: e.target.value })}
+                  className="w-full px-4 py-3 rounded-2xl bg-slate-900 border border-slate-700 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-orange-500"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-black uppercase tracking-wider text-slate-300">Votre Numéro de Téléphone *</label>
+                <input
+                  type="tel"
+                  required
+                  placeholder="Ex: 70 00 00 00"
+                  value={ticketForm.phone}
+                  onChange={(e) => setTicketForm({ ...ticketForm, phone: e.target.value })}
+                  className="w-full px-4 py-3 rounded-2xl bg-slate-900 border border-slate-700 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-orange-500"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-black uppercase tracking-wider text-slate-300">Objet de la demande</label>
+              <select
+                value={ticketForm.subject}
+                onChange={(e) => setTicketForm({ ...ticketForm, subject: e.target.value })}
+                className="w-full px-4 py-3 rounded-2xl bg-slate-900 border border-slate-700 text-white text-sm focus:outline-none focus:border-orange-500"
+              >
+                <option value="Problème de livraison en cours">Problème de livraison en cours</option>
+                <option value="Colis non reçu / Retard">Colis non reçu / Retard livreur</option>
+                <option value="Question sur le paiement Mobile Money">Question sur le paiement Mobile Money</option>
+                <option value="Devenir Livreur Partenaire">Devenir Livreur Partenaire</option>
+                <option value="Partenariat Entreprise / E-commerce">Partenariat Entreprise / E-commerce</option>
+                <option value="Autre demande">Autre demande</option>
+              </select>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-black uppercase tracking-wider text-slate-300">Votre Message / Précisions *</label>
+              <textarea
+                required
+                rows={3}
+                placeholder="Décrivez votre situation ou mentionnez le numéro de votre colis..."
+                value={ticketForm.message}
+                onChange={(e) => setTicketForm({ ...ticketForm, message: e.target.value })}
+                className="w-full px-4 py-3 rounded-2xl bg-slate-900 border border-slate-700 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-orange-500"
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="w-full py-4 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-xl shadow-orange-500/20 transition-all cursor-pointer"
+            >
+              <Send className="w-4 h-4" />
+              <span>Transmettre ma demande au Support WhatsApp</span>
+            </button>
+          </form>
+        </div>
+
+        {/* FAQ */}
+        <div className="space-y-4">
+          <h2 className="text-xl font-black text-white italic tracking-tight flex items-center gap-2">
             <HelpCircle className="w-5 h-5 text-orange-500" />
-            <span>Questions Fréquemment Posées</span>
+            <span>Foire Aux Questions Fréquentes</span>
           </h2>
 
-          <div className="grid grid-cols-1 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {faqs.map((faq, idx) => (
               <div 
                 key={idx}
-                className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-2"
+                className="p-5 rounded-2xl bg-slate-800/80 border border-slate-700 space-y-2"
               >
-                <h3 className="text-sm font-black text-slate-900 dark:text-white flex items-start gap-2">
-                  <span className="text-orange-500 font-extrabold">Q.</span>
+                <h3 className="text-sm font-black text-orange-400 flex items-start gap-2">
+                  <span>Q.</span>
                   <span>{faq.q}</span>
                 </h3>
-                <p className="text-slate-600 dark:text-slate-400 text-xs font-medium leading-relaxed pl-5">
+                <p className="text-slate-300 text-xs font-medium leading-relaxed pl-4">
                   {faq.a}
                 </p>
               </div>
@@ -218,8 +370,9 @@ export default function AssistanceView() {
         </div>
 
         {/* Footer info */}
-        <div className="text-center pt-8 border-t border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-400 uppercase tracking-widest">
-          FASO EXPRESS • Service Client & Assistance Disponible 7j/7
+        <div className="text-center pt-6 border-t border-slate-800 text-xs font-bold text-slate-500 uppercase tracking-widest space-y-1">
+          <div>FASO EXPRESS • Ouagadougou & Bobo-Dioulasso, Burkina Faso</div>
+          <div>Plateforme de Livraison Express 100% Burkinabè</div>
         </div>
 
       </div>
