@@ -558,8 +558,12 @@ export default function AdminDashboard() {
   const [confirmingDeletePromoCode, setConfirmingDeletePromoCode] = useState<string | null>(null);
   const [confirmingDeleteUserId, setConfirmingDeleteUserId] = useState<string | null>(null);
   const [newSectorName, setNewSectorName] = useState("");
+  const [newSectorCity, setNewSectorCity] = useState("Ouagadougou");
+  const [selectedSectorCityFilter, setSelectedSectorCityFilter] = useState("Toutes");
+  const [sectorSearchQuery, setSectorSearchQuery] = useState("");
   const [confirmingDeleteSectorId, setConfirmingDeleteSectorId] = useState<string | null>(null);
   const [isCreatingSector, setIsCreatingSector] = useState(false);
+  const [isAutoSyncingSectors, setIsAutoSyncingSectors] = useState(false);
 
   const processChartData = () => {
     const last7Days = Array.from({ length: 7 }).map((_, i) => {
@@ -1074,7 +1078,7 @@ export default function AdminDashboard() {
       ...(hasPerm('manage_clients') ? [{ name: 'Clients', icon: Users }] : []),
       ...(hasPerm('manage_database') ? [{ name: 'Équipe & Support', icon: UserCheck }] : []),
       ...(isSuperAdmin || hasPerm('manage_database') ? [{ name: 'Administrateurs', icon: ShieldCheck }] : []),
-      ...(isSuperAdmin || hasPerm('manage_settings') ? [{ name: 'Secteurs d\'Ouaga', icon: Globe }] : []),
+      ...(isSuperAdmin || hasPerm('manage_settings') ? [{ name: 'Secteurs (Burkina)', icon: Globe }] : []),
     ]},
     { group: 'FINANCES', items: [
       ...(hasPerm('manage_settings') ? [{ name: 'Modele Eco', icon: BadgePercent }] : []),
@@ -2784,18 +2788,65 @@ export default function AdminDashboard() {
             </div>
           </div>
         );
+      case 'Secteurs (Burkina)':
       case 'Secteurs d\'Ouaga': {
+        const DEFAULT_BURKINA_SECTORS = [
+          // Ouagadougou
+          { name: 'Tampouy', city: 'Ouagadougou' },
+          { name: 'Dassasgho', city: 'Ouagadougou' },
+          { name: 'Wayalghin', city: 'Ouagadougou' },
+          { name: 'Gounghin', city: 'Ouagadougou' },
+          { name: 'Ouaga 2000', city: 'Ouagadougou' },
+          { name: 'Paspanga', city: 'Ouagadougou' },
+          { name: 'Koulouba', city: 'Ouagadougou' },
+          { name: 'Cissin', city: 'Ouagadougou' },
+          { name: 'Tanghin', city: 'Ouagadougou' },
+          { name: 'Patte d\'Oie', city: 'Ouagadougou' },
+          { name: 'Kamboinsé', city: 'Ouagadougou' },
+          { name: 'Larlé', city: 'Ouagadougou' },
+          { name: 'Zogona', city: 'Ouagadougou' },
+          { name: 'Bissighin', city: 'Ouagadougou' },
+          { name: 'Wemtenga', city: 'Ouagadougou' },
+          // Bobo-Dioulasso
+          { name: 'Accart-ville', city: 'Bobo-Dioulasso' },
+          { name: 'Koko', city: 'Bobo-Dioulasso' },
+          { name: 'Yelemba', city: 'Bobo-Dioulasso' },
+          { name: 'Bindougou', city: 'Bobo-Dioulasso' },
+          { name: 'Dioulassoba', city: 'Bobo-Dioulasso' },
+          { name: 'Bolomakoté', city: 'Bobo-Dioulasso' },
+          { name: 'Lafiabougou', city: 'Bobo-Dioulasso' },
+          // Koudougou
+          { name: 'Issouka', city: 'Koudougou' },
+          { name: 'Secteur 1', city: 'Koudougou' },
+          { name: 'Palogo', city: 'Koudougou' },
+          // Ouahigouya
+          { name: 'Secteur 1', city: 'Ouahigouya' },
+          { name: 'Sissamba', city: 'Ouahigouya' },
+          // Fada N'Gourma
+          { name: 'Secteur 1', city: 'Fada N\'Gourma' },
+          // Banfora
+          { name: 'Tatana', city: 'Banfora' },
+          // Kaya
+          { name: 'Secteur 1', city: 'Kaya' },
+          // Tenkodogo
+          { name: 'Secteur 1', city: 'Tenkodogo' }
+        ];
+
         const handleCreateSector = async (e: React.FormEvent) => {
           e.preventDefault();
           if (!newSectorName.trim()) {
-            setToast({ type: 'error', message: 'Veuillez saisir un nom de secteur.' });
+            setToast({ type: 'error', message: 'Veuillez saisir un nom de secteur ou quartier.' });
             return;
           }
           setIsCreatingSector(true);
           try {
-            await api.sectors.create({ name: newSectorName.trim(), city: 'Ouagadougou', isActive: true });
+            await api.sectors.create({ 
+              name: newSectorName.trim(), 
+              city: newSectorCity.trim() || 'Ouagadougou', 
+              isActive: true 
+            });
             setNewSectorName("");
-            setToast({ type: 'success', message: 'Secteur ajoute avec succes !' });
+            setToast({ type: 'success', message: 'Secteur ajouté avec succès !' });
             await fetchData();
           } catch (err: any) {
             setToast({ type: 'error', message: 'Erreur: ' + (err.message || err) });
@@ -2807,7 +2858,7 @@ export default function AdminDashboard() {
         const handleDeleteSector = async (id: string) => {
           try {
             await api.sectors.delete(id);
-            setToast({ type: 'success', message: 'Secteur supprime avec succes !' });
+            setToast({ type: 'success', message: 'Secteur supprimé avec succès !' });
             setConfirmingDeleteSectorId(null);
             await fetchData();
           } catch (err: any) {
@@ -2817,12 +2868,18 @@ export default function AdminDashboard() {
 
         const handleInitializeDefaults = async () => {
           setIsCreatingSector(true);
-          setToast({ type: 'info', message: 'Initialisation en cours...' });
+          setToast({ type: 'info', message: 'Initialisation du maillage territorial national...' });
           try {
-            for (const n of ['Paspanga', 'Koulouba', 'Gounghin', 'Dassasgho', 'Ouaga 2000']) {
-              await api.sectors.create({ name: n, city: 'Ouagadougou', isActive: true });
+            const existingNames = new Set(sectors.map(s => s.name.toLowerCase()));
+            let addedCount = 0;
+            for (const item of DEFAULT_BURKINA_SECTORS) {
+              if (!existingNames.has(item.name.toLowerCase())) {
+                await api.sectors.create({ name: item.name, city: item.city, isActive: true });
+                existingNames.add(item.name.toLowerCase());
+                addedCount++;
+              }
             }
-            setToast({ type: 'success', message: 'Secteurs initialises avec succes !' });
+            setToast({ type: 'success', message: `${addedCount} secteurs et villes créés avec succès !` });
             await fetchData();
           } catch (err: any) {
             setToast({ type: 'error', message: "Erreur d'initialisation: " + (err.message || err) });
@@ -2831,56 +2888,218 @@ export default function AdminDashboard() {
           }
         };
 
+        // Automatic Detection of Sectors from User Profiles & Deliveries
+        const handleAutoDetectFromUsers = async () => {
+          setIsAutoSyncingSectors(true);
+          setToast({ type: 'info', message: 'Analyse et extraction automatique des zones utilisateurs...' });
+          try {
+            const existingNames = new Set(sectors.map(s => s.name.toLowerCase()));
+            const discovered: { name: string; city: string }[] = [];
+
+            // 1. Scan users
+            users.forEach(u => {
+              const uCity = (u.city || 'Ouagadougou').trim();
+              const uNeigh = (u.neighborhood || '').trim();
+              if (uNeigh && uNeigh.length >= 2 && !existingNames.has(uNeigh.toLowerCase())) {
+                existingNames.add(uNeigh.toLowerCase());
+                discovered.push({ name: uNeigh, city: uCity });
+              }
+            });
+
+            // 2. Scan deliveries
+            deliveries.forEach((d: any) => {
+              const addresses = [
+                d.from?.address, d.to?.address
+              ].filter(Boolean) as string[];
+
+              addresses.forEach(addr => {
+                const parts = addr.split(/[\s,/-]+/).map(p => p.trim()).filter(p => p.length >= 3);
+                parts.forEach(p => {
+                  if (p.length >= 3 && /^[A-ZÉÈÀCÇ][a-zéèàç0-9\s]+$/i.test(p) && !['rue', 'avenue', 'boulevard', 'porte', 'pres', 'face', 'cote', 'vers', 'route'].includes(p.toLowerCase())) {
+                    if (!existingNames.has(p.toLowerCase())) {
+                      existingNames.add(p.toLowerCase());
+                      discovered.push({ name: p, city: 'Ouagadougou' });
+                    }
+                  }
+                });
+              });
+            });
+
+            if (discovered.length === 0) {
+              setToast({ type: 'info', message: 'Tous les secteurs des utilisateurs sont déjà synchronisés !' });
+            } else {
+              let added = 0;
+              for (const item of discovered) {
+                try {
+                  await api.sectors.create({ name: item.name, city: item.city, isActive: true });
+                  added++;
+                } catch (e) {}
+              }
+              setToast({ type: 'success', message: `Synchro automatique : ${added} nouveaux secteurs détectés et ajoutés !` });
+              await fetchData();
+            }
+          } catch (err: any) {
+            setToast({ type: 'error', message: 'Erreur lors de la synchro automatique : ' + (err.message || err) });
+          } finally {
+            setIsAutoSyncingSectors(false);
+          }
+        };
+
+        // Filter sectors
+        const filteredSectors = sectors.filter(s => {
+          const matchesCity = selectedSectorCityFilter === 'Toutes' || (s.city || 'Ouagadougou').toLowerCase() === selectedSectorCityFilter.toLowerCase();
+          const matchesSearch = !sectorSearchQuery || s.name.toLowerCase().includes(sectorSearchQuery.toLowerCase()) || (s.city || '').toLowerCase().includes(sectorSearchQuery.toLowerCase());
+          return matchesCity && matchesSearch;
+        });
+
+        // Unique cities list for tabs/filters
+        const availableCities = Array.from(new Set([
+          'Toutes',
+          'Ouagadougou',
+          'Bobo-Dioulasso',
+          'Koudougou',
+          'Ouahigouya',
+          'Fada N\'Gourma',
+          'Banfora',
+          'Kaya',
+          'Tenkodogo',
+          ...sectors.map(s => s.city || 'Ouagadougou')
+        ])).filter(Boolean);
+
         return (
           <div className="bg-white rounded-[32px] p-8 border border-slate-100 shadow-sm">
-             <div className="flex justify-between items-center mb-8">
+             <div className="flex flex-col lg:flex-row justify-between lg:items-center gap-4 mb-8">
                <div>
-                  <h3 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Maillage Territorial</h3>
-                  <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-1">Secteurs actifs et couverture reseau</p>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-[9px] font-black uppercase px-2.5 py-1 bg-orange-100 text-orange-700 rounded-full tracking-widest">Couverture Nationale</span>
+                    <span className="text-[9px] font-black uppercase px-2.5 py-1 bg-emerald-100 text-emerald-700 rounded-full tracking-widest">{sectors.length} Secteurs Actifs</span>
+                  </div>
+                  <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Secteurs & Villes du Burkina Faso</h3>
+                  <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-1">Maillage territorial national & détection automatique des zones utilisateurs</p>
                </div>
-               <div className="w-12 h-12 bg-orange-50 text-orange-600 rounded-2xl flex items-center justify-center">
-                  <Globe className="w-6 h-6" />
+               <div className="flex flex-wrap items-center gap-3">
+                  <button
+                    onClick={handleAutoDetectFromUsers}
+                    disabled={isAutoSyncingSectors}
+                    className="flex items-center gap-2 px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-[10px] uppercase tracking-wider rounded-2xl transition-all shadow-md shadow-indigo-100 disabled:opacity-50"
+                  >
+                    <Zap className={cn("w-4 h-4", isAutoSyncingSectors && "animate-spin")} />
+                    {isAutoSyncingSectors ? "Détection en cours..." : "Auto-détecter Secteurs Utilisateurs"}
+                  </button>
+                  <button
+                    onClick={handleInitializeDefaults}
+                    disabled={isCreatingSector}
+                    className="flex items-center gap-2 px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-800 font-extrabold text-[10px] uppercase tracking-wider rounded-2xl transition-all"
+                  >
+                    <Globe className="w-4 h-4 text-orange-500" />
+                    Initialiser Villes Majeures
+                  </button>
                </div>
              </div>
 
-             <form onSubmit={handleCreateSector} className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-slate-50 p-6 rounded-2xl border border-slate-100 mb-8 items-end">
-               <div className="md:col-span-3">
-                 <label className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1 pl-2">Nom du nouveau secteur (ex: Wayalghin, Dassasgho...)</label>
+             {/* Formulaire de création manuelle de secteur */}
+             <form onSubmit={handleCreateSector} className="grid grid-cols-1 md:grid-cols-5 gap-4 bg-slate-50 p-6 rounded-3xl border border-slate-100 mb-8 items-end">
+               <div className="md:col-span-2">
+                 <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 pl-2">Nom du secteur / quartier (ex: Wayalghin, Accart-ville, Issouka...)</label>
                  <input 
                    type="text" 
-                   placeholder="Creer un nouveau secteur..."
+                   placeholder="Saisir un secteur ou quartier..."
                    value={newSectorName}
                    onChange={e => setNewSectorName(e.target.value)}
-                   className="w-full bg-white border border-slate-200 text-slate-900 p-3 rounded-xl focus:outline-none focus:border-indigo-500 font-bold text-xs"
+                   className="w-full bg-white border border-slate-200 text-slate-900 p-3 rounded-xl focus:outline-none focus:border-orange-500 font-bold text-xs"
                    disabled={isCreatingSector}
                  />
+               </div>
+               <div className="md:col-span-2">
+                 <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 pl-2">Ville (ex: Ouagadougou, Bobo-Dioulasso, Koudougou...)</label>
+                 <select
+                   value={newSectorCity}
+                   onChange={e => setNewSectorCity(e.target.value)}
+                   className="w-full bg-white border border-slate-200 text-slate-900 p-3 rounded-xl focus:outline-none focus:border-orange-500 font-bold text-xs"
+                   disabled={isCreatingSector}
+                 >
+                   <option value="Ouagadougou">Ouagadougou</option>
+                   <option value="Bobo-Dioulasso">Bobo-Dioulasso</option>
+                   <option value="Koudougou">Koudougou</option>
+                   <option value="Ouahigouya">Ouahigouya</option>
+                   <option value="Fada N'Gourma">Fada N'Gourma</option>
+                   <option value="Banfora">Banfora</option>
+                   <option value="Kaya">Kaya</option>
+                   <option value="Tenkodogo">Tenkodogo</option>
+                   <option value="Autre">Autre Ville</option>
+                 </select>
                </div>
                <div>
                  <button 
                    type="submit"
                    disabled={isCreatingSector}
-                   className="w-full py-3 bg-slate-900 hover:bg-orange-600 text-white font-extrabold uppercase tracking-widest text-[9px] rounded-xl transition-all"
+                   className="w-full py-3 bg-slate-900 hover:bg-orange-600 text-white font-extrabold uppercase tracking-widest text-[9px] rounded-xl transition-all h-[42px]"
                  >
-                   {isCreatingSector ? "Ajout..." : "Enregistrer"}
+                   {isCreatingSector ? "Enregistrement..." : "+ Enregistrer"}
                  </button>
                </div>
              </form>
 
-             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {sectors.map(s => {
-                  const activityCount = deliveries.filter(d => 
-                    d.from?.address?.toLowerCase().includes(s.name.toLowerCase()) || 
-                    d.to?.address?.toLowerCase().includes(s.name.toLowerCase())
+             {/* Filtres par Ville & Recherche */}
+             <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
+                <div className="flex items-center gap-2 overflow-x-auto w-full md:w-auto pb-2 md:pb-0 scrollbar-none">
+                   {availableCities.slice(0, 7).map(cityName => (
+                     <button
+                       key={cityName}
+                       onClick={() => setSelectedSectorCityFilter(cityName)}
+                       className={cn(
+                         "px-3.5 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider whitespace-nowrap transition-all",
+                         selectedSectorCityFilter === cityName 
+                           ? "bg-slate-900 text-white shadow-sm" 
+                           : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                       )}
+                     >
+                       {cityName}
+                     </button>
+                   ))}
+                </div>
+                <div className="w-full md:w-64">
+                   <input
+                     type="text"
+                     placeholder="Rechercher un secteur..."
+                     value={sectorSearchQuery}
+                     onChange={e => setSectorSearchQuery(e.target.value)}
+                     className="w-full bg-slate-50 border border-slate-200 text-slate-900 px-3.5 py-1.5 rounded-xl text-xs font-bold focus:outline-none focus:border-orange-500"
+                   />
+                </div>
+             </div>
+
+             {/* Grille des secteurs */}
+             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {filteredSectors.map(s => {
+                  const sName = s.name.toLowerCase();
+                  const fluxCount = deliveries.filter(d => 
+                    (d.from?.address?.toLowerCase() || '').includes(sName) || 
+                    (d.to?.address?.toLowerCase() || '').includes(sName)
                   ).length;
+
+                  const usersInSector = users.filter(u => 
+                    (u.neighborhood?.toLowerCase() || '').includes(sName) ||
+                    (u.city?.toLowerCase() || '').includes(sName) ||
+                    (u.address?.toLowerCase() || '').includes(sName)
+                  ).length;
+
+                  const cityColor = 
+                    s.city === 'Bobo-Dioulasso' ? 'bg-purple-50 text-purple-700 border-purple-100' :
+                    s.city === 'Koudougou' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
+                    s.city === 'Ouahigouya' ? 'bg-amber-50 text-amber-700 border-amber-100' :
+                    s.city === 'Fada N\'Gourma' ? 'bg-rose-50 text-rose-700 border-rose-100' :
+                    'bg-blue-50 text-blue-700 border-blue-100';
+
                   return (
                     <div 
                       key={s.id} 
-                      className="p-6 bg-slate-50 rounded-3xl border border-slate-100 group transition-all relative"
+                      className="p-5 bg-slate-50 rounded-3xl border border-slate-100 group hover:border-orange-200 transition-all relative flex flex-col justify-between"
                     >
                       <div className="absolute top-4 right-4">
                         {confirmingDeleteSectorId === s.id ? (
                           <div className="flex items-center gap-1 bg-white border border-red-100 p-1.5 rounded-xl shadow-md z-10">
-                            <span className="text-[8px] font-black uppercase text-red-500 mr-1 animate-pulse">Sur?</span>
+                            <span className="text-[8px] font-black uppercase text-red-500 mr-1 animate-pulse">Sûr?</span>
                             <button
                               onClick={() => handleDeleteSector(s.id)}
                               className="bg-red-600 hover:bg-red-700 text-white font-extrabold px-2 py-1 rounded-lg text-[8px] uppercase tracking-wider transition-all"
@@ -2897,32 +3116,56 @@ export default function AdminDashboard() {
                         ) : (
                           <button 
                             onClick={() => setConfirmingDeleteSectorId(s.id)}
-                            className="w-8 h-8 bg-white text-rose-500 rounded-xl flex items-center justify-center border border-rose-100 hover:bg-rose-50 transition-all shadow-sm"
+                            className="w-8 h-8 bg-white text-rose-500 rounded-xl flex items-center justify-center border border-rose-100 hover:bg-rose-50 transition-all shadow-sm opacity-60 group-hover:opacity-100"
                             title="Supprimer"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         )}
                       </div>
-                      <Globe className="w-6 h-6 text-slate-300 mb-4 group-hover:text-orange-500 transition-all" />
-                      <div className="flex justify-between items-end">
-                        <span className="font-black text-slate-900 text-sm uppercase">{s.name}</span>
+
+                      <div>
+                        <div className="flex items-center gap-2 mb-3">
+                           <Globe className="w-5 h-5 text-slate-400 group-hover:text-orange-500 transition-all" />
+                           <span className={cn("text-[9px] font-black px-2 py-0.5 rounded-md border uppercase tracking-wider", cityColor)}>
+                             {s.city || 'Ouagadougou'}
+                           </span>
+                        </div>
+                        <h4 className="font-black text-slate-900 text-base uppercase tracking-tight mb-4">{s.name}</h4>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-3 border-t border-slate-200/60 text-[10px] font-black">
+                        <span className="text-slate-500 flex items-center gap-1">
+                          <Users className="w-3 h-3 text-slate-400" />
+                          {usersInSector} Membres
+                        </span>
                         <span className={cn(
-                          "text-[10px] font-black px-2 py-1 rounded-lg",
-                          activityCount > 0 ? "text-emerald-500 bg-emerald-50" : "text-slate-400 bg-white border border-slate-100"
+                          "px-2 py-1 rounded-lg font-black",
+                          fluxCount > 0 ? "text-emerald-600 bg-emerald-50" : "text-slate-400 bg-white border border-slate-100"
                         )}>
-                          {activityCount} Flux
+                          {fluxCount} Flux
                         </span>
                       </div>
                     </div>
                   );
                 })}
-                {sectors.length === 0 && (
-                  <div className="col-span-full py-20 text-center bg-slate-50 rounded-3xl border border-dashed border-slate-200">
-                    <p className="text-slate-400 font-black uppercase text-[10px] tracking-widest leading-none">Aucun secteur defini dans la base de donnees</p>
-                    <p className="text-slate-300 font-bold text-[9px] uppercase tracking-widest mt-2 leading-none cursor-pointer hover:text-indigo-600" onClick={handleInitializeDefaults}>
-                      Initialiser avec les secteurs par defaut
-                    </p>
+                {filteredSectors.length === 0 && (
+                  <div className="col-span-full py-16 text-center bg-slate-50 rounded-3xl border border-dashed border-slate-200">
+                    <p className="text-slate-500 font-black uppercase text-xs tracking-widest mb-2">Aucun secteur trouvé pour ce filtre</p>
+                    <div className="flex justify-center gap-3 mt-4">
+                      <button 
+                        onClick={handleAutoDetectFromUsers}
+                        className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-indigo-700 transition-all"
+                      >
+                        Auto-détecter les secteurs des utilisateurs
+                      </button>
+                      <button 
+                        onClick={handleInitializeDefaults}
+                        className="px-4 py-2 bg-slate-200 text-slate-700 rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-slate-300 transition-all"
+                      >
+                        Initialiser les secteurs par défaut
+                      </button>
+                    </div>
                   </div>
                 )}
              </div>
