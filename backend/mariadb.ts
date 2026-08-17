@@ -144,6 +144,14 @@ export default function initMariaDB() {
     try { connection.query("ALTER TABLE users ADD COLUMN resetExpires varchar(255) DEFAULT NULL"); } catch(e: any) { if(!e.message.includes('Duplicate column name')) console.error("Failed to add column resetExpires to users:", e.message); }
     try { connection.query("ALTER TABLE users ADD COLUMN permissions text DEFAULT NULL"); } catch(e: any) {}
     try { connection.query("ALTER TABLE users ADD COLUMN permissionsList text DEFAULT NULL"); } catch(e: any) {}
+    try { connection.query("ALTER TABLE users ADD COLUMN withdrawalRequested tinyint(1) DEFAULT 0"); } catch(e: any) {}
+    try { connection.query("ALTER TABLE users ADD COLUMN withdrawalAmount double DEFAULT 0"); } catch(e: any) {}
+    try { connection.query("ALTER TABLE users ADD COLUMN withdrawalMethod varchar(100) DEFAULT NULL"); } catch(e: any) {}
+    try { connection.query("ALTER TABLE users ADD COLUMN vehicleType varchar(100) DEFAULT NULL"); } catch(e: any) {}
+    try { connection.query("ALTER TABLE users ADD COLUMN licensePlate varchar(100) DEFAULT NULL"); } catch(e: any) {}
+    try { connection.query("ALTER TABLE users ADD COLUMN updatedAt datetime DEFAULT NULL"); } catch(e: any) {}
+    try { connection.query("ALTER TABLE users ADD COLUMN accountStatus varchar(50) DEFAULT 'active'"); } catch(e: any) {}
+    try { connection.query("ALTER TABLE users ADD COLUMN isVerified tinyint(1) DEFAULT 0"); } catch(e: any) {}
     try { connection.query("ALTER TABLE users MODIFY COLUMN role varchar(50) NOT NULL DEFAULT 'client'"); } catch(e: any) { console.error("Failed to alter role column in users:", e.message); }
     
     // Ensure announcements table has all required columns
