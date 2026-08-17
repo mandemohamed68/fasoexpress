@@ -1070,6 +1070,58 @@ const MASTER_ADMIN_EMAILS = ['mandemohamed68@gmail.com', 'mandemohamed6868@gmail
       }
     }
 
+    if (deliveries.length === 0) {
+      return res.json([]);
+    }
+
+    // Collect all delivery IDs and driver IDs for single-batch query
+    const deliveryIds = deliveries.map(d => d.id);
+    const driverIdSet = new Set<string>();
+    deliveries.forEach(d => {
+      if (d.driverId) driverIdSet.add(d.driverId);
+    });
+
+    // 1. Batch fetch all bids for these deliveries in a single query
+    let allBids: any[] = [];
+    try {
+      const placeholders = deliveryIds.map(() => '?').join(',');
+      allBids = db.prepare(`SELECT * FROM bids WHERE deliveryId IN (${placeholders})`).all(...deliveryIds) as any[] || [];
+    } catch (e) {
+      allBids = [];
+    }
+
+    // Collect driver IDs from bids
+    allBids.forEach(b => {
+      if (b.driverId) driverIdSet.add(b.driverId);
+    });
+
+    // 2. Batch fetch all drivers in a single query
+    const driverMap = new Map<string, any>();
+    const driverIds = Array.from(driverIdSet);
+    if (driverIds.length > 0) {
+      try {
+        const placeholders = driverIds.map(() => '?').join(',');
+        const drivers = db.prepare(`SELECT userId, photoURL, phone, name FROM users WHERE userId IN (${placeholders})`).all(...driverIds) as any[] || [];
+        drivers.forEach(dr => {
+          if (dr.userId) driverMap.set(dr.userId, dr);
+        });
+      } catch (e) {}
+    }
+
+    // Group bids by deliveryId
+    const bidsByDelivery = new Map<string, any[]>();
+    allBids.forEach(b => {
+      b.timeEstimateMins = b.proposedTime;
+      if (b.driverId && driverMap.has(b.driverId)) {
+        const dr = driverMap.get(b.driverId);
+        b.driverPhoto = dr.photoURL;
+        b.driverPhone = dr.phone;
+      }
+      const existing = bidsByDelivery.get(b.deliveryId) || [];
+      existing.push(b);
+      bidsByDelivery.set(b.deliveryId, existing);
+    });
+
     deliveries.forEach(d => {
       try { if (typeof d.origin === 'string') d.origin = JSON.parse(d.origin); } catch(e){}
       try { if (typeof d.destination === 'string') d.destination = JSON.parse(d.destination); } catch(e){}
@@ -1078,38 +1130,15 @@ const MASTER_ADMIN_EMAILS = ['mandemohamed68@gmail.com', 'mandemohamed6868@gmail
       try { if (typeof d.rejectedBy === 'string') d.rejectedBy = JSON.parse(d.rejectedBy); } catch(e){}
       try { if (typeof d.packageDetails === 'string') d.packageDetails = JSON.parse(d.packageDetails); } catch(e){}
       
-      // Attach driver photo & phone dynamically
-      if (d.driverId) {
-        try {
-          const driver = db.prepare("SELECT photoURL, phone, name FROM users WHERE userId = ?").get(d.driverId) as any;
-          if (driver) {
-            d.driverPhoto = driver.photoURL;
-            d.driverPhone = driver.phone;
-            d.driverName = driver.name;
-          }
-        } catch (e) {}
+      // Attach driver photo & phone from pre-fetched map
+      if (d.driverId && driverMap.has(d.driverId)) {
+        const dr = driverMap.get(d.driverId);
+        d.driverPhoto = dr.photoURL;
+        d.driverPhone = dr.phone;
+        d.driverName = dr.name;
       }
 
-      try {
-        const bids = db.prepare("SELECT * FROM bids WHERE deliveryId = ?").all(d.id) as any[];
-        if (bids) {
-          bids.forEach(b => {
-            b.timeEstimateMins = b.proposedTime;
-            if (b.driverId) {
-              try {
-                const bDriver = db.prepare("SELECT photoURL, phone FROM users WHERE userId = ?").get(b.driverId) as any;
-                if (bDriver) {
-                  b.driverPhoto = bDriver.photoURL;
-                  b.driverPhone = bDriver.phone;
-                }
-              } catch (err) {}
-            }
-          });
-        }
-        d.bids = bids || [];
-      } catch(e) {
-        d.bids = [];
-      }
+      d.bids = bidsByDelivery.get(d.id) || [];
     });
       res.json(deliveries);
     } catch (err: any) {
