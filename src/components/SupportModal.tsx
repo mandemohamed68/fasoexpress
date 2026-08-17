@@ -6,6 +6,7 @@ import {
   ArrowRight, ShieldAlert, LifeBuoy 
 } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { formatPhoneDisplay, buildTelLink, buildWhatsAppLink } from '../utils/phoneUtils';
 
 interface SupportModalProps {
   isOpen: boolean;
@@ -38,8 +39,8 @@ export default function SupportModal({ isOpen, onClose }: SupportModalProps) {
     {
       id: 'phone',
       label: 'Service Téléphonique',
-      value: phone,
-      href: `tel:+226${phone.replace(/[^0-9]/g, '')}`,
+      value: formatPhoneDisplay(phone),
+      href: buildTelLink(phone),
       active: isPhoneActive && !!phone,
       icon: Phone,
       color: 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border-indigo-100 dark:border-indigo-900',
@@ -48,8 +49,8 @@ export default function SupportModal({ isOpen, onClose }: SupportModalProps) {
     {
       id: 'whatsapp',
       label: 'Support WhatsApp',
-      value: whatsapp,
-      href: `https://wa.me/226${whatsapp.replace(/[^0-9]/g, '')}`,
+      value: formatPhoneDisplay(whatsapp),
+      href: buildWhatsAppLink(whatsapp, "Bonjour l'équipe FasoExpress, j'ai besoin d'une assistance pour ma livraison."),
       active: isWhatsappActive && !!whatsapp,
       icon: MessageSquare,
       color: 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border-emerald-100 dark:border-emerald-900',

@@ -1497,14 +1497,29 @@ const MASTER_ADMIN_EMAILS = ['mandemohamed68@gmail.com', 'mandemohamed6868@gmail
     isCardActive: true
   };
 
+  const configCache = new Map<string, { value: any; expiresAt: number }>();
+  const CONFIG_CACHE_TTL = 3000; // 3 seconds in-memory cache for instantaneous config responses
+
   app.get("/api/preferences-majeures/:key", (req, res) => {
     const { key } = req.params;
-    const row = db.prepare("SELECT value FROM config WHERE `key` = ?").get(key) as any;
-    if (key === 'app_config') {
-      const stored = row && row.value ? JSON.parse(row.value) : {};
-      return res.json({ ...DEFAULT_APP_CONFIG, ...stored });
+    const now = Date.now();
+    const cached = configCache.get(key);
+    if (cached && cached.expiresAt > now) {
+      return res.json(cached.value);
     }
-    res.json(row && row.value ? JSON.parse(row.value) : {});
+
+    try {
+      const row = db.prepare("SELECT value FROM config WHERE `key` = ?").get(key) as any;
+      let parsed = row && row.value ? JSON.parse(row.value) : {};
+      if (key === 'app_config') {
+        parsed = { ...DEFAULT_APP_CONFIG, ...parsed };
+      }
+      configCache.set(key, { value: parsed, expiresAt: now + CONFIG_CACHE_TTL });
+      return res.json(parsed);
+    } catch (err) {
+      if (key === 'app_config') return res.json(DEFAULT_APP_CONFIG);
+      return res.json({});
+    }
   });
 
   app.get("/api/sectors", (req, res) => {
@@ -2280,6 +2295,7 @@ const MASTER_ADMIN_EMAILS = ['mandemohamed68@gmail.com', 'mandemohamed6868@gmail
     const value = JSON.stringify(req.body);
     try {
       db.prepare("REPLACE INTO config (`key`, value) VALUES (?, ?)").run(key, value);
+      configCache.delete(key);
       res.json({ status: "ok" });
     } catch (err) {
       res.status(500).json({ error: "Failed to update config" });

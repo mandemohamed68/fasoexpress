@@ -7,6 +7,13 @@ import {
   ExternalLink, HelpCircle, Send, CheckCircle2, AlertCircle, Copy, Check
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { 
+  formatPhoneDisplay, 
+  getParsedPhoneList, 
+  getPrimaryCleanPhone, 
+  buildWhatsAppLink, 
+  buildTelLink 
+} from '../utils/phoneUtils';
 
 export default function AssistanceView() {
   const { appConfig } = useAuth();
@@ -19,12 +26,13 @@ export default function AssistanceView() {
     message: ''
   });
 
-  const phone = appConfig?.contactPhone || '72567606';
-  const cleanPhone = phone.replace(/[^0-9]/g, '');
+  const phoneRaw = appConfig?.contactPhone || '72567606';
+  const parsedPhones = getParsedPhoneList(phoneRaw);
   const isPhoneActive = appConfig?.contactPhoneActive !== false;
 
-  const whatsapp = appConfig?.contactWhatsapp || '72567606';
-  const cleanWhatsapp = whatsapp.replace(/[^0-9]/g, '');
+  const whatsappRaw = appConfig?.contactWhatsapp || '72567606';
+  const parsedWhatsapps = getParsedPhoneList(whatsappRaw);
+  const primaryWhatsapp = getPrimaryCleanPhone(whatsappRaw);
   const isWhatsappActive = appConfig?.contactWhatsappActive !== false;
 
   const facebook = appConfig?.contactFacebook || 'https://facebook.com/fasoexpress';
@@ -52,8 +60,8 @@ export default function AssistanceView() {
 
     const whatsappMessage = `*Demande d'Assistance FasoExpress*%0A%0A*Nom:* ${encodeURIComponent(ticketForm.name)}%0A*Téléphone:* ${encodeURIComponent(ticketForm.phone)}%0A*Objet:* ${encodeURIComponent(ticketForm.subject)}%0A*Message:* ${encodeURIComponent(ticketForm.message)}`;
     
-    // Redirect to WhatsApp with prefilled message
-    window.open(`https://wa.me/226${cleanWhatsapp}?text=${whatsappMessage}`, '_blank');
+    // Redirect to WhatsApp with prefilled message using valid primary clean number
+    window.open(`https://wa.me/226${primaryWhatsapp}?text=${whatsappMessage}`, '_blank');
     setTicketSent(true);
     toast.success('Votre message est prêt à être envoyé sur WhatsApp !');
   };
@@ -63,15 +71,19 @@ export default function AssistanceView() {
       id: 'whatsapp',
       title: 'WhatsApp Support',
       subtitle: 'Assistance instantanée, envoi de photos et localisation GPS',
-      displayValue: `+226 ${cleanWhatsapp.replace(/(\d{2})(\d{2})(\d{2})(\d{2})/, '$1 $2 $3 $4')}`,
-      rawValue: `+226${cleanWhatsapp}`,
-      href: `https://wa.me/226${cleanWhatsapp}?text=${encodeURIComponent("Bonjour l'équipe FasoExpress, j'ai besoin d'une assistance pour ma livraison.")}`,
+      displayValue: formatPhoneDisplay(whatsappRaw),
+      rawValue: formatPhoneDisplay(whatsappRaw),
+      href: buildWhatsAppLink(whatsappRaw, "Bonjour l'équipe FasoExpress, j'ai besoin d'une assistance pour ma livraison."),
       active: isWhatsappActive,
       icon: MessageSquare,
       badge: 'Réponse Ultra Rapide',
       themeColor: 'from-emerald-500 to-teal-600',
       btnText: 'Ouvrir WhatsApp',
-      btnBg: 'bg-emerald-600 hover:bg-emerald-700 text-white'
+      btnBg: 'bg-emerald-600 hover:bg-emerald-700 text-white',
+      multipleActions: parsedWhatsapps.length > 1 ? parsedWhatsapps.map(item => ({
+        label: `WhatsApp ${item.clean}`,
+        href: item.waHref
+      })) : undefined
     },
     {
       id: 'messenger',
@@ -91,15 +103,19 @@ export default function AssistanceView() {
       id: 'phone',
       title: 'Appel Téléphonique Direct',
       subtitle: 'Pour vos urgences de livraison et réclamations directes',
-      displayValue: `+226 ${cleanPhone.replace(/(\d{2})(\d{2})(\d{2})(\d{2})/, '$1 $2 $3 $4')}`,
-      rawValue: `+226${cleanPhone}`,
-      href: `tel:+226${cleanPhone}`,
+      displayValue: formatPhoneDisplay(phoneRaw),
+      rawValue: formatPhoneDisplay(phoneRaw),
+      href: buildTelLink(phoneRaw),
       active: isPhoneActive,
       icon: Phone,
       badge: '7j/7 • 24h/24',
       themeColor: 'from-orange-500 to-amber-600',
       btnText: 'Appeler Maintenant',
-      btnBg: 'bg-orange-600 hover:bg-orange-700 text-white'
+      btnBg: 'bg-orange-600 hover:bg-orange-700 text-white',
+      multipleActions: parsedPhones.length > 1 ? parsedPhones.map(item => ({
+        label: `Appeler ${item.clean}`,
+        href: item.telHref
+      })) : undefined
     },
     {
       id: 'facebook',
@@ -252,15 +268,32 @@ export default function AssistanceView() {
                     </div>
                   </div>
 
-                  <a
-                    href={channel.href}
-                    target={channel.href.startsWith('http') ? '_blank' : '_self'}
-                    rel="noopener noreferrer"
-                    className={`w-full py-3.5 px-4 rounded-2xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition-all ${channel.btnBg}`}
-                  >
-                    <span>{channel.btnText}</span>
-                    <ExternalLink className="w-4 h-4" />
-                  </a>
+                  {channel.multipleActions && channel.multipleActions.length > 1 ? (
+                    <div className="flex flex-col sm:flex-row gap-2 w-full">
+                      {channel.multipleActions.map((action, actionIdx) => (
+                        <a
+                          key={actionIdx}
+                          href={action.href}
+                          target={action.href.startsWith('http') ? '_blank' : '_self'}
+                          rel="noopener noreferrer"
+                          className={`flex-1 py-3 px-3 rounded-2xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-md transition-all ${channel.btnBg}`}
+                        >
+                          <span>{action.label}</span>
+                          <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+                        </a>
+                      ))}
+                    </div>
+                  ) : (
+                    <a
+                      href={channel.href}
+                      target={channel.href.startsWith('http') ? '_blank' : '_self'}
+                      rel="noopener noreferrer"
+                      className={`w-full py-3.5 px-4 rounded-2xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition-all ${channel.btnBg}`}
+                    >
+                      <span>{channel.btnText}</span>
+                      <ExternalLink className="w-4 h-4" />
+                    </a>
+                  )}
                 </div>
               );
             })}
