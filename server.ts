@@ -2097,15 +2097,42 @@ const MASTER_ADMIN_EMAILS = ['mandemohamed68@gmail.com', 'mandemohamed6868@gmail
 
   app.get("/api/user-directory", authenticate, checkAdmin, (req: any, res) => {
     try {
-      const users = db.prepare(`
-        SELECT 
-          id, userId, name, email, role, status, accountStatus, isVerified, city, 
-          neighborhood, verificationStatus, guarantorName, guarantorPhone, currentLocation, 
-          balance, earnings, createdAt, updatedAt, withdrawalPhone, rib, termsAcceptedAt, 
-          driverType, photoURL, address, totalWithdrawn, withdrawalRequested, withdrawalAmount, 
-          withdrawalMethod, vehicleType, licensePlate
-        FROM users
-      `).all() as any[];
+      // Détection dynamique des colonnes existantes pour éviter toute erreur si la base n'a pas été migrée
+      let columns: string[] = [];
+      try {
+        const rows = db.prepare("SHOW COLUMNS FROM users").all() as any[];
+        columns = rows.map(r => r.Field || r.field || r.Column_name || r.column_name).filter(Boolean);
+      } catch (e) {
+        try {
+          const rows = db.prepare("PRAGMA table_info(users)").all() as any[];
+          columns = rows.map(r => r.name).filter(Boolean);
+        } catch (e2) {
+          // Fallback par défaut si la détection échoue
+          columns = [
+            'id', 'userId', 'name', 'email', 'role', 'status', 'accountStatus', 'isVerified', 
+            'city', 'neighborhood', 'verificationStatus', 'balance', 'earnings', 'createdAt'
+          ];
+        }
+      }
+
+      // Si aucune colonne n'a été trouvée, utiliser un fallback sécurisé
+      if (!columns || columns.length === 0) {
+        columns = [
+          'id', 'userId', 'name', 'email', 'role', 'status', 'accountStatus', 'isVerified', 
+          'city', 'neighborhood', 'verificationStatus', 'balance', 'earnings', 'createdAt'
+        ];
+      }
+
+      // Exclure les champs d'images lourds (Base64) pour conserver d'excellentes performances
+      const heavyFields = [
+        'idCardFront', 'idCardBack', 'identityCardUrl', 'identityCardBackUrl', 
+        'guarantorCniUrl', 'criminalRecordUrl', 'carteGriseUrl'
+      ];
+      const safeColumns = columns.filter(col => !heavyFields.includes(col));
+
+      const sql = `SELECT ${safeColumns.join(', ')} FROM users`;
+      const users = db.prepare(sql).all() as any[];
+
       users.forEach(u => {
         delete u.password;
         if (typeof u.currentLocation === 'string' && u.currentLocation) {
