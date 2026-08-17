@@ -65,6 +65,21 @@
             });
           }
         } catch (e) {}
+
+        // Détection et rechargement automatique en cas d'ancienne version en cache (Script/Chunk Load Error)
+        window.addEventListener("error", function (e) {
+          if (e.target && e.target.tagName === "SCRIPT") {
+            var url = e.target.src || "";
+            if (url.indexOf("/assets/") !== -1 || url.indexOf("main.tsx") !== -1 || url.indexOf(".js") !== -1) {
+              var lastReload = sessionStorage.getItem("last_chunk_reload");
+              var now = Date.now();
+              if (!lastReload || now - parseInt(lastReload, 10) > 10000) {
+                sessionStorage.setItem("last_chunk_reload", now);
+                window.location.reload();
+              }
+            }
+          }
+        }, true);
       })();
     </script>
   </head>
