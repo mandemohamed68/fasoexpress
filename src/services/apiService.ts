@@ -4,14 +4,15 @@ import { Capacitor } from '@capacitor/core';
 
 export const getApiBase = () => {
   if (typeof window !== 'undefined') {
-    // Si l'utilisateur accède à l'application web en local sur un port de dev (ex: 5173, 4173)
-    // différent du port de production ou du port du serveur backend (qui est 1000), 
+    // Si l'utilisateur accède à l'application web en local sur un port de dev (ex: 5173, 4173, 3001)
+    // différent du port de production (80, 443) ou du port du serveur backend (qui est 1000),
     // on redirige dynamiquement vers le port 1000 de la machine locale.
-    if (window.location.port && window.location.port !== '1000') {
-      if (window.location.hostname !== 'fasoexpress.net') {
-        const protocol = window.location.protocol;
-        return `${protocol}//${window.location.hostname}:1000/api`;
-      }
+    if (window.location.port && 
+        window.location.port !== '1000' && 
+        window.location.port !== '443' && 
+        window.location.port !== '80') {
+      const protocol = window.location.protocol;
+      return `${protocol}//${window.location.hostname}:1000/api`;
     }
   }
 

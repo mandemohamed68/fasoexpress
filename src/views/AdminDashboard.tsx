@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { api } from '../services/apiService';
+import { api, getApiBase } from '../services/apiService';
 import { DeliveryRequest, UserProfile, UserRole, UserPermission, CommissionSettings, AppConfig, DistancePricingRule, Sector, AppAnnouncement } from '../types';
 import { 
   ShieldCheck, Package, Users, Truck, DollarSign, 
@@ -89,7 +89,8 @@ export default function AdminDashboard() {
 
   const fetchPartitionStatus = async () => {
     try {
-      const res = await fetch('/api/admin/system/partitions-status', {
+      const apiBase = getApiBase();
+      const res = await fetch(`${apiBase}/admin/system/partitions-status`, {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
       });
       if (res.ok) {
@@ -104,7 +105,8 @@ export default function AdminDashboard() {
   const handleAutoPartition = async (retentionDays: number = 60) => {
     setIsPartitioning(true);
     try {
-      const res = await fetch('/api/admin/system/auto-partition', {
+      const apiBase = getApiBase();
+      const res = await fetch(`${apiBase}/admin/system/auto-partition`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
@@ -771,7 +773,8 @@ export default function AdminDashboard() {
 
   const fetchData = async () => {
     try {
-      const dbResponse = await fetch('/api/admin/system/db-info', {
+      const apiBase = getApiBase();
+      const dbResponse = await fetch(`${apiBase}/admin/system/db-info`, {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
       });
       if (dbResponse.ok) {
