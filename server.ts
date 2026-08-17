@@ -3356,11 +3356,24 @@ Informations utiles sur Faso Express :
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), "dist");
-    app.use(express.static(distPath));
+    app.use(express.static(distPath, {
+      setHeaders: (res, filePath) => {
+        if (path.basename(filePath) === 'index.html') {
+          res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+          res.setHeader('Pragma', 'no-cache');
+          res.setHeader('Expires', '0');
+        } else {
+          res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        }
+      }
+    }));
     
     // SPA Fallback for all routes (e.g. /assistance, /accueil, /admin)
     app.use((req, res, next) => {
       if (req.method === "GET" && !req.path.startsWith("/api")) {
+        res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+        res.setHeader("Pragma", "no-cache");
+        res.setHeader("Expires", "0");
         res.sendFile(path.join(distPath, "index.html"));
       } else {
         next();

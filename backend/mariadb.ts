@@ -62,12 +62,21 @@ export default function initMariaDB() {
           database,
           port,
           multipleStatements: false,
-          charset: 'utf8mb4'
+          charset: 'utf8mb4',
+          connectTimeout: 5000
         });
         // Test de la connexion avec une requête simple
         conn.query("SELECT 1");
         connection = conn;
         
+        // Configuration des limites de temps d'exécution des requêtes pour éviter de bloquer l'Event Loop Node.js
+        try {
+          conn.query("SET SESSION max_statement_time = 5"); // Pour MariaDB (secondes)
+        } catch (e) {}
+        try {
+          conn.query("SET SESSION max_execution_time = 5000"); // Pour MySQL (millisecondes)
+        } catch (e) {}
+
         // Ensure session collation matches the database collation to avoid mix of collations errors
         try {
           conn.query("SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci");
