@@ -1030,11 +1030,11 @@ export default function LandingView() {
 
           <div className="mt-10 pt-8 border-t border-slate-100 flex flex-col sm:flex-row justify-center items-center gap-6">
              <div className="flex items-center gap-3 text-xs font-semibold text-slate-600 flex-wrap justify-center">
-               <a href="/accueil" className="text-orange-600 font-bold hover:underline transition-colors">
+               <a href="/accueil" className="hover:text-slate-900 underline decoration-slate-300 underline-offset-2 transition-colors">
                  Site Vitrine & Présentation
                </a>
                <span className="text-slate-300 font-bold">•</span>
-               <a href="/assistance" className="text-emerald-700 font-bold hover:underline transition-colors">
+               <a href="/assistance" className="hover:text-slate-900 underline decoration-slate-300 underline-offset-2 transition-colors">
                  Centre d'Assistance
                </a>
                <span className="text-slate-300 font-bold">•</span>
