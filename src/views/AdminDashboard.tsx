@@ -3913,11 +3913,11 @@ export default function AdminDashboard() {
                       {/* Titre & Badge */}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 px-1">Titre de la Promotion</label>
+                          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 px-1">Titre de la Promotion (Optionnel)</label>
                           <input 
                             type="text" 
                             value={configForm?.promoPopup?.title || ''}
-                            placeholder="ex: 🎉 Offre de Bienvenue !"
+                            placeholder="Laissez vide si le titre est déjà inscrit sur l'image"
                             onChange={(e) => setConfigForm({
                               ...configForm!,
                               promoPopup: { ...(configForm?.promoPopup || { enabled: false, title: '', description: '' }), title: e.target.value }
@@ -3926,11 +3926,11 @@ export default function AdminDashboard() {
                           />
                         </div>
                         <div>
-                          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 px-1">Badge d'en-tête (Tag)</label>
+                          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 px-1">Badge d'en-tête / Tag (Optionnel)</label>
                           <input 
                             type="text" 
                             value={configForm?.promoPopup?.badgeText || ''}
-                            placeholder="ex: Offre Exclusive, -20%, Nouveauté"
+                            placeholder="ex: -20%, Offre Limitée... (Optionnel)"
                             onChange={(e) => setConfigForm({
                               ...configForm!,
                               promoPopup: { ...(configForm?.promoPopup || { enabled: false, title: '', description: '' }), badgeText: e.target.value }
@@ -3942,11 +3942,11 @@ export default function AdminDashboard() {
 
                       {/* Description */}
                       <div>
-                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 px-1">Description / Message explicatif</label>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 px-1">Description / Message explicatif (Optionnel)</label>
                         <textarea 
                           rows={2}
                           value={configForm?.promoPopup?.description || ''}
-                          placeholder="Détails de l'offre promotionnelle..."
+                          placeholder="Détails de l'offre... (Laissez vide si déjà présent sur l'affiche)"
                           onChange={(e) => setConfigForm({
                             ...configForm!,
                             promoPopup: { ...(configForm?.promoPopup || { enabled: false, title: '', description: '' }), description: e.target.value }
@@ -3962,7 +3962,7 @@ export default function AdminDashboard() {
                           <input 
                             type="text" 
                             value={configForm?.promoPopup?.promoCode || ''}
-                            placeholder="ex: FASO2026"
+                            placeholder="ex: FASO2026 (Optionnel)"
                             onChange={(e) => setConfigForm({
                               ...configForm!,
                               promoPopup: { ...(configForm?.promoPopup || { enabled: false, title: '', description: '' }), promoCode: e.target.value.toUpperCase() }
@@ -3971,11 +3971,11 @@ export default function AdminDashboard() {
                           />
                         </div>
                         <div>
-                          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 px-1">Texte du Bouton (CTA)</label>
+                          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 px-1">Texte du Bouton CTA (Optionnel)</label>
                           <input 
                             type="text" 
                             value={configForm?.promoPopup?.ctaText || ''}
-                            placeholder="ex: Profiter de l'offre"
+                            placeholder="ex: Profiter de l'offre (Optionnel)"
                             onChange={(e) => setConfigForm({
                               ...configForm!,
                               promoPopup: { ...(configForm?.promoPopup || { enabled: false, title: '', description: '' }), ctaText: e.target.value }
@@ -3988,7 +3988,7 @@ export default function AdminDashboard() {
                       {/* Destination URL & Image URL / Upload */}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 px-1">Lien de Destination / Route</label>
+                          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 px-1">Lien de Destination / Route (Optionnel)</label>
                           <input 
                             type="text" 
                             value={configForm?.promoPopup?.ctaTarget || ''}
@@ -4002,7 +4002,7 @@ export default function AdminDashboard() {
                         </div>
 
                         <div>
-                          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 px-1">Image de Bannière (URL ou Fichier)</label>
+                          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 px-1">Image / Affiche complète (Optionnelle)</label>
                           <div className="flex items-center gap-2">
                             <input 
                               type="text" 
@@ -4088,38 +4088,51 @@ export default function AdminDashboard() {
 
                         {/* Mini Modal Preview */}
                         <div className="bg-white text-slate-900 rounded-2xl overflow-hidden shadow-xl border border-slate-200">
-                          <div className="h-28 bg-gradient-to-br from-orange-500 via-amber-500 to-rose-500 relative flex items-center justify-center p-3">
+                          <div className={`relative flex items-center justify-center p-2.5 ${configForm?.promoPopup?.imageUrl ? 'min-h-[120px] max-h-[160px] bg-slate-50 border-b border-slate-100' : 'h-28 bg-gradient-to-br from-orange-500 via-amber-500 to-rose-500'}`}>
                             {configForm?.promoPopup?.imageUrl ? (
-                              <img src={configForm.promoPopup.imageUrl} alt="" className="w-full h-full object-cover" />
+                              <img src={configForm.promoPopup.imageUrl} alt="" className="max-w-full max-h-[140px] w-auto h-auto object-contain mx-auto rounded-lg" />
                             ) : (
                               <div className="text-center text-white">
                                 <Gift className="w-7 h-7 mx-auto mb-1 text-white" />
-                                <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-white/20 border border-white/30">
-                                  {configForm?.promoPopup?.badgeText || "Offre Exclusive"}
-                                </span>
+                                {configForm?.promoPopup?.badgeText?.trim() && (
+                                  <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-white/20 border border-white/30">
+                                    {configForm.promoPopup.badgeText}
+                                  </span>
+                                )}
                               </div>
                             )}
                             <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-slate-900/60 text-white flex items-center justify-center text-[10px]">✕</div>
                           </div>
 
                           <div className="p-4 text-center">
-                            <h5 className="font-black text-sm text-slate-900 tracking-tight mb-1">
-                              {configForm?.promoPopup?.title || "Titre de votre offre"}
-                            </h5>
-                            <p className="text-[11px] font-medium text-slate-500 leading-snug mb-3">
-                              {configForm?.promoPopup?.description || "Description de votre promotion affichée aux utilisateurs..."}
-                            </p>
+                            {configForm?.promoPopup?.title?.trim() && (
+                              <h5 className="font-black text-sm text-slate-900 tracking-tight mb-1">
+                                {configForm.promoPopup.title}
+                              </h5>
+                            )}
+                            {!configForm?.promoPopup?.imageUrl && !configForm?.promoPopup?.title?.trim() && (
+                              <h5 className="font-black text-sm text-slate-900 tracking-tight mb-1">
+                                Titre de votre offre
+                              </h5>
+                            )}
+                            {configForm?.promoPopup?.description?.trim() && (
+                              <p className="text-[11px] font-medium text-slate-500 leading-snug mb-3">
+                                {configForm.promoPopup.description}
+                              </p>
+                            )}
 
-                            {configForm?.promoPopup?.promoCode && (
+                            {configForm?.promoPopup?.promoCode?.trim() && (
                               <div className="mb-3 p-2 bg-amber-50 border border-dashed border-amber-300 rounded-xl flex items-center justify-between text-xs">
                                 <span className="font-mono font-black text-amber-900">{configForm.promoPopup.promoCode}</span>
                                 <span className="text-[9px] font-bold bg-amber-500 text-white px-2 py-0.5 rounded-lg">Copier</span>
                               </div>
                             )}
 
-                            <div className="w-full py-2 bg-amber-500 text-white font-black text-xs rounded-xl uppercase tracking-wider shadow-sm">
-                              {configForm?.promoPopup?.ctaText || "Profiter de l'offre"}
-                            </div>
+                            {(configForm?.promoPopup?.ctaText?.trim() || configForm?.promoPopup?.ctaTarget?.trim()) && (
+                              <div className="w-full py-2 bg-amber-500 text-white font-black text-xs rounded-xl uppercase tracking-wider shadow-sm">
+                                {configForm?.promoPopup?.ctaText?.trim() || "Profiter de l'offre"}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>

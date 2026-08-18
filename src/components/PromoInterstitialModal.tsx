@@ -97,13 +97,16 @@ export default function PromoInterstitialModal() {
         className="relative w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-100 dark:border-slate-800 overflow-hidden transform transition-all animate-scaleUp"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Top Header Background Banner */}
-        <div className="relative h-44 sm:h-52 w-full bg-gradient-to-br from-orange-500 via-amber-500 to-rose-500 overflow-hidden flex items-center justify-center">
+        {/* Top Header Background Banner or Image Container */}
+        <div 
+          className={`relative ${promo.imageUrl ? 'bg-slate-50 dark:bg-slate-950 p-2 border-b border-slate-100 dark:border-slate-800 cursor-pointer' : 'h-44 sm:h-52 bg-gradient-to-br from-orange-500 via-amber-500 to-rose-500'} w-full overflow-hidden flex items-center justify-center`}
+          onClick={handleCtaClick}
+        >
           {promo.imageUrl ? (
             <img 
               src={promo.imageUrl} 
-              alt={promo.title} 
-              className="w-full h-full object-cover"
+              alt={promo.title || "Promotion"} 
+              className="max-w-full max-h-[380px] sm:max-h-[440px] w-auto h-auto object-contain mx-auto rounded-xl shadow-sm"
               onError={(e) => {
                 // Hide broken image
                 (e.target as HTMLElement).style.display = 'none';
@@ -114,46 +117,61 @@ export default function PromoInterstitialModal() {
               <div className="w-16 h-16 mx-auto mb-2 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white shadow-lg border border-white/30">
                 <Gift className="w-8 h-8 animate-bounce" />
               </div>
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-white text-[11px] font-black uppercase tracking-widest border border-white/30 shadow-sm">
-                <Sparkles className="w-3.5 h-3.5 text-amber-200" />
-                {promo.badgeText || "Offre Exclusive"}
-              </span>
+              {promo.badgeText?.trim() && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-white text-[11px] font-black uppercase tracking-widest border border-white/30 shadow-sm">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-200" />
+                  {promo.badgeText}
+                </span>
+              )}
             </div>
           )}
 
           {/* Close button top right */}
           <button
-            onClick={handleClose}
-            className="absolute top-3 right-3 w-9 h-9 rounded-full bg-slate-900/60 hover:bg-slate-900 text-white flex items-center justify-center backdrop-blur-md transition-all shadow-md z-20"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleClose();
+            }}
+            className="absolute top-3 right-3 w-9 h-9 rounded-full bg-slate-900/70 hover:bg-slate-900 text-white flex items-center justify-center backdrop-blur-md transition-all shadow-md z-20"
             aria-label="Fermer"
           >
             <X className="w-5 h-5" />
           </button>
 
-          {/* Decorative badge overlay if image is present */}
-          {promo.imageUrl && (
+          {/* Decorative badge overlay if image is present AND badgeText is provided */}
+          {promo.imageUrl && promo.badgeText?.trim() && (
             <div className="absolute top-3 left-3 z-10">
-              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-slate-900/70 backdrop-blur-md text-amber-300 text-[10px] font-black uppercase tracking-wider border border-white/20">
+              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-slate-900/80 backdrop-blur-md text-amber-300 text-[10px] font-black uppercase tracking-wider border border-white/20 shadow-sm">
                 <Sparkles className="w-3 h-3" />
-                {promo.badgeText || "Offre Spéciale"}
+                {promo.badgeText}
               </span>
             </div>
           )}
         </div>
 
-        {/* Content Body */}
-        <div className="p-6 sm:p-7 text-center">
-          <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight mb-2.5">
-            {promo.title || "Offre Promotionnelle !"}
-          </h2>
+        {/* Content Body (Only show text blocks if provided or if no image) */}
+        <div className="p-5 sm:p-6 text-center">
+          {promo.title?.trim() && (
+            <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight mb-2">
+              {promo.title}
+            </h2>
+          )}
 
-          <p className="text-sm font-medium text-slate-600 dark:text-slate-300 leading-relaxed mb-5">
-            {promo.description}
-          </p>
+          {!promo.imageUrl && !promo.title?.trim() && (
+            <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight mb-2">
+              Offre Spéciale !
+            </h2>
+          )}
+
+          {promo.description?.trim() && (
+            <p className="text-sm font-medium text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+              {promo.description}
+            </p>
+          )}
 
           {/* Promo Code Box */}
-          {promo.promoCode && (
-            <div className="mb-6 p-3.5 bg-amber-50 dark:bg-amber-950/40 border-2 border-dashed border-amber-300 dark:border-amber-700/60 rounded-2xl flex items-center justify-between gap-3">
+          {promo.promoCode?.trim() && (
+            <div className="mb-5 p-3.5 bg-amber-50 dark:bg-amber-950/40 border-2 border-dashed border-amber-300 dark:border-amber-700/60 rounded-2xl flex items-center justify-between gap-3">
               <div className="flex items-center gap-2.5 text-left">
                 <div className="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-sm">
                   <Tag className="w-5 h-5" />
@@ -184,25 +202,27 @@ export default function PromoInterstitialModal() {
           )}
 
           {/* Action Buttons */}
-          <div className="space-y-2.5">
-            <button
-              onClick={handleCtaClick}
-              className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-black text-sm uppercase tracking-wider shadow-lg shadow-orange-500/25 flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
-            >
-              <span>{promo.ctaText || "Profiter de l'offre"}</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
+          <div className="space-y-2">
+            {(promo.ctaText?.trim() || promo.ctaTarget?.trim()) && (
+              <button
+                onClick={handleCtaClick}
+                className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-black text-sm uppercase tracking-wider shadow-lg shadow-orange-500/25 flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+              >
+                <span>{promo.ctaText?.trim() || "Profiter de l'offre"}</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            )}
 
             <button
               onClick={handleClose}
-              className="w-full py-2.5 px-4 text-xs font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+              className="w-full py-2 px-4 text-xs font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
             >
               Non merci, ignorer
             </button>
           </div>
 
           {/* Don't show today option */}
-          <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-center gap-2">
+          <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-center gap-2">
             <input
               type="checkbox"
               id="dontShowToday"

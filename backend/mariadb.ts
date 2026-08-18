@@ -199,6 +199,23 @@ export default function initMariaDB() {
     try { connection.query("ALTER TABLE deliveries MODIFY COLUMN packageDetails LONGTEXT DEFAULT NULL"); } catch(e: any) {}
     try { connection.query("ALTER TABLE deliveries MODIFY COLUMN origin LONGTEXT DEFAULT NULL"); } catch(e: any) {}
     try { connection.query("ALTER TABLE deliveries MODIFY COLUMN destination LONGTEXT DEFAULT NULL"); } catch(e: any) {}
+
+    // Create config & config_store tables with LONGTEXT for large JSON data (e.g. promo popups with base64 images, app_config)
+    connection.query(`
+      CREATE TABLE IF NOT EXISTS config (
+        \`key\` varchar(255) PRIMARY KEY,
+        \`value\` LONGTEXT NOT NULL
+      ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
+    `);
+    try { connection.query("ALTER TABLE config MODIFY COLUMN `value` LONGTEXT NOT NULL"); } catch(e: any) {}
+
+    connection.query(`
+      CREATE TABLE IF NOT EXISTS config_store (
+        id varchar(255) PRIMARY KEY,
+        data LONGTEXT NOT NULL
+      ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
+    `);
+    try { connection.query("ALTER TABLE config_store MODIFY COLUMN data LONGTEXT NOT NULL"); } catch(e: any) {}
     
     // Create sectors table if it doesn't exist
     connection.query(`
