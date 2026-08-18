@@ -189,7 +189,7 @@ export default function PromoInterstitialModal() {
         </div>
 
         {/* Content Body (Only show text blocks if provided or if no image) */}
-        <div className="p-5 sm:p-6 text-center">
+        <div className={`text-center ${hasImageUrl && !displayTitle && !displayDesc && !displayCode && !displayCta ? 'p-3 sm:p-4' : 'p-5 sm:p-6'}`}>
           {displayTitle ? (
             <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight mb-2">
               {displayTitle}
