@@ -1501,6 +1501,7 @@ const MASTER_ADMIN_EMAILS = ['mandemohamed68@gmail.com', 'mandemohamed6868@gmail
   const CONFIG_CACHE_TTL = 3000; // 3 seconds in-memory cache for instantaneous config responses
 
   app.get("/api/preferences-majeures/:key", (req, res) => {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     const { key } = req.params;
     const now = Date.now();
     const cached = configCache.get(key);

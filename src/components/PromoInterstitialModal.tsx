@@ -15,11 +15,41 @@ export default function PromoInterstitialModal() {
 
   // Detect and strip default legacy placeholder values if an image is attached
   const hasImageUrl = Boolean(promo?.imageUrl?.trim());
-  const isDefaultTitle = !promo?.title || promo.title === "🎉 Offre Spéciale de Lancement !" || promo.title === "Offre Spéciale !" || promo.title === "Offre Promotionnelle !" || promo.title === "🎉 Offre de Bienvenue !" || promo.title === "Titre de votre offre";
-  const isDefaultDesc = !promo?.description || promo.description === "Bénéficiez de réductions exclusives sur vos prochaines livraisons." || promo.description === "Détails de l'offre promotionnelle..." || promo.description === "Description de votre promotion affichée aux utilisateurs...";
-  const isDefaultBadge = !promo?.badgeText || promo.badgeText === "Offre Spéciale" || promo.badgeText === "Offre Exclusive";
-  const isDefaultCta = !promo?.ctaText || promo.ctaText === "Profiter de l'offre";
-  const isDefaultCode = !promo?.promoCode || promo.promoCode === "PROMO2026" || promo.promoCode === "FASO2026";
+
+  const clean = (val?: string) => val ? val.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") : "";
+
+  const isDefaultTitle = !promo?.title || [
+    "offre speciale de lancement",
+    "offre speciale",
+    "offre promotionnelle",
+    "offre de bienvenue",
+    "titre de votre offre"
+  ].some(d => clean(promo.title).includes(d));
+
+  const isDefaultDesc = !promo?.description || [
+    "beneficiez de reductions",
+    "details de l'offre",
+    "description de votre promotion"
+  ].some(d => clean(promo.description).includes(d));
+
+  const isDefaultBadge = !promo?.badgeText || [
+    "offre speciale",
+    "offre exclusive",
+    "offre limitee",
+    "-20%",
+    "nouveaute"
+  ].some(d => clean(promo.badgeText).includes(d));
+
+  const isDefaultCta = !promo?.ctaText || [
+    "profiter de l'offre",
+    "en savoir plus",
+    "profitez-en"
+  ].some(d => clean(promo.ctaText).includes(d));
+
+  const isDefaultCode = !promo?.promoCode || [
+    "promo2026",
+    "faso2026"
+  ].some(d => clean(promo.promoCode) === clean(d));
 
   const displayTitle = (hasImageUrl && isDefaultTitle) ? "" : (promo?.title?.trim() || "");
   const displayDesc = (hasImageUrl && isDefaultDesc) ? "" : (promo?.description?.trim() || "");
@@ -108,7 +138,7 @@ export default function PromoInterstitialModal() {
   return (
     <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-md animate-fadeIn">
       <div 
-        className="relative w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-100 dark:border-slate-800 overflow-hidden transform transition-all animate-scaleUp"
+        className="relative w-full max-w-md max-h-[90vh] overflow-y-auto bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-100 dark:border-slate-800 transform transition-all animate-scaleUp"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Top Header Background Banner or Image Container */}
