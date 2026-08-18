@@ -31,7 +31,7 @@ export default function StaticFAQ() {
         },
         {
           question: "Dans quelles villes le service est-il disponible ?",
-          answer: "Le service est pleinement opérationnel dans toute la ville de Ouagadougou et ses environs. Nous étendons progressivement nos activités à Bobo-Dioulasso, Koudougou et d'autres grandes agglomérations du Burkina Faso."
+          answer: "Le service est pleinement opérationnel à Ouagadougou, Bobo-Dioulasso, Koudougou et à travers tout le Burkina Faso."
         },
         {
           question: "Quels types de colis puis-je faire livrer ?",

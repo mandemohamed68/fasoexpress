@@ -328,7 +328,7 @@ export default function LandingView() {
             >
               <User className="w-10 h-10 text-orange-500 group-hover:text-white mb-4" />
               <h3 className="text-xl font-black text-slate-900 group-hover:text-white uppercase italic">Client</h3>
-              <p className="text-slate-400 group-hover:text-orange-100 text-xs font-bold leading-tight mt-1">Envoyez vos colis en un clic partout à Ouaga.</p>
+              <p className="text-slate-400 group-hover:text-orange-100 text-xs font-bold leading-tight mt-1">Envoyez vos colis en un clic partout au Burkina Faso.</p>
             </button>
             <button 
               disabled={!city || !neighborhood}
@@ -383,9 +383,9 @@ export default function LandingView() {
           </div>
           
           <h1 className="text-[80px] xl:text-[100px] font-black text-slate-900 leading-[0.85] tracking-tighter uppercase italic select-none">
-            VITESSE.<br />
-            <span className="text-primary">SÉCURITÉ.</span><br />
-            {appConfig?.appName || "FASO EXPRESS"}.
+            VITESSE<br />
+            <span className="text-primary">SECURITE</span><br />
+            {appConfig?.appName || "FASO EXPRESS"}
           </h1>
 
           <div className="mt-8">
@@ -393,7 +393,7 @@ export default function LandingView() {
                {appConfig?.appSlogan ? (
                  <span>{appConfig.appSlogan}</span>
                ) : (
-                 <>La logistique 2.0 au cœur de <span className="text-slate-900 underline decoration-primary decoration-4">Ouagadougou.</span></>
+                 <>La logistique 2.0 au cœur du <span className="text-slate-900">Burkina Faso</span></>
                )}
              </p>
           </div>
