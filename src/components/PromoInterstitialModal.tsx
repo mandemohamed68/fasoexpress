@@ -13,6 +13,20 @@ export default function PromoInterstitialModal() {
 
   const promo = appConfig?.promoPopup;
 
+  // Detect and strip default legacy placeholder values if an image is attached
+  const hasImageUrl = Boolean(promo?.imageUrl?.trim());
+  const isDefaultTitle = !promo?.title || promo.title === "🎉 Offre Spéciale de Lancement !" || promo.title === "Offre Spéciale !" || promo.title === "Offre Promotionnelle !" || promo.title === "🎉 Offre de Bienvenue !" || promo.title === "Titre de votre offre";
+  const isDefaultDesc = !promo?.description || promo.description === "Bénéficiez de réductions exclusives sur vos prochaines livraisons." || promo.description === "Détails de l'offre promotionnelle..." || promo.description === "Description de votre promotion affichée aux utilisateurs...";
+  const isDefaultBadge = !promo?.badgeText || promo.badgeText === "Offre Spéciale" || promo.badgeText === "Offre Exclusive";
+  const isDefaultCta = !promo?.ctaText || promo.ctaText === "Profiter de l'offre";
+  const isDefaultCode = !promo?.promoCode || promo.promoCode === "PROMO2026" || promo.promoCode === "FASO2026";
+
+  const displayTitle = (hasImageUrl && isDefaultTitle) ? "" : (promo?.title?.trim() || "");
+  const displayDesc = (hasImageUrl && isDefaultDesc) ? "" : (promo?.description?.trim() || "");
+  const displayBadge = (hasImageUrl && isDefaultBadge) ? "" : (promo?.badgeText?.trim() || "");
+  const displayCta = (hasImageUrl && isDefaultCta) ? "" : (promo?.ctaText?.trim() || "");
+  const displayCode = (hasImageUrl && isDefaultCode) ? "" : (promo?.promoCode?.trim() || "");
+
   useEffect(() => {
     if (!promo || !promo.enabled) {
       setIsOpen(false);
@@ -117,12 +131,12 @@ export default function PromoInterstitialModal() {
               <div className="w-16 h-16 mx-auto mb-2 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white shadow-lg border border-white/30">
                 <Gift className="w-8 h-8 animate-bounce" />
               </div>
-              {promo.badgeText?.trim() && (
+              {displayBadge ? (
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-white text-[11px] font-black uppercase tracking-widest border border-white/30 shadow-sm">
                   <Sparkles className="w-3.5 h-3.5 text-amber-200" />
-                  {promo.badgeText}
+                  {displayBadge}
                 </span>
-              )}
+              ) : null}
             </div>
           )}
 
@@ -139,38 +153,38 @@ export default function PromoInterstitialModal() {
           </button>
 
           {/* Decorative badge overlay if image is present AND badgeText is provided */}
-          {promo.imageUrl && promo.badgeText?.trim() && (
+          {promo.imageUrl && displayBadge ? (
             <div className="absolute top-3 left-3 z-10">
               <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-slate-900/80 backdrop-blur-md text-amber-300 text-[10px] font-black uppercase tracking-wider border border-white/20 shadow-sm">
                 <Sparkles className="w-3 h-3" />
-                {promo.badgeText}
+                {displayBadge}
               </span>
             </div>
-          )}
+          ) : null}
         </div>
 
         {/* Content Body (Only show text blocks if provided or if no image) */}
         <div className="p-5 sm:p-6 text-center">
-          {promo.title?.trim() && (
+          {displayTitle ? (
             <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight mb-2">
-              {promo.title}
+              {displayTitle}
             </h2>
-          )}
+          ) : null}
 
-          {!promo.imageUrl && !promo.title?.trim() && (
+          {!promo.imageUrl && !displayTitle ? (
             <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight mb-2">
               Offre Spéciale !
             </h2>
-          )}
+          ) : null}
 
-          {promo.description?.trim() && (
+          {displayDesc ? (
             <p className="text-sm font-medium text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
-              {promo.description}
+              {displayDesc}
             </p>
-          )}
+          ) : null}
 
           {/* Promo Code Box */}
-          {promo.promoCode?.trim() && (
+          {displayCode ? (
             <div className="mb-5 p-3.5 bg-amber-50 dark:bg-amber-950/40 border-2 border-dashed border-amber-300 dark:border-amber-700/60 rounded-2xl flex items-center justify-between gap-3">
               <div className="flex items-center gap-2.5 text-left">
                 <div className="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-sm">
@@ -178,7 +192,7 @@ export default function PromoInterstitialModal() {
                 </div>
                 <div>
                   <p className="text-[10px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400">Code Promotionnel</p>
-                  <p className="text-base font-black text-slate-900 dark:text-amber-200 tracking-widest font-mono">{promo.promoCode}</p>
+                  <p className="text-base font-black text-slate-900 dark:text-amber-200 tracking-widest font-mono">{displayCode}</p>
                 </div>
               </div>
 
@@ -199,19 +213,19 @@ export default function PromoInterstitialModal() {
                 )}
               </button>
             </div>
-          )}
+          ) : null}
 
           {/* Action Buttons */}
           <div className="space-y-2">
-            {(promo.ctaText?.trim() || promo.ctaTarget?.trim()) && (
+            {displayCta ? (
               <button
                 onClick={handleCtaClick}
                 className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-black text-sm uppercase tracking-wider shadow-lg shadow-orange-500/25 flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
               >
-                <span>{promo.ctaText?.trim() || "Profiter de l'offre"}</span>
+                <span>{displayCta}</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
-            )}
+            ) : null}
 
             <button
               onClick={handleClose}

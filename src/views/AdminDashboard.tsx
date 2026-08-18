@@ -621,6 +621,10 @@ export default function AdminDashboard() {
     try {
       const updatedConfig = {
         ...configForm,
+        promoPopup: configForm?.promoPopup ? {
+          ...configForm.promoPopup,
+          id: `promo_${Date.now()}`
+        } : undefined,
         updatedAt: new Date().toISOString()
       };
       await api.config.update('app_config', updatedConfig);
@@ -3891,11 +3895,13 @@ export default function AdminDashboard() {
                             onChange={(e) => {
                               const curr = configForm?.promoPopup || {
                                 enabled: false,
-                                title: "🎉 Offre Spéciale de Lancement !",
-                                description: "Bénéficiez de réductions exclusives sur vos prochaines livraisons.",
-                                promoCode: "PROMO2026",
-                                ctaText: "Profiter de l'offre",
-                                ctaTarget: "/client",
+                                title: "",
+                                badgeText: "",
+                                description: "",
+                                promoCode: "",
+                                ctaText: "",
+                                ctaTarget: "",
+                                imageUrl: "",
                                 frequency: "once_per_day",
                                 targetAudience: "all"
                               };
@@ -4128,9 +4134,9 @@ export default function AdminDashboard() {
                               </div>
                             )}
 
-                            {(configForm?.promoPopup?.ctaText?.trim() || configForm?.promoPopup?.ctaTarget?.trim()) && (
+                            {configForm?.promoPopup?.ctaText?.trim() && (
                               <div className="w-full py-2 bg-amber-500 text-white font-black text-xs rounded-xl uppercase tracking-wider shadow-sm">
-                                {configForm?.promoPopup?.ctaText?.trim() || "Profiter de l'offre"}
+                                {configForm.promoPopup.ctaText.trim()}
                               </div>
                             )}
                           </div>
