@@ -619,12 +619,32 @@ export default function AdminDashboard() {
     if (!configForm) return;
     setIsSaving(true);
     try {
+      const cleanStr = (s?: string) => s ? s.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") : "";
+      
+      let cleanedPromoPopup = configForm?.promoPopup ? { ...configForm.promoPopup, id: `promo_${Date.now()}` } : undefined;
+      
+      if (cleanedPromoPopup?.imageUrl?.trim()) {
+        const titleClean = cleanStr(cleanedPromoPopup.title);
+        if (!cleanedPromoPopup.title || titleClean.includes("offre") || titleClean.includes("promotion") || titleClean.includes("bienvenue") || titleClean.includes("lancement") || titleClean.includes("titre")) {
+          cleanedPromoPopup.title = "";
+        }
+        const ctaClean = cleanStr(cleanedPromoPopup.ctaText);
+        if (!cleanedPromoPopup.ctaText || ctaClean.includes("profiter") || ctaClean.includes("en savoir") || ctaClean.includes("offre")) {
+          cleanedPromoPopup.ctaText = "";
+        }
+        const badgeClean = cleanStr(cleanedPromoPopup.badgeText);
+        if (!cleanedPromoPopup.badgeText || badgeClean.includes("offre") || badgeClean.includes("nouveaute") || badgeClean.includes("exclusive") || badgeClean.includes("speciale")) {
+          cleanedPromoPopup.badgeText = "";
+        }
+        const descClean = cleanStr(cleanedPromoPopup.description);
+        if (!cleanedPromoPopup.description || descClean.includes("beneficiez") || descClean.includes("details") || descClean.includes("description")) {
+          cleanedPromoPopup.description = "";
+        }
+      }
+
       const updatedConfig = {
         ...configForm,
-        promoPopup: configForm?.promoPopup ? {
-          ...configForm.promoPopup,
-          id: `promo_${Date.now()}`
-        } : undefined,
+        promoPopup: cleanedPromoPopup,
         updatedAt: new Date().toISOString()
       };
       await api.config.update('app_config', updatedConfig);

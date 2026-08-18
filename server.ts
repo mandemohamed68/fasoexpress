@@ -3421,12 +3421,13 @@ Informations utiles sur Faso Express :
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath, {
       setHeaders: (res, filePath) => {
-        if (path.basename(filePath) === 'index.html') {
+        const base = path.basename(filePath);
+        if (base === 'index.html' || base === 'sw.js' || base.endsWith('.json')) {
           res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
           res.setHeader('Pragma', 'no-cache');
           res.setHeader('Expires', '0');
         } else {
-          res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+          res.setHeader('Cache-Control', 'no-cache');
         }
       }
     }));

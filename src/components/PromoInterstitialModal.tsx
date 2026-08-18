@@ -18,38 +18,33 @@ export default function PromoInterstitialModal() {
 
   const clean = (val?: string) => val ? val.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") : "";
 
-  const isDefaultTitle = !promo?.title || [
-    "offre speciale de lancement",
-    "offre speciale",
-    "offre promotionnelle",
-    "offre de bienvenue",
-    "titre de votre offre"
-  ].some(d => clean(promo.title).includes(d));
+  const isDefaultTitle = !promo?.title || 
+    clean(promo.title).includes("offre") || 
+    clean(promo.title).includes("promotion") || 
+    clean(promo.title).includes("bienvenue") || 
+    clean(promo.title).includes("lancement") || 
+    clean(promo.title).includes("titre");
 
-  const isDefaultDesc = !promo?.description || [
-    "beneficiez de reductions",
-    "details de l'offre",
-    "description de votre promotion"
-  ].some(d => clean(promo.description).includes(d));
+  const isDefaultDesc = !promo?.description || 
+    clean(promo.description).includes("beneficiez") || 
+    clean(promo.description).includes("details") || 
+    clean(promo.description).includes("description");
 
-  const isDefaultBadge = !promo?.badgeText || [
-    "offre speciale",
-    "offre exclusive",
-    "offre limitee",
-    "-20%",
-    "nouveaute"
-  ].some(d => clean(promo.badgeText).includes(d));
+  const isDefaultBadge = !promo?.badgeText || 
+    clean(promo.badgeText).includes("offre") || 
+    clean(promo.badgeText).includes("exclusive") || 
+    clean(promo.badgeText).includes("speciale") || 
+    clean(promo.badgeText).includes("nouveaute") || 
+    clean(promo.badgeText).includes("-20%");
 
-  const isDefaultCta = !promo?.ctaText || [
-    "profiter de l'offre",
-    "en savoir plus",
-    "profitez-en"
-  ].some(d => clean(promo.ctaText).includes(d));
+  const isDefaultCta = !promo?.ctaText || 
+    clean(promo.ctaText).includes("profiter") || 
+    clean(promo.ctaText).includes("en savoir") || 
+    clean(promo.ctaText).includes("offre");
 
-  const isDefaultCode = !promo?.promoCode || [
-    "promo2026",
-    "faso2026"
-  ].some(d => clean(promo.promoCode) === clean(d));
+  const isDefaultCode = !promo?.promoCode || 
+    clean(promo.promoCode) === "promo2026" || 
+    clean(promo.promoCode) === "faso2026";
 
   const displayTitle = (hasImageUrl && isDefaultTitle) ? "" : (promo?.title?.trim() || "");
   const displayDesc = (hasImageUrl && isDefaultDesc) ? "" : (promo?.description?.trim() || "");

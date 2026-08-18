@@ -5,7 +5,7 @@ import App from './App.tsx';
 import './index.css';
 import ErrorBoundary from './components/ErrorBoundary';
 
-// Forcefully unregister any existing service workers to fix cache corruption
+// Forcefully unregister any existing service workers and clear browser caches to fix mobile stale state
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.getRegistrations().then((registrations) => {
     for (let registration of registrations) {
@@ -14,8 +14,13 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-// Still call this so the self-destroying SW gets registered and cleans up caches
-registerSW({ immediate: true });
+if ('caches' in window) {
+  caches.keys().then((names) => {
+    for (let name of names) {
+      caches.delete(name);
+    }
+  });
+}
 
 createRoot(document.getElementById('root')!).render(
   <ErrorBoundary>
