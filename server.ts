@@ -1517,6 +1517,26 @@ const MASTER_ADMIN_EMAILS = ['mandemohamed68@gmail.com', 'mandemohamed6868@gmail
         if (parsed.appLogo && parsed.appLogo.length > 500000) {
           parsed.appLogo = '/LOGOFASO.png'; // Strip massive base64 to prevent bandwidth freezing
         }
+      } else if (key === 'default_pricing') {
+        parsed = {
+          motoBase10: 1000,
+          motoBase15: 1500,
+          motoCostPerKmAfter15: 150,
+          motoWeightCost: 0.00001,
+          urgenceCost: 500,
+          ...parsed
+        };
+      } else if (key === 'commissions') {
+        parsed = {
+          platformFeePercent: 15,
+          driverSharePercent: 85,
+          minDeliveryCost: 1000,
+          tarifKm: 100,
+          tarifPoids: 0,
+          fraisFixes: 500,
+          enableMinPriceConstraint: true,
+          ...parsed
+        };
       }
       configCache.set(key, { value: parsed, expiresAt: now + CONFIG_CACHE_TTL });
       return res.json(parsed);
