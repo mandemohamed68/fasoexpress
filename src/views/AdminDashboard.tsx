@@ -6,7 +6,7 @@ import {
   ArrowUpRight, Clock, LayoutDashboard, MessageSquare, 
   ClipboardCheck, History, Store, Map as MapIcon, Globe, 
   BadgePercent, CreditCard, Wallet, LogOut, Bell, Settings, Play, Mail, Facebook,
-  Plus, Navigation, UserCircle, Percent, Database, Download, Upload, Building2, X, Trash2, Zap, Smartphone, Menu,
+  Plus, Navigation, UserCircle, Percent, Database, Download, Upload, Building2, X, Trash2, Zap, Smartphone, Menu, MapPin,
   CheckCircle, AlertCircle, Landmark, Info, Phone, Star, ChevronLeft, ChevronRight, Eye, EyeOff, Settings2, UserCheck, Shield, Search,
   RefreshCw, Layers, HardDrive, CheckCircle2, AlertTriangle, XCircle, Sparkles, Megaphone, Tag, Gift, ArrowRight
 } from 'lucide-react';
@@ -2708,14 +2708,22 @@ export default function AdminDashboard() {
                       <div className="w-14 h-7 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-orange-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-orange-500"></div>
                     </label>
                   </div>
-                  <div className="flex items-center justify-between px-2">
-                    <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Tarification Promo & Intervalles de Distance</h4>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-2">
+                    <div>
+                      <h4 className="text-[11px] font-black text-slate-700 uppercase tracking-widest flex items-center gap-2">
+                        <MapPin className="w-4 h-4 text-orange-600" />
+                        Grille Tarifaire par Paliers de Distance (KM)
+                      </h4>
+                      <p className="text-[10px] text-slate-400 font-bold mt-0.5">
+                        Définissez vos tranches (ex: 0 à 8 km = 1000 FCFA). Au-delà du dernier palier, le tarif par KM ci-dessus est automatiquement ajouté.
+                      </p>
+                    </div>
                     <button 
                       type="button"
                       onClick={handleAddDistanceRule}
-                      className="text-[10px] font-black text-orange-600 uppercase tracking-widest flex items-center gap-2 hover:text-orange-700 transition-colors"
+                      className="text-[10px] font-black text-white bg-orange-500 hover:bg-orange-600 px-4 py-2 rounded-xl uppercase tracking-widest flex items-center gap-2 transition-all shadow-md shadow-orange-500/20 self-start sm:self-auto"
                     >
-                      <Plus className="w-4 h-4" /> Ajouter un Intervalle
+                      <Plus className="w-4 h-4" /> Ajouter un Palier
                     </button>
                   </div>
 

@@ -498,7 +498,27 @@ export default function CreateDelivery() {
           currentWeight <= (rule.poidsMax ?? Infinity)
         );
 
-        if (matchedRule) {
+        // 1. Check if dynamic distance pricing rules (Intervals defined in Modèle Éco) exist
+        const distanceRules = (commissionSettings?.distancePricingRules || []).filter((r: any) => !isNaN(r.minKm) && !isNaN(r.maxKm) && !isNaN(r.price));
+        
+        if (distanceRules.length > 0 && vehicleType === "moto") {
+          // Sort intervals by minKm
+          const sortedRules = [...distanceRules].sort((a: any, b: any) => a.minKm - b.minKm);
+          const matchedInterval = sortedRules.find((r: any) => safeDist >= r.minKm && safeDist <= r.maxKm);
+          
+          if (matchedInterval) {
+            basePrice = Number(matchedInterval.price);
+          } else {
+            const maxRule = sortedRules[sortedRules.length - 1];
+            if (safeDist > maxRule.maxKm) {
+              const extraKm = Math.ceil(safeDist - maxRule.maxKm);
+              const perKmRate = Number(commissionSettings?.tarifKm) || 100;
+              basePrice = Number(maxRule.price) + (extraKm * perKmRate);
+            } else {
+              basePrice = Number(sortedRules[0].price);
+            }
+          }
+        } else if (matchedRule) {
           basePrice = Number(matchedRule.baseCost || 0) + Math.ceil(safeDist) * Number(matchedRule.tarifKm || 0);
         } else {
           // Standard Fallback pricing algorithm
