@@ -5,6 +5,7 @@ const config: CapacitorConfig = {
   appName: 'FASO EXPRESS',
   webDir: 'dist',
   server: {
+    url: 'https://fasoexpress.net',
     androidScheme: 'https',
     cleartext: true
   },

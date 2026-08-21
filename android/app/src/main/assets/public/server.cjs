@@ -2820,6 +2820,26 @@ L'\xE9quipe Faso Express`,
         if (parsed.appLogo && parsed.appLogo.length > 5e5) {
           parsed.appLogo = "/LOGOFASO.png";
         }
+      } else if (key === "default_pricing") {
+        parsed = {
+          motoBase10: 1e3,
+          motoBase15: 1500,
+          motoCostPerKmAfter15: 150,
+          motoWeightCost: 1e-5,
+          urgenceCost: 500,
+          ...parsed
+        };
+      } else if (key === "commissions") {
+        parsed = {
+          platformFeePercent: 15,
+          driverSharePercent: 85,
+          minDeliveryCost: 1e3,
+          tarifKm: 100,
+          tarifPoids: 0,
+          fraisFixes: 500,
+          enableMinPriceConstraint: true,
+          ...parsed
+        };
       }
       configCache.set(key, { value: parsed, expiresAt: now + CONFIG_CACHE_TTL });
       return res.json(parsed);
