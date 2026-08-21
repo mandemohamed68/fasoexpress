@@ -537,7 +537,13 @@ export default function CreateDelivery() {
         }
 
         if (vehicleType === "moto") {
-          basePrice += currentWeight * (Number(defaultPricing.motoWeightCost) || 100);
+          // Les colis jusqu'à 5 kg sont inclus dans le tarif de base (pas de supplément).
+          // Seul le poids excédentaire au-delà de 5 kg est facturé au tarif par kg.
+          const extraWeight = Math.max(0, currentWeight - 5);
+          const weightKgRate = commissionSettings?.tarifPoids !== undefined 
+            ? Number(commissionSettings.tarifPoids) 
+            : (Number(defaultPricing.motoWeightCost) || 0);
+          basePrice += extraWeight * weightKgRate;
         }
 
         if (isUrgent) {
